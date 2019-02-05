@@ -1,5 +1,3 @@
-
-
 #define NOMINMAX
 #define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN
@@ -7,12 +5,11 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #pragma warning(push, 0)
 #include "vulkan/vulkan.h"
-
-
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #pragma warning(pop)
+
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -26,25 +23,22 @@
 #include <set>
 
 #define WNDCLASS_NAME L"WindowClass"
-const int WIDTH = 1280;
-const int HEIGHT = 960;
+#define WINDOW_TITLE L"Rendering Prototype"
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
-
-const std::vector<const char*> validationLayers = {
-    "VK_LAYER_LUNARG_standard_validation"
-};
-
-const std::vector<const char*> deviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
+#define MAX_FRAMES_IN_FLIGHT 2
+static char *validation_layers[] = {"VK_LAYER_LUNARG_standard_validation"};
+static char *device_extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 #ifdef NDEBUG
-const bool enableValidationLayers = false;
+static bool enableValidationLayers = false;
+static char *instance_extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME};
 #else
-const bool enableValidationLayers = true;
+static bool enableValidationLayers = true;
+static char *instance_extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
 #endif
-
+static uint32_t instance_extension_count = sizeof(instance_extensions) / sizeof(char *);
+static uint32_t device_extension_count = sizeof(device_extensions) / sizeof(char *);
+static uint32_t validation_layer_count = sizeof(validation_layers) / sizeof(char *);
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
 HWND InitWindow(HINSTANCE instance, int command_show)
@@ -60,7 +54,7 @@ HWND InitWindow(HINSTANCE instance, int command_show)
     RegisterClassExW(&window_class);
     
     HWND window = CreateWindowExW(WS_EX_OVERLAPPEDWINDOW, 
-                                  WNDCLASS_NAME, L"Rendering Prototype", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, instance, NULL);
+                                  WNDCLASS_NAME, WINDOW_TITLE,  WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, instance, NULL);
     ShowWindow(window, command_show);
     return window;
 }
@@ -379,29 +373,27 @@ class HelloTriangleApplication {
     }
     
     void createInstance() {
-        if (enableValidationLayers && !checkValidationLayerSupport()) {
+        if (enableValidationLayers && !CheckValidationLayerSupport()) {
             throw std::runtime_error("validation layers requested, but not available!");
         }
         
         VkApplicationInfo appInfo = {};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName = "Hello Triangle";
+        appInfo.pApplicationName = "Rendering Prototype";
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.pEngineName = "No Engine";
+        appInfo.pEngineName = "NYCE";
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
         appInfo.apiVersion = VK_API_VERSION_1_0;
         
         VkInstanceCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
-        
-        auto extensions = getRequiredExtensions();
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-        createInfo.ppEnabledExtensionNames = extensions.data();
+        createInfo.enabledExtensionCount = instance_extension_count;
+        createInfo.ppEnabledExtensionNames = instance_extensions;
         
         if (enableValidationLayers) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
+            createInfo.enabledLayerCount = validation_layer_count;
+            createInfo.ppEnabledLayerNames = validation_layers;
         } else {
             createInfo.enabledLayerCount = 0;
         }
@@ -485,15 +477,15 @@ class HelloTriangleApplication {
         
         createInfo.pEnabledFeatures = &deviceFeatures;
         
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-        
+        createInfo.enabledExtensionCount = device_extension_count;
+        createInfo.ppEnabledExtensionNames = device_extensions;
         if (enableValidationLayers) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
+            createInfo.enabledLayerCount = validation_layer_count;
+            createInfo.ppEnabledLayerNames = validation_layers;
         } else {
             createInfo.enabledLayerCount = 0;
         }
+        
         
         if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
             throw std::runtime_error("failed to create logical device!");
@@ -1148,7 +1140,7 @@ class HelloTriangleApplication {
     bool isDeviceSuitable(VkPhysicalDevice device) {
         QueueFamilyIndices indices = findQueueFamilies(device);
         
-        bool extensionsSupported = checkDeviceExtensionSupport(device);
+        bool extensionsSupported = CheckDeviceExtensionSupport(device);
         
         bool swapChainAdequate = false;
         if (extensionsSupported) {
@@ -1159,20 +1151,27 @@ class HelloTriangleApplication {
         return indices.isComplete() && extensionsSupported && swapChainAdequate;
     }
     
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
-        uint32_t extensionCount;
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-        
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-        
-        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-        
-        for (const auto& extension : availableExtensions) {
-            requiredExtensions.erase(extension.extensionName);
+    bool CheckDeviceExtensionSupport(VkPhysicalDevice device) {
+        uint32_t available_count;
+        VkExtensionProperties *available_extensions;
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &available_count, nullptr);
+        available_extensions = (VkExtensionProperties *)malloc(sizeof(VkExtensionProperties) * available_count);
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &available_count, available_extensions);
+        bool found = false;
+        for (uint32_t i = 0; i < device_extension_count; ++i) {
+            for (uint32_t j = 0; j < available_count; ++j) {
+                if (strcmp(device_extensions[i], available_extensions[j].extensionName) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                free(available_extensions);
+                return false;
+            }
         }
-        
-        return requiredExtensions.empty();
+        free(available_extensions);
+        return true;
     }
     
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
@@ -1207,39 +1206,28 @@ class HelloTriangleApplication {
         return indices;
     }
     
-    std::vector<const char*> getRequiredExtensions() {
+    bool CheckValidationLayerSupport() {
+        uint32_t available_count;
+        VkLayerProperties *available_layers;
+        vkEnumerateInstanceLayerProperties(&available_count, nullptr);
+        available_layers = (VkLayerProperties *)malloc(sizeof(VkLayerProperties) * available_count);
+        vkEnumerateInstanceLayerProperties(&available_count, available_layers);
         
-        std::vector<const char*> extensions;
-        extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-        extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-        if (enableValidationLayers) {
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        }
-        return extensions;
-    }
-    
-    bool checkValidationLayerSupport() {
-        uint32_t layerCount;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-        
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-        
-        for (const char* layerName : validationLayers) {
-            bool layerFound = false;
-            
-            for (const auto& layerProperties : availableLayers) {
-                if (strcmp(layerName, layerProperties.layerName) == 0) {
-                    layerFound = true;
+        bool found = false;
+        for (uint32_t i = 0; i < validation_layer_count; ++i) {
+            for (uint32_t j = 0; j < available_count; ++j) {
+                if (strcmp(validation_layers[i], available_layers[j].layerName) == 0) {
+                    found= true;
                     break;
                 }
             }
             
-            if (!layerFound) {
+            if (!found) {
+                free(available_layers);
                 return false;
             }
         }
-        
+        free(available_layers);
         return true;
     }
     
