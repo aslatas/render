@@ -1,17 +1,18 @@
 
 #pragma once
+
 #define NOMINMAX
 #define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN
 #define UNICODE
+#define _CRT_SECURE_NO_WARNINGS
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <windows.h>
-#include <iostream>
-#include <chrono>
-#include <cstring>
-#include <cstdlib>
+#include <stdint.h>
 
 #define WNDCLASS_NAME L"WindowClass"
 #define WINDOW_TITLE L"Rendering Prototype"
+#define VULKAN_LIB_PATH L"vulkan-1.dll"
 
 // Struct for window handle and state info.
 struct Win32WindowInfo
@@ -44,3 +45,7 @@ void Win32ShowWindow();
 
 // Gets the window handle.
 HWND Win32GetWindowHandle();
+
+// Helpers to load vulkan library.
+void Win32LoadVulkanLibrary();
+void Win32FreeVulkanLibrary();

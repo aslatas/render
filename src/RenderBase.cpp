@@ -1,6 +1,10 @@
 
 #include "RenderBase.h"
+#include "VulkanFunctions.h"
+#include <cstring>
+#include <cstdio>
 #include <iostream>
+#include <chrono>
 
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
@@ -34,11 +38,17 @@ char *ReadShaderFile(char *path, uint32_t *length)
 
 void InitializeVulkan()
 {
+    Win32LoadVulkanLibrary();
+    LoadVulkanGlobalFunctions();
     CreateInstance();
+    LoadVulkanInstanceFunctions(vulkan_info.instance);
+    LoadVulkanInstanceExtensionFunctions(vulkan_info.instance);
     if (enable_validation) CreateDebugMessenger();
     CreateSurface();
     ChoosePhysicalDevice();
     CreateLogicalDevice();
+    LoadVulkanDeviceFunctions(vulkan_info.logical_device);
+    LoadVulkanDeviceExtensionFunctions(vulkan_info.logical_device);
     CreateSwapchain();
     CreateImageviews();
     CreateRenderpass();
@@ -55,13 +65,6 @@ void InitializeVulkan()
     CreateSyncPrimitives();
 }
 
-void ShutdownVulkan()
-{
-    // TODO(Matt): IMPORTANT: actually free memory and shutdown vulkan.
-    // Right now we are letting the OS do it.
-    vkDeviceWaitIdle(vulkan_info.logical_device);
-    CleanupSwapchain();
-}
 void CreateInstance()
 {
     // TODO(Matt): Better handling of app/engine name and versions.
@@ -98,37 +101,17 @@ void CreateInstance()
         create_info.enabledLayerCount = 0;
     }
     
-    if (vkCreateInstance(&create_info, nullptr, &vulkan_info.vulkan_instance) != VK_SUCCESS) {
+    if (vkCreateInstance(&create_info, nullptr, &vulkan_info.instance) != VK_SUCCESS) {
         std::cerr << "Unable to create Vulkan Instance!" << std::endl;
         exit(EXIT_FAILURE);
     }
     
 }
 
-// TODO(Matt): Factor me as part of dynamic vulkan library load.
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* create_info, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* messenger) {
-    PFN_vkCreateDebugUtilsMessengerEXT fp = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (fp != nullptr) {
-        return fp(instance, create_info, allocator, messenger);
-    } else {
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-}
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* allocator)
-{
-    PFN_vkDestroyDebugUtilsMessengerEXT fp = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (fp != nullptr) {
-        fp(instance, messenger, allocator);
-    }
-}
-
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
     std::cerr << "validation: " << callback_data->pMessage << std::endl;
     return VK_FALSE;
 }
-
 
 void CreateDebugMessenger()
 {
@@ -138,7 +121,7 @@ void CreateDebugMessenger()
     create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     create_info.pfnUserCallback = DebugMessenger;
     
-    if (CreateDebugUtilsMessengerEXT(vulkan_info.vulkan_instance, &create_info, nullptr, &vulkan_info.debug_messenger) != VK_SUCCESS) {
+    if (vkCreateDebugUtilsMessengerEXT(vulkan_info.instance, &create_info, nullptr, &vulkan_info.debug_messenger) != VK_SUCCESS) {
         std::cerr << "Unable to create debug messenger!" << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -151,7 +134,7 @@ void CreateSurface()
     create_info.hwnd = Win32GetWindowHandle();
     create_info.hinstance = GetModuleHandle(nullptr);
     
-    if (vkCreateWin32SurfaceKHR(vulkan_info.vulkan_instance, &create_info, nullptr, &vulkan_info.surface) != VK_SUCCESS) {
+    if (vkCreateWin32SurfaceKHR(vulkan_info.instance, &create_info, nullptr, &vulkan_info.surface) != VK_SUCCESS) {
         std::cerr << "Unable to create window surface!" << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -166,14 +149,14 @@ void ChoosePhysicalDevice()
     // First, query available devices.
     uint32_t available_count = 0;
     VkPhysicalDevice *available_devices;
-    vkEnumeratePhysicalDevices(vulkan_info.vulkan_instance, &available_count, nullptr);
+    vkEnumeratePhysicalDevices(vulkan_info.instance, &available_count, nullptr);
     
     if (available_count == 0) {
         std::cerr << "No Vulkan-supported devices found!" << std::endl;
         exit(EXIT_FAILURE);
     }
     available_devices = (VkPhysicalDevice *)malloc(sizeof(VkPhysicalDevice) * available_count);
-    vkEnumeratePhysicalDevices(vulkan_info.vulkan_instance, &available_count, available_devices);
+    vkEnumeratePhysicalDevices(vulkan_info.instance, &available_count, available_devices);
     // Scan the list for suitable devices.
     for (uint32_t i = 0; i < available_count; ++i) {
         VkPhysicalDevice device = available_devices[i];
@@ -1064,6 +1047,14 @@ void CleanupSwapchain() {
     free(swapchain_info.images);
 }
 
+void ShutdownVulkan()
+{
+    // TODO(Matt): IMPORTANT: actually free memory and shutdown vulkan.
+    // Right now we are letting the OS do it.
+    vkDeviceWaitIdle(vulkan_info.logical_device);
+    CleanupSwapchain();
+    Win32FreeVulkanLibrary();
+}
 
 void UpdateUniforms(uint32_t current_image) {
     static auto start_time = std::chrono::high_resolution_clock::now();
@@ -1082,7 +1073,6 @@ void UpdateUniforms(uint32_t current_image) {
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(vulkan_info.logical_device, buffer_info.uniform_buffers_memory[current_image]);
 }
-
 
 bool CheckValidationLayerSupport(VkLayerProperties available[], uint32_t available_count)
 {
@@ -1129,4 +1119,57 @@ bool CheckDeviceExtensionSupport(VkExtensionProperties available[], uint32_t ava
     return true;
 }
 
+void LoadVulkanGlobalFunctions()
+{
+#define VK_GLOBAL_FUNCTION(name)                                           \
+    if (!(name = (PFN_##name)vkGetInstanceProcAddr(nullptr, #name))) {         \
+        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
+        exit(EXIT_FAILURE);                                                    \
+    }
+    
+#include "VulkanFunctions.inl"
+}
 
+void LoadVulkanInstanceFunctions(VkInstance instance)
+{
+#define VK_INSTANCE_FUNCTION(name)                                         \
+    if (!(name = (PFN_##name)vkGetInstanceProcAddr(instance, #name))) {        \
+        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
+        exit(EXIT_FAILURE);                                                    \
+    }
+    
+#include "VulkanFunctions.inl"
+}
+
+void LoadVulkanInstanceExtensionFunctions(VkInstance instance)
+{
+#define VK_INSTANCE_FUNCTION_EXT(name)                                     \
+    if (!(name = (PFN_##name)vkGetInstanceProcAddr(instance, #name))) {        \
+        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
+        exit(EXIT_FAILURE);                                                    \
+    }
+    
+#include "VulkanFunctions.inl"
+}
+
+void LoadVulkanDeviceFunctions(VkDevice device)
+{
+#define VK_DEVICE_FUNCTION(name)                                           \
+    if (!(name = (PFN_##name)vkGetDeviceProcAddr(device, #name))) {          \
+        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
+        exit(EXIT_FAILURE);                                                    \
+    }
+    
+#include "VulkanFunctions.inl"
+}
+
+void LoadVulkanDeviceExtensionFunctions(VkDevice device)
+{
+#define VK_DEVICE_FUNCTION_EXT(name)                                       \
+    if (!(name = (PFN_##name)vkGetDeviceProcAddr(device, #name))) {            \
+        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
+        exit(EXIT_FAILURE);                                                    \
+    }
+    
+#include "VulkanFunctions.inl"
+}

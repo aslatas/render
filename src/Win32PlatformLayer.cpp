@@ -1,8 +1,12 @@
 
-#include "WindowBase.h"
+#include "Win32PlatformLayer.h"
+#include "Main.h"
+#include "VulkanFunctions.h"
+#include <iostream>
+#include <cstdlib>
 
 static Win32WindowInfo window_info = {};
-
+static HMODULE vulkan_library = nullptr;
 void Win32CreateWindow()
 {
     // TODO(Matt): App icon loading.
@@ -103,4 +107,35 @@ void Win32ShowWindow()
 HWND Win32GetWindowHandle()
 {
     return window_info.window_handle;
+}
+
+void Win32LoadVulkanLibrary()
+{
+    vulkan_library = LoadLibrary(VULKAN_LIB_PATH);
+    if (!vulkan_library) {
+        std::cerr << "Unable to load vulkan library!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+#define VK_EXPORTED_FUNCTION(name)                                         \
+    if (!(name = (PFN_##name)GetProcAddress(vulkan_library, #name))) {         \
+        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
+        exit(EXIT_FAILURE);                                                    \
+    }
+    
+#include "VulkanFunctions.inl"
+}
+
+void Win32FreeVulkanLibrary()
+{
+    FreeLibrary(vulkan_library);
+}
+
+int WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int command_show)
+{
+    UNREFERENCED_PARAMETER(instance);
+    UNREFERENCED_PARAMETER(prev_instance);
+    UNREFERENCED_PARAMETER(command_line);
+    UNREFERENCED_PARAMETER(command_show);
+    // Abstract past the platform specific launch point.
+    return Main();
 }

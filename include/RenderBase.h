@@ -1,14 +1,14 @@
 
 #pragma once
-#pragma warning(push, 0)
-#define _CRT_SECURE_NO_WARNINGS
+
+#include "Win32PlatformLayer.h"
+#define VK_NO_PROTOTYPES
 #define VK_USE_PLATFORM_WIN32_KHR
-#include "WindowBase.h"
 #include "vulkan/vulkan.h"
 #define GLM_FORCE_RADIANS
+#pragma warning(push, 0)
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-
 #pragma warning(pop)
 
 // TODO(Matt): Move most of these vars into an ini file or something.
@@ -34,7 +34,7 @@ static uint32_t validation_layer_count = ARRAYSIZE(validation_layers);
 // Stores vulkan instance/device information not dependent on swapchain.
 struct VulkanInfo
 {
-    VkInstance vulkan_instance;
+    VkInstance instance;
     VkPhysicalDevice physical_device;
     VkDevice logical_device;
     VkSurfaceKHR surface;
@@ -105,13 +105,6 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* create_info, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* messenger);
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* allocator);
-
-// Debug callback, prints validation layer messages to the log file.
-static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
-
 // Reads a shader file as a heap allocated byte array.
 // TODO(Matt): Merge me with the shader module creation, to simplify the usage code.
 char *ReadShaderFile(char *path, uint32_t *length);
@@ -156,3 +149,10 @@ uint32_t FindMemoryType(uint32_t type, VkMemoryPropertyFlags properties);
 bool CheckValidationLayerSupport(VkLayerProperties available[], uint32_t available_count);
 bool CheckInstanceExtensionSupport(VkExtensionProperties available[], uint32_t available_count);
 bool CheckDeviceExtensionSupport(VkExtensionProperties available[], uint32_t available_count);
+
+// Loads vulkan functions dynamically.
+void LoadVulkanGlobalFunctions();
+void LoadVulkanInstanceFunctions(VkInstance instance);
+void LoadVulkanInstanceExtensionFunctions(VkInstance instance);
+void LoadVulkanDeviceFunctions(VkDevice device);
+void LoadVulkanDeviceExtensionFunctions(VkDevice device);
