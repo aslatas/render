@@ -2,6 +2,7 @@
 // Move surface creation and surface size query out.
 #include "RenderBase.h"
 #include "VulkanFunctions.h"
+#include "MathTypes.h"
 #include <cstring>
 // TODO(Matt): Move Shader file read somewhere else.
 #include <cstdio>
@@ -14,6 +15,7 @@ static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 static BufferInfo buffer_info = {};
 
+VertexX verts[4] = {};
 // TODO(Matt): Do something different for these, obviously.
 Vertex vertices[] = {
     {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -42,6 +44,15 @@ char *ReadShaderFile(char *path, uint32_t *length)
 
 void InitializeVulkan()
 {
+    verts[0].position = {-0.5f, -0.5f, 0.0f};
+    verts[1].position = { 0.5f, -0.5f, 0.0f};
+    verts[2].position = { 0.5f,  0.5f, 0.0f};
+    verts[3].position = {-0.5f,  0.5f, 0.0f};
+    verts[0].color = {1.0f, 0.0f, 0.0f};
+    verts[1].color = {0.0f, 1.0f, 0.0f};
+    verts[2].color = {0.0f, 0.0f, 1.0f};
+    verts[3].color = {1.0f, 1.0f, 1.0f};
+    
     // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
     LoadVulkanGlobalFunctions();
