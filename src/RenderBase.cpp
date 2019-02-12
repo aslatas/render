@@ -1,9 +1,13 @@
-
+// TODO(Matt): There are a few platform specific bits lingering in here.
+// Move surface creation and surface size query out.
 #include "RenderBase.h"
 #include "VulkanFunctions.h"
 #include <cstring>
+// TODO(Matt): Move Shader file read somewhere else.
 #include <cstdio>
 #include <iostream>
+// TODO(Matt): Is chrono the best (read: lightweight) timing system?
+// For Windows, what about QueryPerformanceCounter()?
 #include <chrono>
 
 static VulkanInfo vulkan_info = {};
@@ -38,6 +42,7 @@ char *ReadShaderFile(char *path, uint32_t *length)
 
 void InitializeVulkan()
 {
+    // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
     LoadVulkanGlobalFunctions();
     CreateInstance();
@@ -56,6 +61,7 @@ void InitializeVulkan()
     CreatePipeline();
     CreateFramebuffers();
     CreateCommandPool();
+    // TODO(Matt): Find a different solution for buffer allocation.
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateUniformBuffers();
@@ -67,7 +73,7 @@ void InitializeVulkan()
 
 void CreateInstance()
 {
-    // TODO(Matt): Better handling of app/engine name and versions.
+    // TODO(Matt): Better handling of app/engine name and versions. ini?
     if (enable_validation) {
         uint32_t available_count;
         VkLayerProperties *available;
@@ -108,6 +114,7 @@ void CreateInstance()
     
 }
 
+// Debug callback relays messages from validation layers.
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
     std::cerr << "validation: " << callback_data->pMessage << std::endl;
     return VK_FALSE;
@@ -127,6 +134,7 @@ void CreateDebugMessenger()
     }
 }
 
+// TODO(Matt): Platform specific.
 void CreateSurface()
 {
     VkWin32SurfaceCreateInfoKHR create_info = {};
@@ -339,7 +347,7 @@ static void ChooseSwapchainExtent()
     if (capabilities.currentExtent.width != 0xffffffff) {
         swapchain_info.extent = capabilities.currentExtent;
     } else {
-        // TODO(Matt): Windows only code, pull out to platform layer.
+        // TODO(Matt): Platform specific.
         uint32_t width, height;
         Win32GetSurfaceSize(&width, &height);
         VkExtent2D extent = {width, height};
@@ -360,6 +368,8 @@ static void ChooseSwapchainExtent()
     }
 }
 
+// TODO(Matt): Support swapchain creation while the old one still exists.
+// Defer destruction of the old one to speed it up.
 void CreateSwapchain() {
     ChooseSurfaceFormat();
     ChoosePresentMode();
@@ -426,7 +436,6 @@ void CreateImageviews()
         }
     }
 }
-
 
 void CreateRenderpass() {
     VkAttachmentDescription color_attachment = {};
@@ -506,6 +515,7 @@ static VkShaderModule CreateShaderModule(char *code, uint32_t length) {
     return module;
 }
 
+// TODO(Matt): Rework shader loading/swapping once geometry is sorted.
 void CreatePipeline() {
     uint32_t vert_length;
     uint32_t frag_length;
@@ -1050,12 +1060,14 @@ void CleanupSwapchain() {
 void ShutdownVulkan()
 {
     // TODO(Matt): IMPORTANT: actually free memory and shutdown vulkan.
-    // Right now we are letting the OS do it.
+    // Right now we are letting the OS do a lot.
     vkDeviceWaitIdle(vulkan_info.logical_device);
     CleanupSwapchain();
+    // TODO(Matt): Platform specific.
     Win32FreeVulkanLibrary();
 }
 
+// TODO(Matt): Figure out uniforms in general.
 void UpdateUniforms(uint32_t current_image) {
     static auto start_time = std::chrono::high_resolution_clock::now();
     

@@ -1,12 +1,16 @@
 
 #include "Win32PlatformLayer.h"
+// TODO(Matt): This is all to call Main(). Maybe set up a window callback 
+// to avoid this include.
 #include "Main.h"
 #include "VulkanFunctions.h"
 #include <iostream>
 #include <cstdlib>
 
 static Win32WindowInfo window_info = {};
+// TODO(Matt): This should maybe go in the window struct? Maybe not.
 static HMODULE vulkan_library = nullptr;
+
 void Win32CreateWindow()
 {
     // TODO(Matt): App icon loading.
@@ -26,6 +30,9 @@ void Win32CreateWindow()
     window_info.window_handle = window;
 }
 
+// TODO(Matt): I think swapchain is getting remade a bunch on startup,
+// because of event mis-fires.
+// TODO(Matt): Handle some actual keyboard/mouse input here.
 LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch(message) {
@@ -130,6 +137,8 @@ void Win32FreeVulkanLibrary()
     FreeLibrary(vulkan_library);
 }
 
+// Actual program launch point. Calls renderer main.
+// TODO(Matt): Rename Main.h/cpp and Main() to be less confusing.
 int WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int command_show)
 {
     UNREFERENCED_PARAMETER(instance);

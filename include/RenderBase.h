@@ -3,6 +3,7 @@
 
 #include "Win32PlatformLayer.h"
 #define VK_NO_PROTOTYPES
+// TODO(Matt): Platform specific. Probably should be a compiler switch.
 #define VK_USE_PLATFORM_WIN32_KHR
 #include "vulkan/vulkan.h"
 #define GLM_FORCE_RADIANS
@@ -12,6 +13,8 @@
 #pragma warning(pop)
 
 // TODO(Matt): Move most of these vars into an ini file or something.
+// TODO(Matt): Whip up a heap alloc'd array, or grab stb stretchybuffer.
+// There's a lot of easy to leak heap memory in here.
 #define MAX_FRAMES_IN_FLIGHT 2
 static char *validation_layers[] = {"VK_LAYER_LUNARG_standard_validation"};
 static char *device_extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -143,7 +146,6 @@ void RecreateSwapchain();
 void CleanupSwapchain();
 void UpdateUniforms(uint32_t image_index);
 void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
-
 void CopyBuffer(VkBuffer source, VkBuffer destination, VkDeviceSize size);
 uint32_t FindMemoryType(uint32_t type, VkMemoryPropertyFlags properties);
 bool CheckValidationLayerSupport(VkLayerProperties available[], uint32_t available_count);
