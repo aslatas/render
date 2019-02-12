@@ -2,11 +2,11 @@
 // Move surface creation and surface size query out.
 #include "RenderBase.h"
 #include "VulkanFunctions.h"
-#include "MathTypes.h"
 #include <cstring>
 // TODO(Matt): Move Shader file read somewhere else.
 #include <cstdio>
 #include <iostream>
+#include <cstdlib>
 // TODO(Matt): Is chrono the best (read: lightweight) timing system?
 // For Windows, what about QueryPerformanceCounter()?
 #include <chrono>
@@ -15,15 +15,9 @@ static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 static BufferInfo buffer_info = {};
 
-VertexX verts[4] = {};
-// TODO(Matt): Do something different for these, obviously.
-Vertex vertices[] = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
-};
+Vertex vertices[4] = {};
 uint32_t vertex_count = ARRAYSIZE(vertices);
+// TODO(Matt): Do something different for these, obviously.
 uint16_t indices[] = {
     0, 1, 2, 2, 3, 0
 };
@@ -44,15 +38,14 @@ char *ReadShaderFile(char *path, uint32_t *length)
 
 void InitializeVulkan()
 {
-    verts[0].position = {-0.5f, -0.5f, 0.0f};
-    verts[1].position = { 0.5f, -0.5f, 0.0f};
-    verts[2].position = { 0.5f,  0.5f, 0.0f};
-    verts[3].position = {-0.5f,  0.5f, 0.0f};
-    verts[0].color = {1.0f, 0.0f, 0.0f};
-    verts[1].color = {0.0f, 1.0f, 0.0f};
-    verts[2].color = {0.0f, 0.0f, 1.0f};
-    verts[3].color = {1.0f, 1.0f, 1.0f};
-    
+    vertices[0].position = {-0.5f, -0.5f, 0.0f};
+    vertices[1].position = { 0.5f, -0.5f, 0.0f};
+    vertices[2].position = { 0.5f,  0.5f, 0.0f};
+    vertices[3].position = {-0.5f,  0.5f, 0.0f};
+    vertices[0].color = {1.0f, 0.0f, 0.0f};
+    vertices[1].color = {0.0f, 1.0f, 0.0f};
+    vertices[2].color = {0.0f, 0.0f, 1.0f};
+    vertices[3].color = {1.0f, 1.0f, 1.0f};
     // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
     LoadVulkanGlobalFunctions();
@@ -563,13 +556,13 @@ void CreatePipeline() {
     VkVertexInputAttributeDescription attribute_descriptions[2];
     attribute_descriptions[0].binding = 0;
     attribute_descriptions[0].location = 0;
-    attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attribute_descriptions[0].offset = 0;
     
     attribute_descriptions[1].binding = 0;
     attribute_descriptions[1].location = 1;
     attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attribute_descriptions[1].offset = sizeof(glm::vec2);
+    attribute_descriptions[1].offset = sizeof(glm::vec3) * 3;
     
     input_create_info.vertexBindingDescriptionCount = 1;
     input_create_info.vertexAttributeDescriptionCount = 2;
@@ -704,7 +697,7 @@ void CreateCommandPool()
 
 void CreateVertexBuffer()
 {
-    VkDeviceSize buffer_size = sizeof(vertices[0]) * vertex_count;
+    VkDeviceSize buffer_size = sizeof(Vertex) * vertex_count;
     
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -1086,6 +1079,7 @@ void UpdateUniforms(uint32_t current_image) {
     float run_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
     
     UniformBufferObject ubo = {};
+    
     ubo.model = glm::rotate(glm::mat4(1.0f), run_time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swapchain_info.extent.width / (float) swapchain_info.extent.height, 0.1f, 10.0f);

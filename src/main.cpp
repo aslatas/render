@@ -1,6 +1,6 @@
 
 #include "Main.h"
-
+#include <cstdlib>
 void ResizeCallback(uint32_t width, uint32_t height)
 {
     RecreateSwapchain();

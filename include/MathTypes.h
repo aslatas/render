@@ -1,4 +1,8 @@
-
+// NOTE(Matt): This file isn't being used. I've toyed with the idea of using
+// custom matrix and vector types, but I'm leaning instead towards stripping 
+// out all the un-used parts of GLM. The math isn't too bad, but there are
+// so many ways to access and modify a matrix that I figure letting someone
+// else do all the C++ type tomfoolery might be the best plan.
 #pragma once
 
 struct Vec2
@@ -60,14 +64,13 @@ struct Vec4
     };
 };
 
-// TODO(Matt): Find a way to ensure that this doesn't get padded. It doesn't on my platform but I imagine there are some ways to force this.
-// Vertex struct, 64 bytes. (To be renamed once GLM is out)
-struct VertexX
+// Tricky to get initializers and accessors here - by row/column, plus
+// special matrices like identity.
+struct Mat4
 {
-    Vec3 position;
-    Vec3 normal;
-    Vec3 tangent;
-    Vec3 color;
-    Vec2 uv0;
-    Vec2 uv1;
+    union
+    {
+        Vec4 rows[4];
+        float data[4][4];
+    };
 };

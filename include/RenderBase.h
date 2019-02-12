@@ -10,8 +10,6 @@
 #pragma warning(push, 0)
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#pragma warning(pop)
-
 // TODO(Matt): Move most of these vars into an ini file or something.
 // TODO(Matt): Whip up a heap alloc'd array, or grab stb stretchybuffer.
 // There's a lot of easy to leak heap memory in here.
@@ -95,12 +93,17 @@ struct BufferInfo
     VkDeviceMemory *uniform_buffers_memory;
 };
 
-// TODO(Matt): Decide on a vertex struct, multiple of 64 bytes.
-struct Vertex {
-    glm::vec2 pos;
+// TODO(Matt): Check out what other people are using here - maybe move up to
+// 128 bytes?
+struct Vertex
+{
+    glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec3 tangent;
     glm::vec3 color;
+    glm::vec2 uv0;
+    glm::vec2 uv1;
 };
-
 // TODO(Matt): Decide on a standard UBO for opaque objects, or choose a way to link objects with their UBOs.
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
