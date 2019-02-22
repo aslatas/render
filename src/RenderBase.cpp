@@ -1089,11 +1089,16 @@ void UpdateUniforms(uint32_t current_image) {
     float run_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
     
     UniformBufferObject ubo = {};
+    ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
+    ubo.model = glm::rotate(glm::mat4(1.0f), run_time * glm::radians(25.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(ubo.view_position.x, ubo.view_position.y, ubo.view_position.z), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.projection = glm::perspective(glm::radians(45.0f), swapchain_info.extent.width / (float) swapchain_info.extent.height, 0.1f, 10.0f);
+    ubo.projection[1][1] *= -1;
     
-    ubo.model = glm::rotate(glm::mat4(1.0f), run_time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), swapchain_info.extent.width / (float) swapchain_info.extent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
+    ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
+    ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
+    ubo.sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+    ubo.sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
     
     void* data;
     vkMapMemory(vulkan_info.logical_device, buffer_info.uniform_buffers_memory[current_image], 0, sizeof(ubo), 0, &data);
