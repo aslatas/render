@@ -2,6 +2,7 @@
 // Move surface creation and surface size query out.
 #include "RenderBase.h"
 #include "VulkanFunctions.h"
+#include "Shapes.h"
 #include <cstring>
 // TODO(Matt): Move Shader file read somewhere else.
 #include <cstdio>
@@ -15,14 +16,7 @@ static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 static BufferInfo buffer_info = {};
 
-Vertex vertices[4] = {};
-uint32_t vertex_count = ARRAYSIZE(vertices);
-// TODO(Matt): Do something different for these, obviously.
-uint16_t indices[] = {
-    0, 1, 2, 2, 3, 0
-};
-uint32_t index_count = ARRAYSIZE(indices);
-
+static Model *box;
 char *ReadShaderFile(char *path, uint32_t *length)
 {
     FILE * file = fopen (path, "rb");
@@ -38,14 +32,10 @@ char *ReadShaderFile(char *path, uint32_t *length)
 
 void InitializeVulkan()
 {
-    vertices[0].position = {-0.5f, -0.5f, 0.0f};
-    vertices[1].position = { 0.5f, -0.5f, 0.0f};
-    vertices[2].position = { 0.5f,  0.5f, 0.0f};
-    vertices[3].position = {-0.5f,  0.5f, 0.0f};
-    vertices[0].color = {1.0f, 0.0f, 0.0f};
-    vertices[1].color = {0.0f, 1.0f, 0.0f};
-    vertices[2].color = {0.0f, 0.0f, 1.0f};
-    vertices[3].color = {1.0f, 1.0f, 1.0f};
+    glm::vec3 box_pos = glm::vec3(-0.5f, -0.5f, -0.5f);
+    glm::vec3 box_ext = glm::vec3(1.0f, 1.0f, 1.0f);
+    box = CreateBox(box_pos, box_ext);
+    
     // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
     LoadVulkanGlobalFunctions();
@@ -553,7 +543,7 @@ void CreatePipeline() {
     binding_description.stride = sizeof(Vertex);
     binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     
-    VkVertexInputAttributeDescription attribute_descriptions[2];
+    VkVertexInputAttributeDescription attribute_descriptions[6];
     attribute_descriptions[0].binding = 0;
     attribute_descriptions[0].location = 0;
     attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -562,10 +552,30 @@ void CreatePipeline() {
     attribute_descriptions[1].binding = 0;
     attribute_descriptions[1].location = 1;
     attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attribute_descriptions[1].offset = sizeof(glm::vec3) * 3;
+    attribute_descriptions[1].offset = 12;
+    
+    attribute_descriptions[2].binding = 0;
+    attribute_descriptions[2].location = 2;
+    attribute_descriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    attribute_descriptions[2].offset = 24;
+    
+    attribute_descriptions[3].binding = 0;
+    attribute_descriptions[3].location = 3;
+    attribute_descriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
+    attribute_descriptions[3].offset = 40;
+    
+    attribute_descriptions[4].binding = 0;
+    attribute_descriptions[4].location = 4;
+    attribute_descriptions[4].format = VK_FORMAT_R32G32_SFLOAT;
+    attribute_descriptions[4].offset = 48;
+    
+    attribute_descriptions[5].binding = 0;
+    attribute_descriptions[5].location = 5;
+    attribute_descriptions[5].format = VK_FORMAT_R32G32_SFLOAT;
+    attribute_descriptions[5].offset = 56;
     
     input_create_info.vertexBindingDescriptionCount = 1;
-    input_create_info.vertexAttributeDescriptionCount = 2;
+    input_create_info.vertexAttributeDescriptionCount = 6;
     input_create_info.pVertexBindingDescriptions = &binding_description;
     input_create_info.pVertexAttributeDescriptions = attribute_descriptions;
     
@@ -697,7 +707,7 @@ void CreateCommandPool()
 
 void CreateVertexBuffer()
 {
-    VkDeviceSize buffer_size = sizeof(Vertex) * vertex_count;
+    VkDeviceSize buffer_size = sizeof(Vertex) * box->vertex_count;
     
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -705,7 +715,7 @@ void CreateVertexBuffer()
     
     void* data;
     vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, vertices, (size_t) buffer_size);
+    memcpy(data, box->vertices, (size_t) buffer_size);
     vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
     
     CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer_info.vertex_buffer, buffer_info.vertex_buffer_memory);
@@ -718,7 +728,7 @@ void CreateVertexBuffer()
 
 void CreateIndexBuffer()
 {
-    VkDeviceSize buffer_size = sizeof(indices[0]) * index_count;
+    VkDeviceSize buffer_size = sizeof(uint32_t) * box->index_count;
     
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -726,7 +736,7 @@ void CreateIndexBuffer()
     
     void *data;
     vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, indices, (size_t) buffer_size);
+    memcpy(data, box->indices, (size_t) buffer_size);
     vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
     
     CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer_info.index_buffer, buffer_info.index_buffer_memory);
@@ -923,11 +933,11 @@ void CreateCommandBuffers()
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(swapchain_info.command_buffers[i], 0, 1, vertex_buffers, offsets);
         
-        vkCmdBindIndexBuffer(swapchain_info.command_buffers[i], buffer_info.index_buffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(swapchain_info.command_buffers[i], buffer_info.index_buffer, 0, VK_INDEX_TYPE_UINT32);
         
         vkCmdBindDescriptorSets(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[i], 0, nullptr);
         
-        vkCmdDrawIndexed(swapchain_info.command_buffers[i], index_count, 1, 0, 0, 0);
+        vkCmdDrawIndexed(swapchain_info.command_buffers[i], box->index_count, 1, 0, 0, 0);
         
         vkCmdEndRenderPass(swapchain_info.command_buffers[i]);
         

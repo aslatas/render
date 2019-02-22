@@ -2,7 +2,7 @@
 ::      Set build tool and library paths as well as compile flags here.       ::
 :: ---------------------------------------------------------------------------::
 set toolpath=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build
-set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo /I ..\..\include ..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp
+set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo /I ..\..\include ..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp ..\..\src\Shapes.cpp
 set debug_flags=/Od /Z7
 set release_flags=/O2 /GL /analyze- /D "NDEBUG"
 set linker_flags=User32.lib Kernel32.lib Gdi32.lib /INCREMENTAL:no /NOLOGO
