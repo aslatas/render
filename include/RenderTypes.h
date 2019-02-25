@@ -66,5 +66,4 @@ struct Model
 
 void DestroyModel(Model *model);
 
-
 Model CreateBox(glm::vec3 position, glm::vec3 extent);

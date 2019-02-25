@@ -1,5 +1,5 @@
 
-#include "Shapes.h"
+#include "RenderTypes.h"
 
 // TODO(Matt): We aren't yet freeing vulkan buffers here.
 void DestroyModel(Model *model)

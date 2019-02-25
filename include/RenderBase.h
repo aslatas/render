@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Win32PlatformLayer.h"
-#include "Shapes.h"
+#include "RenderTypes.h"
 
 // TODO(Matt): Move most of these vars into an ini file or something.
 // TODO(Matt): Whip up a heap alloc'd array, or grab stb stretchybuffer.
@@ -17,6 +17,7 @@ static char *device_extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 #ifdef NDEBUG
 static bool enable_validation = false;
 static char *instance_extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME};
+static PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT = nullptr;
 #else
 static bool enable_validation = true;
 static char *instance_extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_UTILS_EXTENSION_NAME};

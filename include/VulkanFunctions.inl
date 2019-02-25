@@ -33,7 +33,6 @@ VK_INSTANCE_FUNCTION(vkDestroyImageView)
 #ifndef VK_INSTANCE_FUNCTION_EXT
 #define VK_INSTANCE_FUNCTION_EXT(name)
 #endif
-VK_INSTANCE_FUNCTION_EXT(vkCreateDebugUtilsMessengerEXT)
 VK_INSTANCE_FUNCTION_EXT(vkGetPhysicalDeviceSurfaceSupportKHR)
 VK_INSTANCE_FUNCTION_EXT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR)
 VK_INSTANCE_FUNCTION_EXT(vkGetPhysicalDeviceSurfaceFormatsKHR)
@@ -43,6 +42,9 @@ VK_INSTANCE_FUNCTION_EXT(vkGetSwapchainImagesKHR)
 VK_INSTANCE_FUNCTION_EXT(vkCreateWin32SurfaceKHR)
 VK_INSTANCE_FUNCTION_EXT(vkDestroySwapchainKHR)
 VK_INSTANCE_FUNCTION_EXT(vkGetPhysicalDeviceMemoryProperties)
+#ifndef NDEBUG
+VK_INSTANCE_FUNCTION_EXT(vkCreateDebugUtilsMessengerEXT)
+#endif
 #undef VK_INSTANCE_FUNCTION_EXT
 
 #ifndef VK_DEVICE_FUNCTION

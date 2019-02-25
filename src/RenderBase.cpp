@@ -2,7 +2,7 @@
 // Move surface creation and surface size query out.
 #include "RenderBase.h"
 #include "VulkanFunctions.h"
-#include "Shapes.h"
+#include "RenderTypes.h"
 #include <cstring>
 // TODO(Matt): Move Shader file read somewhere else.
 #include <cstdio>

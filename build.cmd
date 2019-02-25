@@ -2,11 +2,12 @@
 ::      Set build tool and library paths as well as compile flags here.       ::
 :: ---------------------------------------------------------------------------::
 set toolpath=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build
-set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo /I ..\..\include ..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp ..\..\src\Shapes.cpp
+set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo /I ..\..\include 
 set debug_flags=/Od /Z7
 set release_flags=/O2 /GL /analyze- /D "NDEBUG"
 set linker_flags=User32.lib Kernel32.lib Gdi32.lib /INCREMENTAL:no /NOLOGO
 
+set source_files=..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp ..\..\src\RenderTypes.cpp
 ::        Run the build tools, but only if they aren't set up already.        ::
 :: ---------------------------------------------------------------------------::
 cl >nul 2>nul
@@ -30,9 +31,9 @@ exit /b 1
 set mode=debug
 if /i $%1 equ $release (set mode=release)
 if %mode% equ debug (
-set flags=%common_flags% %debug_flags%
+set flags=%common_flags% %debug_flags% %source_files%
 ) else (
-set flags=%common_flags% %release_flags%
+set flags=%common_flags% %release_flags% %source_files%
 )
 echo Building in %mode% mode.
 echo.     -Cleaning output directory.
