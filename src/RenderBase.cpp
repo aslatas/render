@@ -17,6 +17,7 @@ static SwapchainInfo swapchain_info = {};
 
 static Model *boxes;
 uint32_t box_count = 3;
+uint32_t material_count = 2;
 char *ReadShaderFile(char *path, uint32_t *length)
 {
     FILE * file = fopen (path, "rb");
@@ -35,11 +36,11 @@ void InitializeVulkan()
     boxes = (Model *)malloc(sizeof(Model) * box_count);
     glm::vec3 box_pos = glm::vec3(-0.5f, -0.5f, -0.5f);
     glm::vec3 box_ext = glm::vec3(0.3f, 0.3f, 0.3f);
-    boxes[0] = CreateBox(box_pos, box_ext);
+    boxes[0] = CreateBox(box_pos, box_ext, 0);
     box_pos = glm::vec3(0.5, 0.5, -0.5);
-    boxes[1] = CreateBox(box_pos, box_ext);
+    boxes[1] = CreateBox(box_pos, box_ext, 1);
     box_pos = glm::vec3(0.0f, 0.0f, 0.5f);
-    boxes[2] = CreateBox(box_pos, box_ext);
+    boxes[2] = CreateBox(box_pos, box_ext, 0);
     
     // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
@@ -57,7 +58,8 @@ void InitializeVulkan()
     CreateImageviews();
     CreateRenderpass();
     CreateDescriptorSetLayout();
-    CreatePipeline();
+    CreatePipeline(&swapchain_info.pipelines[0], "shaders/vert.spv", "shaders/frag.spv");
+    CreatePipeline(&swapchain_info.pipelines[1], "shaders/vert2.spv", "shaders/frag2.spv");
     CreateFramebuffers();
     CreateCommandPool();
     CreateDescriptorPool();
@@ -375,7 +377,7 @@ void CreateSwapchain() {
     ChooseSurfaceFormat();
     ChoosePresentMode();
     ChooseSwapchainExtent();
-    
+    swapchain_info.pipelines = (VkPipeline *)malloc(sizeof(VkPipeline) * material_count);
     VkSwapchainCreateInfoKHR create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     create_info.surface = vulkan_info.surface;
@@ -517,11 +519,11 @@ static VkShaderModule CreateShaderModule(char *code, uint32_t length) {
 }
 
 // TODO(Matt): Rework shader loading/swapping once geometry is sorted.
-void CreatePipeline() {
+void CreatePipeline(VkPipeline *pipeline, char *vert_file, char *frag_file) {
     uint32_t vert_length;
     uint32_t frag_length;
-    char *vert_code = ReadShaderFile("shaders/vert.spv", &vert_length);
-    char *frag_code = ReadShaderFile("shaders/frag.spv", &frag_length);
+    char *vert_code = ReadShaderFile(vert_file, &vert_length);
+    char *frag_code = ReadShaderFile(frag_file, &frag_length);
     if (vert_code == nullptr || frag_code == nullptr) {
         std::cerr << "Unable to read shader files!" << std::endl;
         exit(EXIT_FAILURE);
@@ -665,7 +667,7 @@ void CreatePipeline() {
     pipeline_create_info.subpass = 0;
     pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
     
-    if (vkCreateGraphicsPipelines(vulkan_info.logical_device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, &swapchain_info.pipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(vulkan_info.logical_device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr, pipeline) != VK_SUCCESS) {
         std::cerr << "Unable to create pipeline!" << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -936,7 +938,7 @@ void CreateCommandBuffers()
         
         for (uint32_t model_index = 0; model_index < box_count; ++model_index) {
             
-            vkCmdBindPipeline(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline);
+            vkCmdBindPipeline(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipelines[boxes[model_index].shader_id]);
             VkBuffer vertex_buffers[] = {boxes[model_index].vertex_buffer};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(swapchain_info.command_buffers[i], 0, 1, vertex_buffers, offsets);
@@ -1053,7 +1055,8 @@ void RecreateSwapchain() {
     CreateSwapchain();
     CreateImageviews();
     CreateRenderpass();
-    CreatePipeline();
+    CreatePipeline(&swapchain_info.pipelines[0], "shaders/vert.spv", "shaders/frag.spv");
+    CreatePipeline(&swapchain_info.pipelines[1], "shaders/vert2.spv", "shaders/frag2.spv");
     CreateFramebuffers();
     CreateCommandBuffers();
 }
@@ -1066,7 +1069,10 @@ void CleanupSwapchain() {
     
     vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.command_pool, swapchain_info.image_count, swapchain_info.command_buffers);
     free(swapchain_info.command_buffers);
-    vkDestroyPipeline(vulkan_info.logical_device, swapchain_info.pipeline, nullptr);
+    for (uint32_t i = 0; i < swapchain_info.pipeline_count; ++i) {
+    vkDestroyPipeline(vulkan_info.logical_device, swapchain_info.pipelines[i], nullptr);
+    }
+    free(swapchain_info.pipelines);
     vkDestroyPipelineLayout(vulkan_info.logical_device, swapchain_info.pipeline_layout, nullptr);
     vkDestroyRenderPass(vulkan_info.logical_device, swapchain_info.renderpass, nullptr);
     

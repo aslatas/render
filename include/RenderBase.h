@@ -59,7 +59,8 @@ struct SwapchainInfo
     VkRenderPass renderpass;
     VkDescriptorSetLayout descriptor_set_layout;
     VkPipelineLayout pipeline_layout;
-    VkPipeline pipeline;
+    VkPipeline *pipelines;
+    uint32_t pipeline_count;
     uint32_t current_frame;
     
     // Heap allocated (make sure they get freed):
@@ -72,6 +73,12 @@ struct SwapchainInfo
     VkFence *in_flight_fences;
     VkSemaphore *image_available_semaphores;
     VkSemaphore *render_finished_semaphores;
+};
+
+struct StaticPipelineInfo
+{
+
+
 };
 
 // Reads a shader file as a heap allocated byte array.
@@ -96,7 +103,7 @@ void CreateSwapchain();
 void CreateImageviews();
 void CreateRenderpass();
 void CreateDescriptorSetLayout();
-void CreatePipeline();
+void CreatePipeline(VkPipeline *pipeline, char *vert_code, char *frag_code);
 void CreateFramebuffers();
 void CreateCommandPool();
 void CreateDescriptorPool();

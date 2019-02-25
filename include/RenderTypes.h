@@ -54,6 +54,7 @@ struct Model
     uint32_t index_count;
     UniformBufferObject ubo;
     
+    uint32_t shader_id;
     VkBuffer vertex_buffer;
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
@@ -66,4 +67,4 @@ struct Model
 
 void DestroyModel(Model *model);
 
-Model CreateBox(glm::vec3 position, glm::vec3 extent);
+Model CreateBox(glm::vec3 position, glm::vec3 extent, uint32_t shader_id);
