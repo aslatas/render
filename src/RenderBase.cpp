@@ -14,9 +14,9 @@
 
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
-static BufferInfo buffer_info = {};
 
-static Model *box;
+static Model *boxes;
+uint32_t box_count = 3;
 char *ReadShaderFile(char *path, uint32_t *length)
 {
     FILE * file = fopen (path, "rb");
@@ -32,9 +32,14 @@ char *ReadShaderFile(char *path, uint32_t *length)
 
 void InitializeVulkan()
 {
+    boxes = (Model *)malloc(sizeof(Model) * box_count);
     glm::vec3 box_pos = glm::vec3(-0.5f, -0.5f, -0.5f);
-    glm::vec3 box_ext = glm::vec3(1.0f, 1.0f, 1.0f);
-    box = CreateBox(box_pos, box_ext);
+    glm::vec3 box_ext = glm::vec3(0.3f, 0.3f, 0.3f);
+    boxes[0] = CreateBox(box_pos, box_ext);
+    box_pos = glm::vec3(0.5, 0.5, -0.5);
+    boxes[1] = CreateBox(box_pos, box_ext);
+    box_pos = glm::vec3(0.0f, 0.0f, 0.5f);
+    boxes[2] = CreateBox(box_pos, box_ext);
     
     // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
@@ -55,12 +60,14 @@ void InitializeVulkan()
     CreatePipeline();
     CreateFramebuffers();
     CreateCommandPool();
-    // TODO(Matt): Find a different solution for buffer allocation.
-    CreateVertexBuffer();
-    CreateIndexBuffer();
-    CreateUniformBuffers();
     CreateDescriptorPool();
-    CreateDescriptorSets();
+    // TODO(Matt): Find a different solution for buffer allocation.
+    for (uint32_t i = 0; i < box_count; ++i) {
+        CreateVertexBuffer(&boxes[i]);
+        CreateIndexBuffer(&boxes[i]);
+        CreateUniformBuffers(&boxes[i]);
+        CreateDescriptorSets(&boxes[i]);
+    }
     CreateCommandBuffers();
     CreateSyncPrimitives();
 }
@@ -480,7 +487,7 @@ void CreateDescriptorSetLayout() {
     layout_binding.descriptorCount = 1;
     layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layout_binding.pImmutableSamplers = nullptr;
-    layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     
     VkDescriptorSetLayoutCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -705,9 +712,9 @@ void CreateCommandPool()
     }
 }
 
-void CreateVertexBuffer()
+void CreateVertexBuffer(Model *model)
 {
-    VkDeviceSize buffer_size = sizeof(Vertex) * box->vertex_count;
+    VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
     
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -715,20 +722,20 @@ void CreateVertexBuffer()
     
     void* data;
     vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, box->vertices, (size_t) buffer_size);
+    memcpy(data, model->vertices, (size_t) buffer_size);
     vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
     
-    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer_info.vertex_buffer, buffer_info.vertex_buffer_memory);
+    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, model->vertex_buffer, model->vertex_buffer_memory);
     
-    CopyBuffer(staging_buffer, buffer_info.vertex_buffer, buffer_size);
+    CopyBuffer(staging_buffer, model->vertex_buffer, buffer_size);
     
     vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
     vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
 }
 
-void CreateIndexBuffer()
+void CreateIndexBuffer(Model *model)
 {
-    VkDeviceSize buffer_size = sizeof(uint32_t) * box->index_count;
+    VkDeviceSize buffer_size = sizeof(uint32_t) * model->index_count;
     
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -736,24 +743,24 @@ void CreateIndexBuffer()
     
     void *data;
     vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, box->indices, (size_t) buffer_size);
+    memcpy(data, model->indices, (size_t) buffer_size);
     vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
     
-    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer_info.index_buffer, buffer_info.index_buffer_memory);
+    CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, model->index_buffer, model->index_buffer_memory);
     
-    CopyBuffer(staging_buffer, buffer_info.index_buffer, buffer_size);
+    CopyBuffer(staging_buffer, model->index_buffer, buffer_size);
     
     vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
     vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
 }
 
-void CreateUniformBuffers()
+void CreateUniformBuffers(Model *model)
 {
     VkDeviceSize buffer_size = sizeof(UniformBufferObject);
-    buffer_info.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * swapchain_info.image_count);
-    buffer_info.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * swapchain_info.image_count);
+    model->uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * swapchain_info.image_count);
+    model->uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * swapchain_info.image_count);
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
-        CreateBuffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, buffer_info.uniform_buffers[i], buffer_info.uniform_buffers_memory[i]);
+        CreateBuffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, model->uniform_buffers[i], model->uniform_buffers_memory[i]);
     }
 }
 
@@ -761,13 +768,13 @@ void CreateDescriptorPool()
 {
     VkDescriptorPoolSize pool_size = {};
     pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_size.descriptorCount = swapchain_info.image_count;
+    pool_size.descriptorCount = swapchain_info.image_count * box_count;
     
     VkDescriptorPoolCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     create_info.poolSizeCount = 1;
     create_info.pPoolSizes = &pool_size;
-    create_info.maxSets = swapchain_info.image_count;
+    create_info.maxSets = swapchain_info.image_count * box_count;
     
     if (vkCreateDescriptorPool(vulkan_info.logical_device, &create_info, nullptr, &vulkan_info.descriptor_pool) != VK_SUCCESS) {
         std::cerr << "Unable to create descriptor pool!" << std::endl;
@@ -775,7 +782,7 @@ void CreateDescriptorPool()
     }
 }
 
-void CreateDescriptorSets()
+void CreateDescriptorSets(Model *model)
 {
     swapchain_info.descriptor_set_layouts = (VkDescriptorSetLayout *)malloc(sizeof(VkDescriptorSetLayout) * swapchain_info.image_count);
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
@@ -795,7 +802,7 @@ void CreateDescriptorSets()
     
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
         VkDescriptorBufferInfo descriptor_info = {};
-        descriptor_info.buffer = buffer_info.uniform_buffers[i];
+        descriptor_info.buffer = model->uniform_buffers[i];
         descriptor_info.offset = 0;
         descriptor_info.range = sizeof(UniformBufferObject);
         
@@ -927,17 +934,16 @@ void CreateCommandBuffers()
         
         vkCmdBeginRenderPass(swapchain_info.command_buffers[i], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
         
-        vkCmdBindPipeline(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline);
-        
-        VkBuffer vertex_buffers[] = {buffer_info.vertex_buffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(swapchain_info.command_buffers[i], 0, 1, vertex_buffers, offsets);
-        
-        vkCmdBindIndexBuffer(swapchain_info.command_buffers[i], buffer_info.index_buffer, 0, VK_INDEX_TYPE_UINT32);
-        
-        vkCmdBindDescriptorSets(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[i], 0, nullptr);
-        
-        vkCmdDrawIndexed(swapchain_info.command_buffers[i], box->index_count, 1, 0, 0, 0);
+        for (uint32_t model_index = 0; model_index < box_count; ++model_index) {
+            
+            vkCmdBindPipeline(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline);
+            VkBuffer vertex_buffers[] = {boxes[model_index].vertex_buffer};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(swapchain_info.command_buffers[i], 0, 1, vertex_buffers, offsets);
+            vkCmdBindIndexBuffer(swapchain_info.command_buffers[i], boxes[model_index].index_buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[i], 0, nullptr);
+            vkCmdDrawIndexed(swapchain_info.command_buffers[i], boxes[model_index].index_count, 1, 0, 0, 0);
+        }
         
         vkCmdEndRenderPass(swapchain_info.command_buffers[i]);
         
@@ -985,7 +991,9 @@ void DrawFrame() {
         exit(EXIT_FAILURE);
     }
     
-    UpdateUniforms(image_index);
+    for (uint32_t i = 0; i < box_count; ++i) {
+        UpdateUniforms(image_index, &boxes[i]);
+    }
     
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1082,7 +1090,7 @@ void ShutdownVulkan()
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(uint32_t current_image) {
+void UpdateUniforms(uint32_t current_image, Model *model) {
     static auto start_time = std::chrono::high_resolution_clock::now();
     
     auto current_time = std::chrono::high_resolution_clock::now();
@@ -1101,9 +1109,9 @@ void UpdateUniforms(uint32_t current_image) {
     ubo.sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
     
     void* data;
-    vkMapMemory(vulkan_info.logical_device, buffer_info.uniform_buffers_memory[current_image], 0, sizeof(ubo), 0, &data);
+    vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(vulkan_info.logical_device, buffer_info.uniform_buffers_memory[current_image]);
+    vkUnmapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image]);
 }
 
 bool CheckValidationLayerSupport(VkLayerProperties available[], uint32_t available_count)

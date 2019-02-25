@@ -2,10 +2,6 @@
 #pragma once
 
 #include "Win32PlatformLayer.h"
-#define VK_NO_PROTOTYPES
-// TODO(Matt): Platform specific. Probably should be a compiler switch.
-#define VK_USE_PLATFORM_WIN32_KHR
-#include "vulkan/vulkan.h"
 #include "Shapes.h"
 
 // TODO(Matt): Move most of these vars into an ini file or something.
@@ -77,20 +73,6 @@ struct SwapchainInfo
     VkSemaphore *render_finished_semaphores;
 };
 
-// Stores info about geometry to draw, including UBOs.
-// TODO(Matt): Extend this to handle multiple objects in the trivial case.
-struct BufferInfo
-{
-    VkBuffer vertex_buffer;
-    VkBuffer index_buffer;
-    VkDeviceMemory vertex_buffer_memory;
-    VkDeviceMemory index_buffer_memory;
-    
-    // Heap allocated:
-    VkBuffer *uniform_buffers;
-    VkDeviceMemory *uniform_buffers_memory;
-};
-
 // Reads a shader file as a heap allocated byte array.
 // TODO(Matt): Merge me with the shader module creation, to simplify the usage code.
 char *ReadShaderFile(char *path, uint32_t *length);
@@ -116,18 +98,18 @@ void CreateDescriptorSetLayout();
 void CreatePipeline();
 void CreateFramebuffers();
 void CreateCommandPool();
-void CreateVertexBuffer();
-void CreateIndexBuffer();
-void CreateUniformBuffers();
 void CreateDescriptorPool();
-void CreateDescriptorSets();
+void CreateVertexBuffer(Model *model);
+void CreateIndexBuffer(Model *model);
+void CreateUniformBuffers(Model *model);
+void CreateDescriptorSets(Model *model);
 void CreateCommandBuffers();
 void CreateSyncPrimitives();
 
 // TODO(Matt): Fix some of the sloppiness in these next few functions.
 void RecreateSwapchain();
 void CleanupSwapchain();
-void UpdateUniforms(uint32_t image_index);
+void UpdateUniforms(uint32_t image_index, Model *model);
 void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
 void CopyBuffer(VkBuffer source, VkBuffer destination, VkDeviceSize size);
 uint32_t FindMemoryType(uint32_t type, VkMemoryPropertyFlags properties);
