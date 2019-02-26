@@ -40,10 +40,12 @@ VK_INSTANCE_FUNCTION_EXT(vkGetPhysicalDeviceSurfacePresentModesKHR)
 VK_INSTANCE_FUNCTION_EXT(vkCreateSwapchainKHR)
 VK_INSTANCE_FUNCTION_EXT(vkGetSwapchainImagesKHR)
 VK_INSTANCE_FUNCTION_EXT(vkCreateWin32SurfaceKHR)
+VK_INSTANCE_FUNCTION_EXT(vkDestroySurfaceKHR)
 VK_INSTANCE_FUNCTION_EXT(vkDestroySwapchainKHR)
 VK_INSTANCE_FUNCTION_EXT(vkGetPhysicalDeviceMemoryProperties)
 #ifndef NDEBUG
 VK_INSTANCE_FUNCTION_EXT(vkCreateDebugUtilsMessengerEXT)
+VK_INSTANCE_FUNCTION_EXT(vkDestroyDebugUtilsMessengerEXT)
 #endif
 #undef VK_INSTANCE_FUNCTION_EXT
 
@@ -91,6 +93,11 @@ VK_DEVICE_FUNCTION(vkResetFences)
 VK_DEVICE_FUNCTION(vkDestroyPipeline)
 VK_DEVICE_FUNCTION(vkDestroyRenderPass)
 VK_DEVICE_FUNCTION(vkDestroyPipelineLayout)
+VK_DEVICE_FUNCTION(vkDestroySemaphore)
+VK_DEVICE_FUNCTION(vkDestroyFence)
+VK_DEVICE_FUNCTION(vkDestroyCommandPool)
+VK_DEVICE_FUNCTION(vkDestroyDescriptorSetLayout)
+VK_DEVICE_FUNCTION(vkDestroyDescriptorPool)
 #undef VK_DEVICE_FUNCTION
 
 #ifndef VK_DEVICE_FUNCTION_EXT

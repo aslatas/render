@@ -1070,7 +1070,7 @@ void CleanupSwapchain() {
     vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.command_pool, swapchain_info.image_count, swapchain_info.command_buffers);
     free(swapchain_info.command_buffers);
     for (uint32_t i = 0; i < swapchain_info.pipeline_count; ++i) {
-    vkDestroyPipeline(vulkan_info.logical_device, swapchain_info.pipelines[i], nullptr);
+        vkDestroyPipeline(vulkan_info.logical_device, swapchain_info.pipelines[i], nullptr);
     }
     free(swapchain_info.pipelines);
     vkDestroyPipelineLayout(vulkan_info.logical_device, swapchain_info.pipeline_layout, nullptr);
@@ -1087,10 +1087,46 @@ void CleanupSwapchain() {
 
 void ShutdownVulkan()
 {
-    // TODO(Matt): IMPORTANT: actually free memory and shutdown vulkan.
-    // Right now we are letting the OS do a lot.
+    // TODO(Matt): IMPORTANT: actually free memory for pipelines, descriptoer pools, etc.
+    // OS is doing a lot.
     vkDeviceWaitIdle(vulkan_info.logical_device);
     CleanupSwapchain();
+    vkDestroyDescriptorPool(vulkan_info.logical_device, vulkan_info.descriptor_pool, nullptr);
+    vkDestroyDescriptorSetLayout(vulkan_info.logical_device, swapchain_info.descriptor_set_layout, nullptr);
+    for (uint32_t i = 0; i < box_count; ++i) {
+        for (uint32_t j = 0; j < swapchain_info.image_count; ++j) {
+            vkDestroyBuffer(vulkan_info.logical_device, boxes[i].uniform_buffers[j], nullptr);
+            vkFreeMemory(vulkan_info.logical_device, boxes[i].uniform_buffers_memory[j], nullptr);
+        }
+    }
+    
+    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+        vkDestroyBuffer(vulkan_info.logical_device, boxes[i].vertex_buffer, nullptr);
+        vkFreeMemory(vulkan_info.logical_device, boxes[i].vertex_buffer_memory, nullptr);
+        vkDestroyBuffer(vulkan_info.logical_device, boxes[i].index_buffer, nullptr);
+        vkFreeMemory(vulkan_info.logical_device, boxes[i].index_buffer_memory, nullptr);
+        DestroyModel(&boxes[i]);
+    }
+    
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        vkDestroySemaphore(vulkan_info.logical_device, swapchain_info.render_finished_semaphores[i], nullptr);
+        vkDestroySemaphore(vulkan_info.logical_device, swapchain_info.image_available_semaphores[i], nullptr);
+        vkDestroyFence(vulkan_info.logical_device, swapchain_info.in_flight_fences[i], nullptr);
+    }
+    free(swapchain_info.image_available_semaphores);
+    free(swapchain_info.render_finished_semaphores);
+    free(swapchain_info.in_flight_fences);
+    
+    vkDestroyCommandPool(vulkan_info.logical_device, vulkan_info.command_pool, nullptr);
+    
+    vkDestroyDevice(vulkan_info.logical_device, nullptr);
+    
+    if (enable_validation) {
+        vkDestroyDebugUtilsMessengerEXT(vulkan_info.instance, vulkan_info.debug_messenger, nullptr);
+    }
+    
+    vkDestroySurfaceKHR(vulkan_info.instance, vulkan_info.surface, nullptr);
+    vkDestroyInstance(vulkan_info.instance, nullptr);
     // TODO(Matt): Platform specific.
     Win32FreeVulkanLibrary();
 }

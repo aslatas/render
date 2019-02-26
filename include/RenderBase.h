@@ -75,12 +75,6 @@ struct SwapchainInfo
     VkSemaphore *render_finished_semaphores;
 };
 
-struct StaticPipelineInfo
-{
-
-
-};
-
 // Reads a shader file as a heap allocated byte array.
 // TODO(Matt): Merge me with the shader module creation, to simplify the usage code.
 char *ReadShaderFile(char *path, uint32_t *length);
