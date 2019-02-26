@@ -3,9 +3,6 @@
 // TODO(Matt): This is all to call Main(). Maybe set up a window callback 
 // to avoid this include.
 #include "Main.h"
-#include "VulkanFunctions.h"
-#include <iostream>
-#include <cstdlib>
 
 static Win32WindowInfo window_info = {};
 // TODO(Matt): This should maybe go in the window struct? Maybe not.

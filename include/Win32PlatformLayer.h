@@ -6,9 +6,21 @@
 #define WIN32_LEAN_AND_MEAN
 #define UNICODE
 #define _CRT_SECURE_NO_WARNINGS
-#define VK_USE_PLATFORM_WIN32_KHR
+
 #include <windows.h>
 #include <stdint.h>
+#include <cstring>
+#include <cstdio>
+#include <iostream>
+#include <cstdlib>
+// TODO(Matt): Is chrono the best (read: lightweight) timing system?
+// For Windows, what about QueryPerformanceCounter()?
+#include <chrono>
+
+#define VK_NO_PROTOTYPES
+#define VK_USE_PLATFORM_WIN32_KHR
+#include "vulkan/vulkan.h"
+#include "VulkanFunctions.h"
 
 #define WNDCLASS_NAME L"WindowClass"
 #define WINDOW_TITLE L"Rendering Prototype"

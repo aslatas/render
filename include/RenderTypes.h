@@ -1,10 +1,5 @@
 
-#include <stdint.h>
-
-#define VK_NO_PROTOTYPES
-// TODO(Matt): Platform specific. Probably should be a compiler switch.
-#define VK_USE_PLATFORM_WIN32_KHR
-#include "vulkan/vulkan.h"
+#include "VulkanLoader.h"
 
 #define GLM_FORCE_RADIANS
 #pragma warning(push, 0)

@@ -1,17 +1,7 @@
 // TODO(Matt): There are a few platform specific bits lingering in here.
 // Move surface creation and surface size query out.
 #include "RenderBase.h"
-#include "VulkanFunctions.h"
 #include "RenderTypes.h"
-#include <cstring>
-// TODO(Matt): Move Shader file read somewhere else.
-#include <cstdio>
-#include <iostream>
-#include <cstdlib>
-// TODO(Matt): Is chrono the best (read: lightweight) timing system?
-// For Windows, what about QueryPerformanceCounter()?
-#include <chrono>
-
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 
@@ -1154,104 +1144,4 @@ void UpdateUniforms(uint32_t current_image, Model *model) {
     vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image]);
-}
-
-bool CheckValidationLayerSupport(VkLayerProperties available[], uint32_t available_count)
-{
-    for (uint32_t i = 0; i < validation_layer_count; ++i) {
-        bool found = false;
-        for (uint32_t j = 0; j < available_count; ++j) {
-            if (strcmp(validation_layers[i], available[j].layerName) == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) return false;
-    }
-    return true;
-}
-
-bool CheckInstanceExtensionSupport(VkExtensionProperties available[], uint32_t available_count)
-{
-    for (uint32_t i = 0; i < instance_extension_count; ++i) {
-        bool found = false;
-        for (uint32_t j = 0; j < available_count; ++j) {
-            if (strcmp(instance_extensions[i], available[j].extensionName) == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) return false;
-    }
-    return true;
-}
-
-bool CheckDeviceExtensionSupport(VkExtensionProperties available[], uint32_t available_count)
-{
-    for (uint32_t i = 0; i < device_extension_count; ++i) {
-        bool found = false;
-        for (uint32_t j = 0; j < available_count; ++j) {
-            if (strcmp(device_extensions[i], available[j].extensionName) == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) return false;
-    }
-    return true;
-}
-
-void LoadVulkanGlobalFunctions()
-{
-#define VK_GLOBAL_FUNCTION(name)                                           \
-    if (!(name = (PFN_##name)vkGetInstanceProcAddr(nullptr, #name))) {         \
-        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
-        exit(EXIT_FAILURE);                                                    \
-    }
-    
-#include "VulkanFunctions.inl"
-}
-
-void LoadVulkanInstanceFunctions(VkInstance instance)
-{
-#define VK_INSTANCE_FUNCTION(name)                                         \
-    if (!(name = (PFN_##name)vkGetInstanceProcAddr(instance, #name))) {        \
-        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
-        exit(EXIT_FAILURE);                                                    \
-    }
-    
-#include "VulkanFunctions.inl"
-}
-
-void LoadVulkanInstanceExtensionFunctions(VkInstance instance)
-{
-#define VK_INSTANCE_FUNCTION_EXT(name)                                     \
-    if (!(name = (PFN_##name)vkGetInstanceProcAddr(instance, #name))) {        \
-        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
-        exit(EXIT_FAILURE);                                                    \
-    }
-    
-#include "VulkanFunctions.inl"
-}
-
-void LoadVulkanDeviceFunctions(VkDevice device)
-{
-#define VK_DEVICE_FUNCTION(name)                                           \
-    if (!(name = (PFN_##name)vkGetDeviceProcAddr(device, #name))) {          \
-        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
-        exit(EXIT_FAILURE);                                                    \
-    }
-    
-#include "VulkanFunctions.inl"
-}
-
-void LoadVulkanDeviceExtensionFunctions(VkDevice device)
-{
-#define VK_DEVICE_FUNCTION_EXT(name)                                       \
-    if (!(name = (PFN_##name)vkGetDeviceProcAddr(device, #name))) {            \
-        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
-        exit(EXIT_FAILURE);                                                    \
-    }
-    
-#include "VulkanFunctions.inl"
 }
