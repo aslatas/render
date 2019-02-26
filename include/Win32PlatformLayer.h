@@ -38,7 +38,6 @@ struct Win32WindowInfo
     void (*resize_callback)(uint32_t width, uint32_t height);
 };
 
-
 // Creates and shows the window. Does not start the message loop.
 void Win32CreateWindow();
 LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
@@ -61,3 +60,8 @@ HWND Win32GetWindowHandle();
 // Helpers to load vulkan library.
 void Win32LoadVulkanLibrary();
 void Win32FreeVulkanLibrary();
+
+// Timekeeping
+void Win32InitializeTimer();
+double Win32GetTimerDelta();
+double Win32GetTimerTotalSeconds();

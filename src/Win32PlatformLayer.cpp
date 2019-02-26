@@ -7,6 +7,10 @@
 static Win32WindowInfo window_info = {};
 // TODO(Matt): This should maybe go in the window struct? Maybe not.
 static HMODULE vulkan_library = nullptr;
+static LARGE_INTEGER timer_frequency;
+static LARGE_INTEGER timer_start;
+static LARGE_INTEGER timer_last;
+
 
 void Win32CreateWindow()
 {
@@ -82,7 +86,7 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
 bool Win32PollEvents()
 {
     MSG message = {};
-    bool should_close = GetMessage(&message, nullptr, 0, 0);
+    bool should_close = PeekMessage(&message, nullptr, 0, 0, PM_REMOVE);
     TranslateMessage(&message);
     DispatchMessage(&message);
     return should_close;
@@ -144,4 +148,28 @@ int WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int
     UNREFERENCED_PARAMETER(command_show);
     // Abstract past the platform specific launch point.
     return Main();
+}
+
+void Win32InitializeTimer()
+{
+    QueryPerformanceFrequency(&timer_frequency);
+    QueryPerformanceCounter(&timer_start);
+    timer_last = timer_start;
+}
+
+double Win32GetTimerDelta()
+{
+    LARGE_INTEGER timer_now;
+    QueryPerformanceCounter(&timer_now);
+    double delta = ((double)(timer_now.QuadPart - timer_last.QuadPart)) / timer_frequency.QuadPart;
+    timer_last = timer_now;
+    return delta;
+}
+
+double Win32GetTimerTotalSeconds()
+{
+    LARGE_INTEGER timer_now;
+    QueryPerformanceCounter(&timer_now);
+    double delta = ((double)(timer_now.QuadPart - timer_start.QuadPart)) / timer_frequency.QuadPart;
+    return delta;
 }
