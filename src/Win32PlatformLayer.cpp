@@ -33,7 +33,6 @@ void Win32CreateWindow()
 
 // TODO(Matt): I think swapchain is getting remade a bunch on startup,
 // because of event mis-fires.
-// TODO(Matt): Handle some actual keyboard/mouse input here.
 LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch(message) {
@@ -78,6 +77,68 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
             FillRect((HDC)wParam, &rect, brush);
         }
         return 0;
+        case WM_KEYDOWN: {
+            if (window_info.key_callback) {
+                window_info.key_callback((uint32_t)wParam, (lParam & (1 << 30)) ? HELD : PRESSED);
+            }
+        }
+        return 0;
+        case WM_KEYUP: {
+            if (window_info.key_callback) window_info.key_callback((uint32_t)wParam, RELEASED);
+            
+        }
+        return 0;
+        case WM_LBUTTONDOWN: {
+            if (window_info.mouse_button_callback) window_info.mouse_button_callback(1, PRESSED);
+        }
+        return 0;
+        case WM_LBUTTONUP: {
+            if (window_info.mouse_button_callback) window_info.mouse_button_callback(1, RELEASED);
+        }
+        return 0;
+        case WM_RBUTTONDOWN: {
+            if (window_info.mouse_button_callback) window_info.mouse_button_callback(2, PRESSED);
+        }
+        return 0;
+        case WM_RBUTTONUP: {
+            if (window_info.mouse_button_callback) window_info.mouse_button_callback(2, RELEASED);
+        }
+        return 0;
+        case WM_MBUTTONDOWN: {
+            if (window_info.mouse_button_callback) window_info.mouse_button_callback(3, PRESSED);
+        }
+        return 0;
+        case WM_MBUTTONUP: {
+            if (window_info.mouse_button_callback) window_info.mouse_button_callback(3, RELEASED);
+        }
+        return 0;
+        case WM_XBUTTONDOWN: {
+            if (window_info.mouse_button_callback) {
+                uint32_t button = 0;
+                if (GET_XBUTTON_WPARAM(wParam) == XBUTTON1) button = 4;
+                if (GET_XBUTTON_WPARAM(wParam) == XBUTTON2) button = 5;
+                window_info.mouse_button_callback(button, PRESSED);
+            }
+        }
+        return 0;
+        case WM_XBUTTONUP: {
+            if (window_info.mouse_button_callback) {
+                uint32_t button = 0;
+                if (GET_XBUTTON_WPARAM(wParam) == XBUTTON1) button = 4;
+                if (GET_XBUTTON_WPARAM(wParam) == XBUTTON2) button = 5;
+                window_info.mouse_button_callback(button, RELEASED);
+            }
+        }
+        return 0;
+        case WM_MOUSEWHEEL: {
+            if (window_info.mouse_wheel_callback) window_info.mouse_wheel_callback(GET_WHEEL_DELTA_WPARAM(wParam));
+        }
+        return 0;
+        case WM_MOUSEMOVE: {
+            window_info.mouse_x = (int32_t)GET_X_LPARAM(lParam);
+            window_info.mouse_y = (int32_t)GET_Y_LPARAM(lParam);
+        }
+        return 0;
         default:
         return DefWindowProc(window, message, wParam, lParam);
     }
@@ -99,11 +160,6 @@ bool Win32GetSurfaceSize(uint32_t *width, uint32_t *height)
     *width = rect.right;
     *height = rect.top;
     return (width > 0 && height > 0);
-}
-
-void Win32RegisterResizeCallback(void (*resize_callback)(uint32_t width, uint32_t height))
-{
-    window_info.resize_callback = resize_callback;
 }
 
 void Win32ShowWindow()
@@ -172,4 +228,31 @@ double Win32GetTimerTotalSeconds()
     QueryPerformanceCounter(&timer_now);
     double delta = ((double)(timer_now.QuadPart - timer_start.QuadPart)) / timer_frequency.QuadPart;
     return delta;
+}
+
+void Win32RegisterResizeCallback(Win32ResizeCallback callback)
+{
+    window_info.resize_callback = callback;
+}
+
+void Win32RegisterKeyCallback(Win32KeyCallback callback)
+{
+    window_info.key_callback = callback;
+}
+
+
+void Win32RegisterMouseButtonCallback(Win32MouseButtonCallback callback)
+{
+    window_info.mouse_button_callback = callback;
+}
+
+void Win32RegisterMouseWheelCallback(Win32MouseWheelCallback callback)
+{
+    window_info.mouse_wheel_callback = callback;
+}
+
+void Win32GetMousePosition(int32_t *x, int32_t *y)
+{
+    *x = window_info.mouse_x;
+    *y = window_info.mouse_y;
 }

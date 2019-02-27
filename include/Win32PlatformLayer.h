@@ -8,6 +8,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <windows.h>
+#include <windowsx.h>
 #include <stdint.h>
 #include <cstring>
 #include <cstdio>
@@ -26,6 +27,23 @@
 #define WINDOW_TITLE L"Rendering Prototype"
 #define VULKAN_LIB_PATH L"vulkan-1.dll"
 
+// TODO(Matt): These enums aren't really platform specific. Maybe put them
+// somewhere with some general defs for input callback types and whatnot.
+enum EButtonState
+{
+    NONE, RELEASED, PRESSED, HELD
+};
+
+// TODO(Matt): These also probably don't need to be platform specific.
+typedef void (*Win32ResizeCallback)(uint32_t width, uint32_t height);
+// Button uses 1 as left, 2 as right, 3 as middle, 4 and 5 as thumbs.
+typedef void (*Win32MouseButtonCallback)(uint32_t button, EButtonState state);
+// Scroll amount is positive for away from the user, negative for towards.
+typedef void (*Win32MouseWheelCallback)(int32_t amount);
+// TODO(Matt): Key uses virtual key codes which are platform specific.
+typedef void (*Win32KeyCallback)(uint32_t key, EButtonState state);
+// TODO(Matt): Callback for double click, and mouse capture handling.
+
 // Struct for window handle and state info.
 struct Win32WindowInfo
 {
@@ -35,7 +53,12 @@ struct Win32WindowInfo
     bool is_minimized;
     bool is_resizing;
     bool is_initialized;
-    void (*resize_callback)(uint32_t width, uint32_t height);
+    Win32ResizeCallback resize_callback;
+    Win32MouseButtonCallback mouse_button_callback;
+    Win32MouseWheelCallback mouse_wheel_callback;
+    Win32KeyCallback key_callback;
+    int32_t mouse_x;
+    int32_t mouse_y;
 };
 
 // Creates and shows the window. Does not start the message loop.
@@ -48,9 +71,6 @@ bool Win32PollEvents();
 // Gets the client area of the window. Returns false if either measure is zero (usually implies that the window is minimized).
 bool Win32GetSurfaceSize(uint32_t *width, uint32_t *height);
 
-// Registers a function to be called when the window finishes resizing.
-void Win32RegisterResizeCallback(void (*resize_callback)(uint32_t width, uint32_t height));
-
 // Shows the window, and marks initialization complete.
 void Win32ShowWindow();
 
@@ -61,7 +81,14 @@ HWND Win32GetWindowHandle();
 void Win32LoadVulkanLibrary();
 void Win32FreeVulkanLibrary();
 
-// Timekeeping
+// Timekeeping.
 void Win32InitializeTimer();
 double Win32GetTimerDelta();
 double Win32GetTimerTotalSeconds();
+
+// Input handling.
+void Win32GetMousePosition(int32_t *x, int32_t *y);
+void Win32RegisterResizeCallback(Win32ResizeCallback callback);
+void Win32RegisterMouseButtonCallback(Win32MouseButtonCallback callback);
+void Win32RegisterMouseWheelCallback(Win32MouseWheelCallback callback);
+void Win32RegisterKeyCallback(Win32KeyCallback callback);
