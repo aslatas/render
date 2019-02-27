@@ -26,7 +26,10 @@ struct VulkanInfo
     bool use_shared_queue;
     VkCommandPool command_pool;
     VkDescriptorPool descriptor_pool;
-    
+    VkImage texture_image;
+    VkImageView texture_image_view;
+    VkDeviceMemory texture_memory;
+    VkSampler texture_sampler;
 };
 
 // Stores vulkan information that must be recreated with the swapchain.
@@ -90,6 +93,8 @@ void CreateDescriptorSets(Model *model);
 void CreateCommandBuffers();
 void CreateSyncPrimitives();
 
+void CreateTextureImage(char *file);
+
 // TODO(Matt): Fix some of the sloppiness in these next few functions.
 void RecreateSwapchain();
 void CleanupSwapchain();
@@ -97,3 +102,15 @@ void UpdateUniforms(uint32_t image_index, Model *model);
 void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
 void CopyBuffer(VkBuffer source, VkBuffer destination, VkDeviceSize size);
 uint32_t FindMemoryType(uint32_t type, VkMemoryPropertyFlags properties);
+
+VkCommandBuffer BeginOneTimeCommand();
+void EndOneTimeCommand(VkCommandBuffer command_buffer);
+
+
+void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory);
+void CreateTextureImageView();
+VkImageView CreateImageView(VkImage image, VkFormat format);
+void CreateTextureSampler();

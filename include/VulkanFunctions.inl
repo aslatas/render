@@ -98,6 +98,14 @@ VK_DEVICE_FUNCTION(vkDestroyFence)
 VK_DEVICE_FUNCTION(vkDestroyCommandPool)
 VK_DEVICE_FUNCTION(vkDestroyDescriptorSetLayout)
 VK_DEVICE_FUNCTION(vkDestroyDescriptorPool)
+VK_DEVICE_FUNCTION(vkDestroyImage)
+VK_DEVICE_FUNCTION(vkCreateImage)
+VK_DEVICE_FUNCTION(vkGetImageMemoryRequirements)
+VK_DEVICE_FUNCTION(vkBindImageMemory)
+VK_DEVICE_FUNCTION(vkCmdCopyBufferToImage)
+VK_DEVICE_FUNCTION(vkCmdPipelineBarrier)
+VK_DEVICE_FUNCTION(vkCreateSampler)
+VK_DEVICE_FUNCTION(vkDestroySampler)
 #undef VK_DEVICE_FUNCTION
 
 #ifndef VK_DEVICE_FUNCTION_EXT

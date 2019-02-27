@@ -28,11 +28,13 @@ layout(location = 5) in vec2 in_uv2;
 layout(location = 0) out vec3 out_position;
 layout(location = 1) out vec3 out_normal;
 layout(location = 2) out vec3 out_color;
+layout(location = 3) out vec2 out_uv0;
 void main() {
     vec4 pos = ubo.model * vec4(in_position, 1.0f);
     out_position = pos.rgb;
     out_normal = mat3(transpose(inverse(ubo.model))) * in_normal;
     out_color = in_color.rgb;
+	out_uv0 = in_uv0;
     gl_Position = ubo.proj * ubo.view * pos;
 }
 
