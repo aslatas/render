@@ -18,9 +18,12 @@ layout(binding = 0) uniform UniformBufferObject {
     DirectionalLight sun;
 } ubo;
 
+layout(binding = 1) uniform sampler2D texture_sampler;
+
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec3 in_color;
+layout(location = 3) in vec2 in_uv0;
 
 layout(location = 0) out vec4 out_color;
 
@@ -37,7 +40,7 @@ void main()
     vec3 specular = pow(max(dot(view_dir, reflect_dir), 0.0), 64.0f) * ubo.sun.specular.rgb;  
         
     vec3 result = ubo.sun.ambient.rgb + diffuse + specular;
-    out_color = vec4(result * in_normal, 1.0);
+    out_color = vec4(result * texture(texture_sampler, in_uv0).rgb, 1.0f);
 
 }
 
