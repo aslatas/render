@@ -5,7 +5,7 @@
 #include <utils.h>
 #include <RenderTypes.h>
 #include "VulkanLoader.h"
-
+ 
 // Returned error cases for failed loading
 typedef enum EModelLoadResult {
   MODEL_LOAD_RESULT_SUCCESS,
@@ -15,7 +15,9 @@ typedef enum EModelLoadResult {
   MODEL_LOAD_RESULT_INVALID_CGLTF_OPTIONS,
   MODEL_LOAD_RESULT_FILE_NOT_FOUND,
   MODEL_LOAD_RESULT_IO_ERROR,
-  MODEL_LOAD_RESULT_OUT_OF_MEMORY
+  MODEL_LOAD_RESULT_OUT_OF_MEMORY,
+  MODEL_LOAD_RESULT_UNKNOWN_FORMAT,
+  MODEL_LOAD_RESULT_UNKNOWN_ERROR
 } EModelLoadResult;
 
 struct Model_GLTF {
@@ -29,7 +31,7 @@ struct Model_GLTF {
   VkDeviceMemory vertex_buffer_memory;
   VkDeviceMemory index_buffer_memory;
 
-  VkBuffer *uniformBuffer;
+  VkBuffer *uniform_buffers;
   VkDeviceMemory *uniform_buffer_memory;
 };
 
