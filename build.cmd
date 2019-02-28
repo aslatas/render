@@ -2,12 +2,13 @@
 ::      Set build tool and library paths as well as compile flags here.       ::
 :: ---------------------------------------------------------------------------::
 set toolpath=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build
-set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo /I ..\..\include 
+set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo
 set debug_flags=/Od /Z7
 set release_flags=/O2 /GL /analyze- /D "NDEBUG"
 set linker_flags=User32.lib Kernel32.lib Gdi32.lib /INCREMENTAL:no /NOLOGO
+set include_dir=/I ..\..\include /I..\..\ext
 
-set source_files=..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp ..\..\src\RenderTypes.cpp ..\..\src\VulkanLoader.cpp
+set source_files=..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp ..\..\src\RenderTypes.cpp ..\..\src\VulkanLoader.cpp ..\..\src\ModelLoader.cpp
 ::        Run the build tools, but only if they aren't set up already.        ::
 :: ---------------------------------------------------------------------------::
 cl >nul 2>nul
@@ -31,9 +32,9 @@ exit /b 1
 set mode=debug
 if /i $%1 equ $release (set mode=release)
 if %mode% equ debug (
-set flags=%common_flags% %debug_flags% %source_files%
+set flags=%common_flags% %include_dir% %debug_flags% %source_files%
 ) else (
-set flags=%common_flags% %release_flags% %source_files%
+set flags=%common_flags% %include_dir% %release_flags% %source_files%
 )
 echo Building in %mode% mode.
 echo.     -Cleaning output directory.
@@ -43,6 +44,8 @@ if exist *.exe del /q *.exe
 if exist *.pdb del /q *.pdb
 if exist *.obj del /q *.obj
 if exist *.dll del /q *.dll
+
+:: BUILD
 echo.     -Compiling:
 call cl %flags% /link %linker_flags%
 if %errorlevel% neq 0 (
@@ -70,6 +73,11 @@ robocopy shaders build\%mode%\shaders *.spv /move /mir /ns /nc /nfl /ndl /np /nj
 echo.     -Copying Textures:
 if not exist build\%mode%\textures mkdir build\%mode%\textures
 robocopy textures build\%mode%\textures /mir /ns /nc /nfl /ndl /np /njh /njs
+
+echo.     - Copying Models:
+if not exist build\%mode%\resources\models mkdir build\%mode%\resources\models
+robocopy resources\models build\%mode%\resources\models /mir /ns /nc /nfl /ndl /np /njh /njs
+
 echo Build complete!
 exit /b 0
 
