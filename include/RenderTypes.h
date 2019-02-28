@@ -8,7 +8,6 @@
 #pragma warning(pop)
 #pragma once
 
-
 // TODO(Matt): Check out what other people are using here - maybe move up to
 // 128 bytes?
 // TODO(Matt): Extract vertex buffer, index buffer, and UBO into a generic
@@ -18,10 +17,10 @@ struct Vertex
     glm::vec3 position; // 12
     glm::vec3 normal;   // 24
     //glm::vec3 tangent;
-    glm::vec4 color;    // 40
-    glm::vec2 uv0;      // 48
-    glm::vec2 uv1;      // 56
-    glm::vec2 uv2;      // 64
+    glm::vec4 color; // 40
+    glm::vec2 uv0;   // 48
+    glm::vec2 uv1;   // 56
+    glm::vec2 uv2;   // 64
 };
 
 struct DirectionalLight
@@ -33,7 +32,8 @@ struct DirectionalLight
 };
 
 // TODO(Matt): Decide on a standard UBO for opaque objects, or choose a way to link objects with their UBOs.
-struct UniformBufferObject {
+struct UniformBufferObject
+{
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 projection;
@@ -48,13 +48,13 @@ struct Model
     uint32_t *indices;
     uint32_t index_count;
     UniformBufferObject ubo;
-    
+
     uint32_t shader_id;
     VkBuffer vertex_buffer;
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
     VkDeviceMemory index_buffer_memory;
-    
+
     // Heap allocated:
     VkBuffer *uniform_buffers;
     VkDeviceMemory *uniform_buffers_memory;
