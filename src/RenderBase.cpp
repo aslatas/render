@@ -11,6 +11,7 @@ static SwapchainInfo swapchain_info = {};
 static Model *boxes;
 uint32_t box_count = 3;
 uint32_t material_count = 2;
+
 char *ReadShaderFile(char *path, uint32_t *length)
 {
     FILE *file = fopen(path, "rb");
@@ -1262,12 +1263,12 @@ void ShutdownVulkan()
     vkDestroyCommandPool(vulkan_info.logical_device, vulkan_info.command_pool, nullptr);
     
     vkDestroyDevice(vulkan_info.logical_device, nullptr);
-    
+#ifndef NDEBUG
     if (enable_validation)
     {
         vkDestroyDebugUtilsMessengerEXT(vulkan_info.instance, vulkan_info.debug_messenger, nullptr);
     }
-    
+#endif
     vkDestroySurfaceKHR(vulkan_info.instance, vulkan_info.surface, nullptr);
     vkDestroyInstance(vulkan_info.instance, nullptr);
     // TODO(Matt): Platform specific.
