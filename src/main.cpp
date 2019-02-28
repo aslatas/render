@@ -32,7 +32,7 @@ void MouseWheelCallback(int32_t amount)
 void RunMainLoop()
 {
     double frame_delta_max = MAX_PHYSICS_DELTA * MAX_PHYSICS_STEPS;
-    while (Win32PollEvents()) {
+    while (Win32PeekEvents()) {
         double frame_delta = Win32GetTimerDelta();
         if (frame_delta > frame_delta_max) frame_delta = frame_delta_max;
         // Pre-physics update here: Simulate(frame_delta).

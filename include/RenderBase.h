@@ -52,6 +52,9 @@ struct SwapchainInfo
     VkFramebuffer *framebuffers;
     VkImage *images;
     VkImageView *imageviews;
+    VkImage depth_image;
+    VkDeviceMemory depth_image_memory;
+    VkImageView depth_image_view;
     VkCommandBuffer *command_buffers;
     VkDescriptorSet *descriptor_sets;
     VkDescriptorSetLayout *descriptor_set_layouts;
@@ -112,5 +115,10 @@ void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t 
 void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
 void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory);
 void CreateTextureImageView();
-VkImageView CreateImageView(VkImage image, VkFormat format);
+VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask);
 void CreateTextureSampler();
+
+
+VkFormat FindSupportedFormat(VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features);
+void CreateDepthResources();
+VkFormat FindDepthFormat();
