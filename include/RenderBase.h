@@ -30,6 +30,7 @@ struct VulkanInfo
     VkImageView texture_image_view;
     VkDeviceMemory texture_memory;
     VkSampler texture_sampler;
+    uint32_t texture_mips;
 };
 
 // Stores vulkan information that must be recreated with the swapchain.
@@ -112,13 +113,16 @@ void EndOneTimeCommand(VkCommandBuffer command_buffer);
 
 void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
-void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
-void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory);
+void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mips);
+void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mips);
 void CreateTextureImageView();
-VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask);
+VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, uint32_t mips);
 void CreateTextureSampler();
 
 
 VkFormat FindSupportedFormat(VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features);
 void CreateDepthResources();
 VkFormat FindDepthFormat();
+
+
+void GenerateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t height, uint32_t mips);
