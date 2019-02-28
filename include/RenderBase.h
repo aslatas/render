@@ -26,11 +26,13 @@ struct VulkanInfo
     bool use_shared_queue;
     VkCommandPool command_pool;
     VkDescriptorPool descriptor_pool;
+    // TODO(Matt): Move these into a proper texture representation.
     VkImage texture_image;
     VkImageView texture_image_view;
     VkDeviceMemory texture_memory;
     VkSampler texture_sampler;
     uint32_t texture_mips;
+    VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 };
 
 // Stores vulkan information that must be recreated with the swapchain.
@@ -53,6 +55,9 @@ struct SwapchainInfo
     VkFramebuffer *framebuffers;
     VkImage *images;
     VkImageView *imageviews;
+    VkImage color_image;
+    VkDeviceMemory color_image_memory;
+    VkImageView color_image_view;
     VkImage depth_image;
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
@@ -114,7 +119,7 @@ void EndOneTimeCommand(VkCommandBuffer command_buffer);
 void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mips);
-void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mips);
+void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mips, VkSampleCountFlagBits samples);
 void CreateTextureImageView();
 VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, uint32_t mips);
 void CreateTextureSampler();
@@ -126,3 +131,7 @@ VkFormat FindDepthFormat();
 
 
 void GenerateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t height, uint32_t mips);
+
+VkSampleCountFlagBits GetMSAASampleCount();
+
+void CreateColorResources();
