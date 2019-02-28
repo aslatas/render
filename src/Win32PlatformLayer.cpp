@@ -65,8 +65,11 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
         case WM_EXITSIZEMOVE: {
             if (window_info.is_initialized) {
                 window_info.is_resizing = false;
-                Win32GetSurfaceSize(&window_info.surface_width, &window_info.surface_height);
-                window_info.resize_callback(window_info.surface_width, window_info.surface_height);
+                if (Win32GetSurfaceSize(&window_info.surface_width, &window_info.surface_height)) {
+                    window_info.resize_callback(window_info.surface_width, window_info.surface_height);
+                } else {
+                    window_info.is_minimized = true;
+                }
             }
         }
         return 0;
@@ -144,22 +147,35 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
     }
 }
 
+bool Win32PeekEvents()
+{
+    MSG message = {};
+    PeekMessage(&message, nullptr, 0, 0, PM_REMOVE);
+    if (message.message == WM_QUIT) return false;
+    TranslateMessage(&message);
+    DispatchMessage(&message);
+    return true;
+}
+
+
 bool Win32PollEvents()
 {
     MSG message = {};
-    bool should_close = PeekMessage(&message, nullptr, 0, 0, PM_REMOVE);
+    if (!GetMessage(&message, nullptr, 0, 0)) return false;
     TranslateMessage(&message);
     DispatchMessage(&message);
-    return should_close;
+    return true;
 }
 
 bool Win32GetSurfaceSize(uint32_t *width, uint32_t *height)
 {
     RECT rect;
     GetClientRect(window_info.window_handle, &rect);
-    *width = rect.right;
-    *height = rect.top;
-    return (width > 0 && height > 0);
+    if (rect.right < 0) rect.right = 0;
+    if (rect.bottom < 0) rect.bottom = 0;
+    *width = (uint32_t)rect.right;
+    *height = (uint32_t)rect.top;
+    return (*width > 0 && *height > 0);
 }
 
 void Win32ShowWindow()
