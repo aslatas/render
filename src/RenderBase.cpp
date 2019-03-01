@@ -1,6 +1,7 @@
 // TODO(Matt): There are a few platform specific bits lingering in here.
 // Move surface creation and surface size query out.
 #include "RenderBase.h"
+#include <ModelLoader.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -72,6 +73,9 @@ void InitializeVulkan()
     }
     CreateCommandBuffers();
     CreateSyncPrimitives();
+
+    // TEMP
+    LoadGTLFModel(std::string("string"), nullptr);
 }
 
 void CreateInstance()

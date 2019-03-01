@@ -8,8 +8,8 @@
 
 // TODO(Dustin/Matthew): Temporary solution for material id
 // Unique material id
-extern unsigned int material_id = 0;
+//extern unsigned int material_id = 0;
 
 // TODO(Dustin/Matthew): Temporary solution for model id
 // Unique Model id
-extern unsigned int model_id = 0;
+//extern unsigned int model_id = 0;
