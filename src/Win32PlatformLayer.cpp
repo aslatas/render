@@ -151,20 +151,26 @@ bool Win32PeekEvents()
 {
     MSG message = {};
     PeekMessage(&message, nullptr, 0, 0, PM_REMOVE);
-    if (message.message == WM_QUIT) return false;
+    if (message.message == WM_QUIT) {
+        window_info.is_running = false;
+        return false;
+    }
     TranslateMessage(&message);
     DispatchMessage(&message);
-    return true;
+    return window_info.is_running;
 }
 
 
 bool Win32PollEvents()
 {
     MSG message = {};
-    if (!GetMessage(&message, nullptr, 0, 0)) return false;
+    if (!GetMessage(&message, nullptr, 0, 0)) {
+        window_info.is_running = false;
+        return false;
+    }
     TranslateMessage(&message);
     DispatchMessage(&message);
-    return true;
+    return window_info.is_running;
 }
 
 bool Win32GetSurfaceSize(uint32_t *width, uint32_t *height)
@@ -174,7 +180,7 @@ bool Win32GetSurfaceSize(uint32_t *width, uint32_t *height)
     if (rect.right < 0) rect.right = 0;
     if (rect.bottom < 0) rect.bottom = 0;
     *width = (uint32_t)rect.right;
-    *height = (uint32_t)rect.top;
+    *height = (uint32_t)rect.bottom;
     return (*width > 0 && *height > 0);
 }
 
@@ -219,6 +225,7 @@ int WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int
     UNREFERENCED_PARAMETER(command_line);
     UNREFERENCED_PARAMETER(command_show);
     // Abstract past the platform specific launch point.
+    window_info.is_running = true;
     return Main();
 }
 

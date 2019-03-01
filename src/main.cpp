@@ -21,7 +21,6 @@ void MouseButtonCallback(uint32_t button, EButtonState state)
     if (button == 1 && state == PRESSED) {
         int32_t x, y;
         Win32GetMousePosition(&x, &y);
-        std::cout << "Mouse pos (screen): (" << x << ", " << y << ")" << std::endl;
         SelectObject(x, y, is_ctrl_held);
     }
 }

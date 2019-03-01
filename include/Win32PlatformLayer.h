@@ -53,6 +53,7 @@ struct Win32WindowInfo
     bool is_minimized;
     bool is_resizing;
     bool is_initialized;
+    bool is_running;
     Win32ResizeCallback resize_callback;
     Win32MouseButtonCallback mouse_button_callback;
     Win32MouseWheelCallback mouse_wheel_callback;

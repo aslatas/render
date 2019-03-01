@@ -24,7 +24,8 @@ struct VulkanInfo
     // NOTE(Matt): Likely, graphics and present are the same queue. If so,
     // calls to Vulkan cannot treat them as separate, hence this flag.
     bool use_shared_queue;
-    VkCommandPool command_pool;
+    VkCommandPool primary_command_pool;
+    VkCommandPool secondary_command_pool;
     VkDescriptorPool descriptor_pool;
     // TODO(Matt): Move these into a proper texture representation.
     VkImage texture_image;

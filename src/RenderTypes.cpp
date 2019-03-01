@@ -6,7 +6,6 @@ void DestroyModel(Model *model)
 {
     free(model->vertices);
     free(model->indices);
-    free(model);
     model = nullptr;
 }
 

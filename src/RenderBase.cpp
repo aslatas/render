@@ -461,7 +461,6 @@ void CreateSwapchain()
         std::cerr << "Unable to create swapchain!" << std::endl;
         exit(EXIT_FAILURE);
     }
-    
     vkGetSwapchainImagesKHR(vulkan_info.logical_device, swapchain_info.swapchain, &swapchain_info.image_count, nullptr);
     swapchain_info.images = (VkImage *)malloc(sizeof(VkImage) * swapchain_info.image_count);
     vkGetSwapchainImagesKHR(vulkan_info.logical_device, swapchain_info.swapchain, &swapchain_info.image_count, swapchain_info.images);
@@ -1168,7 +1167,7 @@ void CreateCommandPool()
     create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     create_info.queueFamilyIndex = vulkan_info.graphics_index;
     
-    if (vkCreateCommandPool(vulkan_info.logical_device, &create_info, nullptr, &vulkan_info.command_pool) != VK_SUCCESS)
+    if (vkCreateCommandPool(vulkan_info.logical_device, &create_info, nullptr, &vulkan_info.primary_command_pool) != VK_SUCCESS)
     {
         std::cerr << "Unable to create command pool!" << std::endl;
         exit(EXIT_FAILURE);
@@ -1367,7 +1366,7 @@ void CreateCommandBuffers()
     swapchain_info.command_buffers = (VkCommandBuffer *)malloc(sizeof(VkCommandBuffer) * swapchain_info.image_count);
     VkCommandBufferAllocateInfo allocate_info = {};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.commandPool = vulkan_info.command_pool;
+    allocate_info.commandPool = vulkan_info.primary_command_pool;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandBufferCount = swapchain_info.image_count;
     
@@ -1442,7 +1441,7 @@ void CreateCommandBuffers()
     //VkCommandBufferAllocateInfo alloc_info = {};
     //alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     //alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    //alloc_info.commandPool = vulkan_info.command_pool;
+    //alloc_info.commandPool = vulkan_info.primary_command_pool;
     //alloc_info.commandBufferCount = 1;
     
     //vkAllocateCommandBuffers(vulkan_info.logical_device, &alloc_info, &swapchain_info.transient_commands);
@@ -1586,7 +1585,7 @@ void RecreateSwapchain()
     CleanupSwapchain();
     ChooseSwapchainExtent();
     while (swapchain_info.extent.width == 0 || swapchain_info.extent.height == 0) {
-        if (!Win32PollEvents()) exit(0);
+        Win32PollEvents();
         ChooseSwapchainExtent();
     }
     CreateSwapchain();
@@ -1617,7 +1616,7 @@ void CleanupSwapchain()
     }
     free(swapchain_info.framebuffers);
     
-    vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.command_pool, swapchain_info.image_count, swapchain_info.command_buffers);
+    vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.primary_command_pool, swapchain_info.image_count, swapchain_info.command_buffers);
     free(swapchain_info.command_buffers);
     
     for (uint32_t i = 0; i < swapchain_info.pipeline_count; ++i)
@@ -1678,7 +1677,7 @@ void ShutdownVulkan()
     free(swapchain_info.render_finished_semaphores);
     free(swapchain_info.in_flight_fences);
     
-    vkDestroyCommandPool(vulkan_info.logical_device, vulkan_info.command_pool, nullptr);
+    vkDestroyCommandPool(vulkan_info.logical_device, vulkan_info.primary_command_pool, nullptr);
     
     vkDestroyDevice(vulkan_info.logical_device, nullptr);
 #ifndef NDEBUG
@@ -1796,7 +1795,7 @@ VkCommandBuffer BeginOneTimeCommand()
     VkCommandBufferAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    alloc_info.commandPool = vulkan_info.command_pool;
+    alloc_info.commandPool = vulkan_info.primary_command_pool;
     alloc_info.commandBufferCount = 1;
     
     VkCommandBuffer command_buffer;
@@ -1823,7 +1822,7 @@ void EndOneTimeCommand(VkCommandBuffer command_buffer)
     vkQueueSubmit(vulkan_info.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
     vkQueueWaitIdle(vulkan_info.graphics_queue);
     
-    vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.command_pool, 1, &command_buffer);
+    vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.primary_command_pool, 1, &command_buffer);
 }
 
 void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mips)
