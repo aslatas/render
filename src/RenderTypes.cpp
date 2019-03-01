@@ -6,6 +6,10 @@ void DestroyModel(Model *model)
 {
     free(model->vertices);
     free(model->indices);
+    free(model->uniform_buffers);
+    free(model->uniform_buffers_memory);
+    free(model->descriptor_set_layouts);
+    free(model->descriptor_sets);
     model = nullptr;
 }
 
@@ -17,30 +21,30 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
     model.index_count = 36;
     model.vertices = (Vertex *)malloc(model.vertex_count * sizeof(Vertex));
     model.indices = (uint32_t *)malloc(sizeof(uint32_t) * model.index_count);
-    model.vertices[ 0].position = pos + glm::vec3(0.0f, 0.0f, 0.0f);
-    model.vertices[ 1].position = pos + glm::vec3(0.0f, 0.0f, ext.z);
-    model.vertices[ 2].position = pos + glm::vec3(ext.x, 0.0f, ext.z);
-    model.vertices[ 3].position = pos + glm::vec3(ext.x, 0.0f, 0.0f);
-    model.vertices[ 4].position = pos + glm::vec3(ext.x, 0.0f, 0.0f);
-    model.vertices[ 5].position = pos + glm::vec3(ext.x, 0.0f, ext.z);
-    model.vertices[ 6].position = pos + glm::vec3(ext.x, ext.y, ext.z);
-    model.vertices[ 7].position = pos + glm::vec3(ext.x, ext.y, 0.0f);
-    model.vertices[ 8].position = pos + glm::vec3(ext.x, ext.y, 0.0f);
-    model.vertices[ 9].position = pos + glm::vec3(ext.x, ext.y, ext.z);
-    model.vertices[10].position = pos + glm::vec3(0.0f, ext.y, ext.z);
-    model.vertices[11].position = pos + glm::vec3(0.0f, ext.y, 0.0f);
-    model.vertices[12].position = pos + glm::vec3(0.0f, ext.y, 0.0f);
-    model.vertices[13].position = pos + glm::vec3(0.0f, ext.y, ext.z);
-    model.vertices[14].position = pos + glm::vec3(0.0f, 0.0f, ext.z);
-    model.vertices[15].position = pos + glm::vec3(0.0f, 0.0f, 0.0f);
-    model.vertices[16].position = pos + glm::vec3(0.0f, 0.0f, ext.z);
-    model.vertices[17].position = pos + glm::vec3(0.0f, ext.y, ext.z);
-    model.vertices[18].position = pos + glm::vec3(ext.x, ext.y, ext.z);
-    model.vertices[19].position = pos + glm::vec3(ext.x, 0.0f, ext.z);
-    model.vertices[20].position = pos + glm::vec3(0.0f, 0.0f, 0.0f);
-    model.vertices[21].position = pos + glm::vec3(ext.x, 0.0f, 0.0f);
-    model.vertices[22].position = pos + glm::vec3(ext.x, ext.y, 0.0f);
-    model.vertices[23].position = pos + glm::vec3(0.0f, ext.y, 0.0f);
+    model.vertices[ 0].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    model.vertices[ 1].position = glm::vec3(0.0f, 0.0f, ext.z);
+    model.vertices[ 2].position = glm::vec3(ext.x, 0.0f, ext.z);
+    model.vertices[ 3].position = glm::vec3(ext.x, 0.0f, 0.0f);
+    model.vertices[ 4].position = glm::vec3(ext.x, 0.0f, 0.0f);
+    model.vertices[ 5].position = glm::vec3(ext.x, 0.0f, ext.z);
+    model.vertices[ 6].position = glm::vec3(ext.x, ext.y, ext.z);
+    model.vertices[ 7].position = glm::vec3(ext.x, ext.y, 0.0f);
+    model.vertices[ 8].position = glm::vec3(ext.x, ext.y, 0.0f);
+    model.vertices[ 9].position = glm::vec3(ext.x, ext.y, ext.z);
+    model.vertices[10].position = glm::vec3(0.0f, ext.y, ext.z);
+    model.vertices[11].position = glm::vec3(0.0f, ext.y, 0.0f);
+    model.vertices[12].position = glm::vec3(0.0f, ext.y, 0.0f);
+    model.vertices[13].position = glm::vec3(0.0f, ext.y, ext.z);
+    model.vertices[14].position = glm::vec3(0.0f, 0.0f, ext.z);
+    model.vertices[15].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    model.vertices[16].position = glm::vec3(0.0f, 0.0f, ext.z);
+    model.vertices[17].position = glm::vec3(0.0f, ext.y, ext.z);
+    model.vertices[18].position = glm::vec3(ext.x, ext.y, ext.z);
+    model.vertices[19].position = glm::vec3(ext.x, 0.0f, ext.z);
+    model.vertices[20].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    model.vertices[21].position = glm::vec3(ext.x, 0.0f, 0.0f);
+    model.vertices[22].position = glm::vec3(ext.x, ext.y, 0.0f);
+    model.vertices[23].position = glm::vec3(0.0f, ext.y, 0.0f);
     
     model.vertices[ 0].normal = glm::vec3(0.0f, -1.0f, 0.0f);
     model.vertices[ 1].normal = glm::vec3(0.0f, -1.0f, 0.0f);
@@ -205,9 +209,13 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
     model.indices[34] = 22;
     model.indices[35] = 21;
     
+    model.pos = pos;
+    model.rot = glm::vec3(0.0f);
+    model.scl = glm::vec3(1.0f);
     model.bounds.pos = pos;
     model.bounds.ext = ext;
-    model.ubo.model = glm::mat4();
+    model.ubo.model = glm::translate(glm::mat4(1.0f), pos);
+    model.ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
     model.ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     model.ubo.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
     model.ubo.projection[1][1] *= -1;
@@ -225,7 +233,7 @@ bool RaycastAgainstBoundingBox(glm::vec3 ray_origin, glm::vec3 ray_direction, fl
 	float t_min = 0.0f;
 	float t_max = max_dist;
     
-	glm::vec3 world_pos = bounds_min;
+	glm::vec3 world_pos = glm::vec3(model->ubo.model[3].x, model->ubo.model[3].y, model->ubo.model[3].z);
     
 	glm::vec3 delta = world_pos - ray_origin;
     
@@ -291,6 +299,7 @@ bool RaycastAgainstBoundingBox(glm::vec3 ray_origin, glm::vec3 ray_direction, fl
 	}
     
     *hit_dist = t_min;
+    std::cout << "Hit the model at position (" << model->pos.x << ", " << model->pos.y << ", " << model->pos.z << ")" << std::endl;
 	return true;
 }
 

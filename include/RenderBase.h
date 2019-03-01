@@ -25,7 +25,6 @@ struct VulkanInfo
     // calls to Vulkan cannot treat them as separate, hence this flag.
     bool use_shared_queue;
     VkCommandPool primary_command_pool;
-    VkCommandPool secondary_command_pool;
     VkDescriptorPool descriptor_pool;
     // TODO(Matt): Move these into a proper texture representation.
     VkImage texture_image;
@@ -46,27 +45,25 @@ struct SwapchainInfo
     VkExtent2D extent;
     VkSurfaceTransformFlagBitsKHR transform;
     VkRenderPass renderpass;
-    VkRenderPass transient_pass;
     VkDescriptorSetLayout descriptor_set_layout;
-    VkPipelineLayout pipeline_layout;
-    VkPipeline *pipelines;
     uint32_t pipeline_count;
     uint32_t current_frame;
-    
-    // Heap allocated (make sure they get freed):
-    VkFramebuffer *framebuffers;
-    VkImage *images;
-    VkImageView *imageviews;
     VkImage color_image;
     VkDeviceMemory color_image_memory;
     VkImageView color_image_view;
     VkImage depth_image;
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
-    VkCommandBuffer *command_buffers;
-    VkCommandBuffer *transient_command_buffers;
-    VkDescriptorSet *descriptor_sets;
-    VkDescriptorSetLayout *descriptor_set_layouts;
+    
+    // Heap allocated (make sure they get freed):
+    VkPipelineLayout *pipeline_layouts;
+    VkPipeline *pipelines;
+    VkFramebuffer *framebuffers;
+    VkImage *images;
+    VkImageView *imageviews;
+    VkCommandBuffer *primary_command_buffers;
+    //VkDescriptorSet *descriptor_sets;
+    //VkDescriptorSetLayout *descriptor_set_layouts;
     VkFence *in_flight_fences;
     VkSemaphore *image_available_semaphores;
     VkSemaphore *render_finished_semaphores;
@@ -94,11 +91,11 @@ void CreateSwapchain();
 void CreateImageviews();
 void CreateRenderpass();
 void CreateDescriptorSetLayout();
-void CreatePipeline(VkPipeline *pipeline, char *vert_code, char *frag_code);
-void CreateStencilPipeline(VkPipeline *pipeline, char *vert_code);
-void CreateOutlinePipeline(VkPipeline *pipeline, char *vert_code, char *frag_code);
+void CreatePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code, char *frag_code);
+void CreateStencilPipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code);
+void CreateOutlinePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code, char *frag_code);
 void CreateFramebuffers();
-void CreateCommandPool();
+void CreateCommandPools();
 void CreateDescriptorPool();
 void CreateVertexBuffer(Model *model);
 void CreateIndexBuffer(Model *model);
@@ -142,3 +139,6 @@ VkSampleCountFlagBits GetMSAASampleCount();
 void CreateColorResources();
 
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate);
+
+void RecordPrimaryCommand(uint32_t image_index);
+void UpdateModels(double frame_delta);

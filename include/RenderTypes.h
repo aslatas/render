@@ -5,6 +5,8 @@
 #pragma warning(push, 0)
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#define GLM_ENABLE_EXPERIMENTAL
+#include "glm/gtx/euler_angles.hpp" 
 #pragma warning(pop)
 #pragma once
 
@@ -50,9 +52,7 @@ struct BoundingBox
 
 struct Model
 {
-    Vertex *vertices;
     uint32_t vertex_count;
-    uint32_t *indices;
     uint32_t index_count;
     UniformBufferObject ubo;
     BoundingBox bounds;
@@ -62,14 +62,21 @@ struct Model
     VkDeviceMemory vertex_buffer_memory;
     VkDeviceMemory index_buffer_memory;
     
+    glm::vec3 pos;
+    glm::vec3 rot;
+    glm::vec3 scl;
     // Heap allocated:
+    Vertex *vertices;
+    uint32_t *indices;
     VkBuffer *uniform_buffers;
     VkDeviceMemory *uniform_buffers_memory;
+    VkDescriptorSetLayout *descriptor_set_layouts;
+    VkDescriptorSet *descriptor_sets;
 };
 
 void DestroyModel(Model *model);
 
-Model CreateBox(glm::vec3 position, glm::vec3 extent, uint32_t shader_id);
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id);
 
 bool RaycastAgainstBoundingBox(glm::vec3 ray_origin, glm::vec3 ray_direction, float max_dist,float *hit_dist, Model *model);
 

@@ -9,11 +9,11 @@ static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 
 static Model *boxes;
-
+glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
 uint32_t box_count = 3;
 uint32_t material_count = 4;
 uint32_t selected_boxes[3] = {0, 0, 0};
-uint32_t selected_count = 1;
+uint32_t selected_count = 0;
 
 char *ReadShaderFile(char *path, uint32_t *length)
 {
@@ -35,7 +35,7 @@ void InitializeVulkan()
     glm::vec3 box_pos = glm::vec3(-0.3f, -0.3f, -0.3f);
     glm::vec3 box_ext = glm::vec3(0.5f, 0.5f, 0.5f);
     boxes[0] = CreateBox(box_pos, box_ext, 0);
-    box_pos = glm::vec3(0.3, 0.3, -0.3);
+    box_pos = glm::vec3(0.3f, 0.3f, -0.3f);
     boxes[1] = CreateBox(box_pos, box_ext, 1);
     box_pos = glm::vec3(0.0f, 0.0f, 0.3f);
     boxes[2] = CreateBox(box_pos, box_ext, 0);
@@ -57,11 +57,11 @@ void InitializeVulkan()
     CreateImageviews();
     CreateRenderpass();
     CreateDescriptorSetLayout();
-    CreatePipeline(&swapchain_info.pipelines[0], "shaders/vert.spv", "shaders/frag.spv");
-    CreatePipeline(&swapchain_info.pipelines[1], "shaders/vert2.spv", "shaders/frag2.spv");
-    CreateStencilPipeline(&swapchain_info.pipelines[2], "shaders/stencil_vert.spv");
-    CreateOutlinePipeline(&swapchain_info.pipelines[3], "shaders/outline_vert.spv", "shaders/outline_frag.spv");
-    CreateCommandPool();
+    CreatePipeline(&swapchain_info.pipelines[0], &swapchain_info.pipeline_layouts[0], "shaders/vert.spv", "shaders/frag.spv");
+    CreatePipeline(&swapchain_info.pipelines[1], &swapchain_info.pipeline_layouts[1], "shaders/vert2.spv", "shaders/frag2.spv");
+    CreateStencilPipeline(&swapchain_info.pipelines[2], &swapchain_info.pipeline_layouts[2],  "shaders/stencil_vert.spv");
+    CreateOutlinePipeline(&swapchain_info.pipelines[3], &swapchain_info.pipeline_layouts[3],  "shaders/outline_vert.spv", "shaders/outline_frag.spv");
+    CreateCommandPools();
     CreateColorResources();
     CreateDepthResources();
     CreateFramebuffers();
@@ -428,6 +428,8 @@ void CreateSwapchain()
     ChoosePresentMode();
     ChooseSwapchainExtent();
     swapchain_info.pipelines = (VkPipeline *)malloc(sizeof(VkPipeline) * material_count);
+    swapchain_info.pipeline_layouts = (VkPipelineLayout *)malloc(sizeof(VkPipelineLayout) * material_count);
+    swapchain_info.pipeline_count = material_count;
     VkSwapchainCreateInfoKHR create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     create_info.surface = vulkan_info.surface;
@@ -551,15 +553,6 @@ void CreateRenderpass()
         std::cerr << "Unable to create renderpass!" << std::endl;
         exit(EXIT_FAILURE);
     }
-    
-    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    resolve_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    
-    if (vkCreateRenderPass(vulkan_info.logical_device, &create_info, nullptr, &swapchain_info.transient_pass) != VK_SUCCESS)
-    {
-        std::cerr << "Unable to create transient pass!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
 }
 
 void CreateDescriptorSetLayout()
@@ -609,7 +602,7 @@ static VkShaderModule CreateShaderModule(char *code, uint32_t length)
 }
 
 // TODO(Matt): Rework shader loading/swapping once geometry is sorted.
-void CreateStencilPipeline(VkPipeline *pipeline, char *vert_file)
+void CreateStencilPipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_file)
 {
     uint32_t vert_length;
     char *vert_code = ReadShaderFile(vert_file, &vert_length);
@@ -749,7 +742,7 @@ void CreateStencilPipeline(VkPipeline *pipeline, char *vert_file)
     layout_create_info.setLayoutCount = 1;
     layout_create_info.pSetLayouts = &swapchain_info.descriptor_set_layout;
     
-    if (vkCreatePipelineLayout(vulkan_info.logical_device, &layout_create_info, nullptr, &swapchain_info.pipeline_layout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(vulkan_info.logical_device, &layout_create_info, nullptr, &swapchain_info.pipeline_layouts[2]) != VK_SUCCESS)
     {
         std::cerr << "Unable to create stencil pipeline layout!" << std::endl;
         exit(EXIT_FAILURE);
@@ -766,7 +759,7 @@ void CreateStencilPipeline(VkPipeline *pipeline, char *vert_file)
     pipeline_create_info.pMultisampleState = &multisample_create_info;
     pipeline_create_info.pColorBlendState = &blend_create_info;
     pipeline_create_info.pDepthStencilState = &depth_stencil;
-    pipeline_create_info.layout = swapchain_info.pipeline_layout;
+    pipeline_create_info.layout = *pipeline_layout;
     pipeline_create_info.renderPass = swapchain_info.renderpass;
     pipeline_create_info.subpass = 0;
     pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -780,7 +773,7 @@ void CreateStencilPipeline(VkPipeline *pipeline, char *vert_file)
     vkDestroyShaderModule(vulkan_info.logical_device, vert_module, nullptr);
 }
 
-void CreateOutlinePipeline(VkPipeline *pipeline, char *vert_file, char *frag_file)
+void CreateOutlinePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_file, char *frag_file)
 {
     uint32_t vert_length;
     uint32_t frag_length;
@@ -929,7 +922,7 @@ void CreateOutlinePipeline(VkPipeline *pipeline, char *vert_file, char *frag_fil
     layout_create_info.setLayoutCount = 1;
     layout_create_info.pSetLayouts = &swapchain_info.descriptor_set_layout;
     
-    if (vkCreatePipelineLayout(vulkan_info.logical_device, &layout_create_info, nullptr, &swapchain_info.pipeline_layout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(vulkan_info.logical_device, &layout_create_info, nullptr, pipeline_layout) != VK_SUCCESS)
     {
         std::cerr << "Unable to create outline pipeline layout!" << std::endl;
         exit(EXIT_FAILURE);
@@ -946,7 +939,7 @@ void CreateOutlinePipeline(VkPipeline *pipeline, char *vert_file, char *frag_fil
     pipeline_create_info.pMultisampleState = &multisample_create_info;
     pipeline_create_info.pColorBlendState = &blend_create_info;
     pipeline_create_info.pDepthStencilState = &depth_stencil;
-    pipeline_create_info.layout = swapchain_info.pipeline_layout;
+    pipeline_create_info.layout = *pipeline_layout;
     pipeline_create_info.renderPass = swapchain_info.renderpass;
     pipeline_create_info.subpass = 0;
     pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -961,7 +954,7 @@ void CreateOutlinePipeline(VkPipeline *pipeline, char *vert_file, char *frag_fil
     vkDestroyShaderModule(vulkan_info.logical_device, vert_module, nullptr);
 }
 
-void CreatePipeline(VkPipeline *pipeline, char *vert_file, char *frag_file)
+void CreatePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_file, char *frag_file)
 {
     uint32_t vert_length;
     uint32_t frag_length;
@@ -1103,7 +1096,7 @@ void CreatePipeline(VkPipeline *pipeline, char *vert_file, char *frag_file)
     layout_create_info.setLayoutCount = 1;
     layout_create_info.pSetLayouts = &swapchain_info.descriptor_set_layout;
     
-    if (vkCreatePipelineLayout(vulkan_info.logical_device, &layout_create_info, nullptr, &swapchain_info.pipeline_layout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(vulkan_info.logical_device, &layout_create_info, nullptr, pipeline_layout) != VK_SUCCESS)
     {
         std::cerr << "Unable to create pipeline layout!" << std::endl;
         exit(EXIT_FAILURE);
@@ -1120,7 +1113,7 @@ void CreatePipeline(VkPipeline *pipeline, char *vert_file, char *frag_file)
     pipeline_create_info.pMultisampleState = &multisample_create_info;
     pipeline_create_info.pColorBlendState = &blend_create_info;
     pipeline_create_info.pDepthStencilState = &depth_stencil;
-    pipeline_create_info.layout = swapchain_info.pipeline_layout;
+    pipeline_create_info.layout = *pipeline_layout;
     pipeline_create_info.renderPass = swapchain_info.renderpass;
     pipeline_create_info.subpass = 0;
     pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -1160,16 +1153,16 @@ void CreateFramebuffers()
     }
 }
 
-void CreateCommandPool()
+void CreateCommandPools()
 {
     
     VkCommandPoolCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     create_info.queueFamilyIndex = vulkan_info.graphics_index;
-    
+    create_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     if (vkCreateCommandPool(vulkan_info.logical_device, &create_info, nullptr, &vulkan_info.primary_command_pool) != VK_SUCCESS)
     {
-        std::cerr << "Unable to create command pool!" << std::endl;
+        std::cerr << "Unable to create primary command pool!" << std::endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -1252,19 +1245,19 @@ void CreateDescriptorPool()
 
 void CreateDescriptorSets(Model *model)
 {
-    swapchain_info.descriptor_set_layouts = (VkDescriptorSetLayout *)malloc(sizeof(VkDescriptorSetLayout) * swapchain_info.image_count);
+    model->descriptor_set_layouts = (VkDescriptorSetLayout *)malloc(sizeof(VkDescriptorSetLayout) * swapchain_info.image_count);
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i)
     {
-        swapchain_info.descriptor_set_layouts[i] = swapchain_info.descriptor_set_layout;
+        model->descriptor_set_layouts[i] = swapchain_info.descriptor_set_layout;
     }
     
     VkDescriptorSetAllocateInfo allocate_info = {};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocate_info.descriptorPool = vulkan_info.descriptor_pool;
     allocate_info.descriptorSetCount = swapchain_info.image_count;
-    allocate_info.pSetLayouts = swapchain_info.descriptor_set_layouts;
-    swapchain_info.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * swapchain_info.image_count);
-    if (vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, swapchain_info.descriptor_sets) != VK_SUCCESS)
+    allocate_info.pSetLayouts = model->descriptor_set_layouts;
+    model->descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * swapchain_info.image_count);
+    if (vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, model->descriptor_sets) != VK_SUCCESS)
     {
         std::cerr << "Unable to create descriptor sets!" << std::endl;
         exit(EXIT_FAILURE);
@@ -1284,7 +1277,7 @@ void CreateDescriptorSets(Model *model)
         
         VkWriteDescriptorSet uniform_write = {};
         uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uniform_write.dstSet = swapchain_info.descriptor_sets[i];
+        uniform_write.dstSet = model->descriptor_sets[i];
         uniform_write.dstBinding = 0;
         uniform_write.dstArrayElement = 0;
         uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1293,7 +1286,7 @@ void CreateDescriptorSets(Model *model)
         
         VkWriteDescriptorSet sampler_write = {};
         sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        sampler_write.dstSet = swapchain_info.descriptor_sets[i];
+        sampler_write.dstSet = model->descriptor_sets[i];
         sampler_write.dstBinding = 1;
         sampler_write.dstArrayElement = 0;
         sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1361,91 +1354,81 @@ uint32_t FindMemoryType(uint32_t type, VkMemoryPropertyFlags properties)
     exit(EXIT_FAILURE);
 }
 
+void RecordPrimaryCommand(uint32_t image_index)
+{
+    VkCommandBufferBeginInfo buffer_begin_info = {};
+    buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    
+    if (vkBeginCommandBuffer(swapchain_info.primary_command_buffers[image_index], &buffer_begin_info) != VK_SUCCESS)
+    {
+        std::cerr << "Unable to begin primary command buffer recording!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    VkRenderPassBeginInfo pass_begin_info = {};
+    pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    pass_begin_info.renderPass = swapchain_info.renderpass;
+    pass_begin_info.framebuffer = swapchain_info.framebuffers[image_index];
+    pass_begin_info.renderArea.offset = {0, 0};
+    pass_begin_info.renderArea.extent = swapchain_info.extent;
+    
+    VkClearValue clear_colors[2];
+    clear_colors[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+    clear_colors[1].depthStencil = {1.0f, 0};
+    pass_begin_info.clearValueCount = 2;
+    pass_begin_info.pClearValues = clear_colors;
+    
+    vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    
+    for (uint32_t model_index = 0; model_index < box_count; ++model_index)
+    {
+        vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipelines[boxes[model_index].shader_id]);
+        VkBuffer vertex_buffers[] = {boxes[model_index].vertex_buffer};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
+        vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], boxes[model_index].index_buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layouts[boxes[model_index].shader_id], 0, 1, &boxes[model_index].descriptor_sets[image_index], 0, nullptr);
+        vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], boxes[model_index].index_count, 1, 0, 0, 0);
+    }
+    
+    for (uint32_t outline_stage = 2; outline_stage <= 3; ++outline_stage) {
+        if (selected_count == 0) {
+            break;
+        }
+        vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipelines[outline_stage]);
+        for (uint32_t selected_index = 0; selected_index < selected_count; ++selected_index) {
+            VkBuffer vertex_buffers[] = {boxes[selected_boxes[selected_index]].vertex_buffer};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
+            vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], boxes[selected_boxes[selected_index]].index_buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layouts[outline_stage], 0, 1, &boxes[selected_boxes[selected_index]].descriptor_sets[image_index], 0, nullptr);
+            vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], boxes[selected_boxes[selected_index]].index_count, 1, 0, 0, 0);
+        }
+    }
+    
+    vkCmdEndRenderPass(swapchain_info.primary_command_buffers[image_index]);
+    
+    if (vkEndCommandBuffer(swapchain_info.primary_command_buffers[image_index]) != VK_SUCCESS)
+    {
+        std::cerr << "Unable to record primary command buffer!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
 void CreateCommandBuffers()
 {
-    swapchain_info.command_buffers = (VkCommandBuffer *)malloc(sizeof(VkCommandBuffer) * swapchain_info.image_count);
+    swapchain_info.primary_command_buffers = (VkCommandBuffer *)malloc(sizeof(VkCommandBuffer) * swapchain_info.image_count);
+    
     VkCommandBufferAllocateInfo allocate_info = {};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.commandPool = vulkan_info.primary_command_pool;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandBufferCount = swapchain_info.image_count;
-    
-    if (vkAllocateCommandBuffers(vulkan_info.logical_device, &allocate_info, swapchain_info.command_buffers) != VK_SUCCESS)
+    if (vkAllocateCommandBuffers(vulkan_info.logical_device, &allocate_info, swapchain_info.primary_command_buffers) != VK_SUCCESS)
     {
-        std::cerr << "Unable to allocate command buffers!" << std::endl;
+        std::cerr << "Unable to allocate primary command buffers!" << std::endl;
         exit(EXIT_FAILURE);
     }
-    
-    for (uint32_t i = 0; i < swapchain_info.image_count; ++i)
-    {
-        VkCommandBufferBeginInfo buffer_begin_info = {};
-        buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-        
-        if (vkBeginCommandBuffer(swapchain_info.command_buffers[i], &buffer_begin_info) != VK_SUCCESS)
-        {
-            std::cerr << "Unable to begin command buffer recording!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        
-        VkRenderPassBeginInfo pass_begin_info = {};
-        pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        pass_begin_info.renderPass = swapchain_info.renderpass;
-        pass_begin_info.framebuffer = swapchain_info.framebuffers[i];
-        pass_begin_info.renderArea.offset = {0, 0};
-        pass_begin_info.renderArea.extent = swapchain_info.extent;
-        
-        VkClearValue clear_colors[2];
-        clear_colors[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-        clear_colors[1].depthStencil = {1.0f, 0};
-        pass_begin_info.clearValueCount = 2;
-        pass_begin_info.pClearValues = clear_colors;
-        
-        vkCmdBeginRenderPass(swapchain_info.command_buffers[i], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-        
-        for (uint32_t model_index = 0; model_index < box_count; ++model_index)
-        {
-            
-            vkCmdBindPipeline(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipelines[boxes[model_index].shader_id]);
-            VkBuffer vertex_buffers[] = {boxes[model_index].vertex_buffer};
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(swapchain_info.command_buffers[i], 0, 1, vertex_buffers, offsets);
-            vkCmdBindIndexBuffer(swapchain_info.command_buffers[i], boxes[model_index].index_buffer, 0, VK_INDEX_TYPE_UINT32);
-            vkCmdBindDescriptorSets(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[i], 0, nullptr);
-            vkCmdDrawIndexed(swapchain_info.command_buffers[i], boxes[model_index].index_count, 1, 0, 0, 0);
-        }
-        
-        for (uint32_t outline_stage = 2; outline_stage <= 3; ++outline_stage) {
-            if (selected_count == 0) {
-                break;
-            }
-            vkCmdBindPipeline(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipelines[outline_stage]);
-            for (uint32_t selected_index = 0; selected_index < selected_count; ++selected_index) {
-                VkBuffer vertex_buffers[] = {boxes[selected_boxes[selected_index]].vertex_buffer};
-                VkDeviceSize offsets[] = {0};
-                vkCmdBindVertexBuffers(swapchain_info.command_buffers[i], 0, 1, vertex_buffers, offsets);
-                vkCmdBindIndexBuffer(swapchain_info.command_buffers[i], boxes[selected_boxes[selected_index]].index_buffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdBindDescriptorSets(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[i], 0, nullptr);
-                vkCmdDrawIndexed(swapchain_info.command_buffers[i], boxes[selected_boxes[selected_index]].index_count, 1, 0, 0, 0);
-            }
-        }
-        
-        vkCmdEndRenderPass(swapchain_info.command_buffers[i]);
-        
-        if (vkEndCommandBuffer(swapchain_info.command_buffers[i]) != VK_SUCCESS)
-        {
-            std::cerr << "Unable to record command buffer!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-    }
-    //VkCommandBufferAllocateInfo alloc_info = {};
-    //alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    //alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    //alloc_info.commandPool = vulkan_info.primary_command_pool;
-    //alloc_info.commandBufferCount = 1;
-    
-    //vkAllocateCommandBuffers(vulkan_info.logical_device, &alloc_info, &swapchain_info.transient_commands);
-    
 }
 
 void CreateSyncPrimitives()
@@ -1495,35 +1478,7 @@ void DrawFrame()
         UpdateUniforms(image_index, &boxes[i]);
     }
     
-    
-    VkCommandBufferBeginInfo begin_info = {};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    
-    //vkBeginCommandBuffer(swapchain_info.transient_commands, &begin_info);
-    
-    VkRenderPassBeginInfo pass_begin_info = {};
-    pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    pass_begin_info.renderPass = swapchain_info.transient_pass;
-    pass_begin_info.framebuffer = swapchain_info.framebuffers[image_index];
-    pass_begin_info.renderArea.offset = {0, 0};
-    pass_begin_info.renderArea.extent = swapchain_info.extent;
-    
-    VkClearValue clear_colors[2];
-    clear_colors[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-    clear_colors[1].depthStencil = {1.0f, 0};
-    pass_begin_info.clearValueCount = 2;
-    pass_begin_info.pClearValues = clear_colors;
-    
-    //vkCmdBeginRenderPass(swapchain_info.transient_commands, &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    
-    //vkCmdEndRenderPass(swapchain_info.transient_commands);
-    
-    //if (vkEndCommandBuffer(swapchain_info.transient_commands) != VK_SUCCESS)
-    //{
-    //std::cerr << "Unable to record transient command buffer!" << std::endl;
-    //exit(EXIT_FAILURE);
-    //}
+    RecordPrimaryCommand(image_index);
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     VkSemaphore wait_semaphores[] = {swapchain_info.image_available_semaphores[swapchain_info.current_frame]};
@@ -1532,7 +1487,7 @@ void DrawFrame()
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &swapchain_info.command_buffers[image_index];
+    submit_info.pCommandBuffers = &swapchain_info.primary_command_buffers[image_index];
     VkSemaphore signal_semaphores[] = {swapchain_info.render_finished_semaphores[swapchain_info.current_frame]};
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
@@ -1591,10 +1546,10 @@ void RecreateSwapchain()
     CreateSwapchain();
     CreateImageviews();
     CreateRenderpass();
-    CreatePipeline(&swapchain_info.pipelines[0], "shaders/vert.spv", "shaders/frag.spv");
-    CreatePipeline(&swapchain_info.pipelines[1], "shaders/vert2.spv", "shaders/frag2.spv");
-    CreateStencilPipeline(&swapchain_info.pipelines[2], "shaders/stencil_vert.spv");
-    CreateOutlinePipeline(&swapchain_info.pipelines[3], "shaders/outline_vert.spv", "shaders/outline_frag.spv");
+    CreatePipeline(&swapchain_info.pipelines[0], &swapchain_info.pipeline_layouts[0], "shaders/vert.spv", "shaders/frag.spv");
+    CreatePipeline(&swapchain_info.pipelines[1], &swapchain_info.pipeline_layouts[1], "shaders/vert2.spv", "shaders/frag2.spv");
+    CreateStencilPipeline(&swapchain_info.pipelines[2], &swapchain_info.pipeline_layouts[2],  "shaders/stencil_vert.spv");
+    CreateOutlinePipeline(&swapchain_info.pipelines[3], &swapchain_info.pipeline_layouts[3],  "shaders/outline_vert.spv", "shaders/outline_frag.spv");
     CreateColorResources();
     CreateDepthResources();
     CreateFramebuffers();
@@ -1616,15 +1571,16 @@ void CleanupSwapchain()
     }
     free(swapchain_info.framebuffers);
     
-    vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.primary_command_pool, swapchain_info.image_count, swapchain_info.command_buffers);
-    free(swapchain_info.command_buffers);
+    vkFreeCommandBuffers(vulkan_info.logical_device, vulkan_info.primary_command_pool, swapchain_info.image_count, swapchain_info.primary_command_buffers);
+    free(swapchain_info.primary_command_buffers);
     
     for (uint32_t i = 0; i < swapchain_info.pipeline_count; ++i)
     {
         vkDestroyPipeline(vulkan_info.logical_device, swapchain_info.pipelines[i], nullptr);
+        vkDestroyPipelineLayout(vulkan_info.logical_device, swapchain_info.pipeline_layouts[i], nullptr);
     }
     free(swapchain_info.pipelines);
-    vkDestroyPipelineLayout(vulkan_info.logical_device, swapchain_info.pipeline_layout, nullptr);
+    free(swapchain_info.pipeline_layouts);
     vkDestroyRenderPass(vulkan_info.logical_device, swapchain_info.renderpass, nullptr);
     
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i)
@@ -1639,8 +1595,6 @@ void CleanupSwapchain()
 
 void ShutdownVulkan()
 {
-    // TODO(Matt): IMPORTANT: actually free memory for pipelines, descriptoer pools, etc.
-    // OS is doing a lot.
     vkDeviceWaitIdle(vulkan_info.logical_device);
     CleanupSwapchain();
     vkDestroySampler(vulkan_info.logical_device, vulkan_info.texture_sampler, nullptr);
@@ -1656,10 +1610,6 @@ void ShutdownVulkan()
             vkDestroyBuffer(vulkan_info.logical_device, boxes[i].uniform_buffers[j], nullptr);
             vkFreeMemory(vulkan_info.logical_device, boxes[i].uniform_buffers_memory[j], nullptr);
         }
-    }
-    
-    for (uint32_t i = 0; i < swapchain_info.image_count; ++i)
-    {
         vkDestroyBuffer(vulkan_info.logical_device, boxes[i].vertex_buffer, nullptr);
         vkFreeMemory(vulkan_info.logical_device, boxes[i].vertex_buffer_memory, nullptr);
         vkDestroyBuffer(vulkan_info.logical_device, boxes[i].index_buffer, nullptr);
@@ -1692,25 +1642,25 @@ void ShutdownVulkan()
     Win32FreeVulkanLibrary();
 }
 
+void UpdateModels(double frame_delta)
+{
+    for (uint32_t i = 0; i < box_count; ++i) {
+        boxes[i].rot.z += (float)frame_delta * glm::radians(25.0f);
+        boxes[i].ubo.model = glm::translate(glm::mat4(1.0f), initial_positions[i]);
+        boxes[i].ubo.model = glm::yawPitchRoll(boxes[i].rot.x, boxes[i].rot.y, boxes[i].rot.z) * boxes[i].ubo.model;
+        boxes[i].pos = glm::vec3(boxes[i].ubo.model[3].x, boxes[i].ubo.model[3].y, boxes[i].ubo.model[3].z);
+        
+        boxes[i].ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
+        boxes[i].ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
+        boxes[i].ubo.sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        boxes[i].ubo.sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
+    }
+    
+}
+
 // TODO(Matt): Figure out uniforms in general.
 void UpdateUniforms(uint32_t current_image, Model *model)
 {
-    static auto start_time = std::chrono::high_resolution_clock::now();
-    
-    auto current_time = std::chrono::high_resolution_clock::now();
-    float run_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
-    
-    model->ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
-    model->ubo.model = glm::rotate(glm::mat4(1.0f), run_time * glm::radians(25.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    model->ubo.view = glm::lookAt(glm::vec3(model->ubo.view_position.x, model->ubo.view_position.y, model->ubo.view_position.z), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    model->ubo.projection = glm::perspective(glm::radians(45.0f), swapchain_info.extent.width / (float)swapchain_info.extent.height, 0.1f, 10.0f);
-    model->ubo.projection[1][1] *= -1;
-    
-    model->ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
-    model->ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
-    model->ubo.sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
-    model->ubo.sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
-    
     void *data;
     vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(model->ubo), 0, &data);
     memcpy(data, &model->ubo, sizeof(model->ubo));
@@ -2086,7 +2036,7 @@ void CreateColorResources()
 
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
 {
-    if (accumulate) selected_count = 0;
+    if (!accumulate) selected_count = 0;
     float min_dist = 1000.0f;
     int32_t selection = -1;
     for (uint32_t i = 0; i < box_count; ++i) {
@@ -2105,11 +2055,12 @@ void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
             if (!already_selected && hit_dist < min_dist) {
                 min_dist = hit_dist;
                 selection = i;
+                added_selection = true;
             }
         }
     }
     if (selection >= 0) {
         selected_boxes[selected_count] = selection;
         selected_count++;
-    } else if (!accumulate) selected_count = 0;
+    }
 }
