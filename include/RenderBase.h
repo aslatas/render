@@ -45,6 +45,7 @@ struct SwapchainInfo
     VkExtent2D extent;
     VkSurfaceTransformFlagBitsKHR transform;
     VkRenderPass renderpass;
+    VkRenderPass transient_pass;
     VkDescriptorSetLayout descriptor_set_layout;
     VkPipelineLayout pipeline_layout;
     VkPipeline *pipelines;
@@ -62,6 +63,7 @@ struct SwapchainInfo
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
     VkCommandBuffer *command_buffers;
+    VkCommandBuffer *transient_command_buffers;
     VkDescriptorSet *descriptor_sets;
     VkDescriptorSetLayout *descriptor_set_layouts;
     VkFence *in_flight_fences;
@@ -92,6 +94,8 @@ void CreateImageviews();
 void CreateRenderpass();
 void CreateDescriptorSetLayout();
 void CreatePipeline(VkPipeline *pipeline, char *vert_code, char *frag_code);
+void CreateStencilPipeline(VkPipeline *pipeline, char *vert_code);
+void CreateOutlinePipeline(VkPipeline *pipeline, char *vert_code, char *frag_code);
 void CreateFramebuffers();
 void CreateCommandPool();
 void CreateDescriptorPool();
@@ -135,3 +139,5 @@ void GenerateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t he
 VkSampleCountFlagBits GetMSAASampleCount();
 
 void CreateColorResources();
+
+void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate);

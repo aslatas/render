@@ -4,6 +4,8 @@
 #define MAX_PHYSICS_DELTA 0.03
 #define MAX_PHYSICS_STEPS 4
 
+static bool is_ctrl_held = false;
+
 void ResizeCallback(uint32_t width, uint32_t height)
 {
     RecreateSwapchain();
@@ -11,22 +13,22 @@ void ResizeCallback(uint32_t width, uint32_t height)
 
 void KeyCallback(uint32_t key, EButtonState state)
 {
-    std::cout << "Key " << key << " " << state << std::endl;
-    if (key == VK_RETURN) std::cout << "Got an Enter" << std::endl;
+    if (key == VK_CONTROL) is_ctrl_held = (state == PRESSED);
 }
 
 void MouseButtonCallback(uint32_t button, EButtonState state)
 {
-    int32_t x;
-    int32_t y;
-    Win32GetMousePosition(&x, &y);
-    std::cout << "Mouse Button " << button << " " << state << std::endl;
-    std::cout << "Pos: (" << x << ", " << y << ")" << std::endl;
+    if (button == 1 && state == PRESSED) {
+        int32_t x, y;
+        Win32GetMousePosition(&x, &y);
+        std::cout << "Mouse pos (screen): (" << x << ", " << y << ")" << std::endl;
+        SelectObject(x, y, is_ctrl_held);
+    }
 }
 
 void MouseWheelCallback(int32_t amount)
 {
-    std::cout << "Mouse Wheel " << amount << std::endl;
+    
 }
 
 void RunMainLoop()
