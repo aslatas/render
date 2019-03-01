@@ -13,7 +13,7 @@ static Model *boxes;
 uint32_t box_count = 3;
 uint32_t material_count = 4;
 uint32_t selected_boxes[3] = {0, 0, 0};
-uint32_t selected_count = 0;
+uint32_t selected_count = 1;
 
 char *ReadShaderFile(char *path, uint32_t *length)
 {
@@ -1416,6 +1416,21 @@ void CreateCommandBuffers()
             vkCmdDrawIndexed(swapchain_info.command_buffers[i], boxes[model_index].index_count, 1, 0, 0, 0);
         }
         
+        for (uint32_t outline_stage = 2; outline_stage <= 3; ++outline_stage) {
+            if (selected_count == 0) {
+                break;
+            }
+            vkCmdBindPipeline(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipelines[outline_stage]);
+            for (uint32_t selected_index = 0; selected_index < selected_count; ++selected_index) {
+                VkBuffer vertex_buffers[] = {boxes[selected_boxes[selected_index]].vertex_buffer};
+                VkDeviceSize offsets[] = {0};
+                vkCmdBindVertexBuffers(swapchain_info.command_buffers[i], 0, 1, vertex_buffers, offsets);
+                vkCmdBindIndexBuffer(swapchain_info.command_buffers[i], boxes[selected_boxes[selected_index]].index_buffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindDescriptorSets(swapchain_info.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[i], 0, nullptr);
+                vkCmdDrawIndexed(swapchain_info.command_buffers[i], boxes[selected_boxes[selected_index]].index_count, 1, 0, 0, 0);
+            }
+        }
+        
         vkCmdEndRenderPass(swapchain_info.command_buffers[i]);
         
         if (vkEndCommandBuffer(swapchain_info.command_buffers[i]) != VK_SUCCESS)
@@ -1502,21 +1517,6 @@ void DrawFrame()
     pass_begin_info.pClearValues = clear_colors;
     
     //vkCmdBeginRenderPass(swapchain_info.transient_commands, &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    
-    for (uint32_t outline_stage = 2; outline_stage <= 3; ++outline_stage) {
-        if (selected_count == 0) {
-            break;
-        }
-        //vkCmdBindPipeline(swapchain_info.transient_commands, VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipelines[outline_stage]);
-        for (uint32_t selected_index = 0; selected_index < selected_count; ++selected_index) {
-            VkBuffer vertex_buffers[] = {boxes[selected_boxes[selected_index]].vertex_buffer};
-            VkDeviceSize offsets[] = {0};
-            //vkCmdBindVertexBuffers(swapchain_info.transient_commands, 0, 1, vertex_buffers, offsets);
-            //vkCmdBindIndexBuffer(swapchain_info.transient_commands, boxes[selected_boxes[selected_index]].index_buffer, 0, VK_INDEX_TYPE_UINT32);
-            //vkCmdBindDescriptorSets(swapchain_info.transient_commands, VK_PIPELINE_BIND_POINT_GRAPHICS, swapchain_info.pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[image_index], 0, nullptr);
-            //vkCmdDrawIndexed(swapchain_info.transient_commands, boxes[selected_boxes[selected_index]].index_count, 1, 0, 0, 0);
-        }
-    }
     
     //vkCmdEndRenderPass(swapchain_info.transient_commands);
     
