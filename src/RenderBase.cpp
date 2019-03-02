@@ -2037,30 +2037,47 @@ void CreateColorResources()
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
 {
     if (!accumulate) selected_count = 0;
-    float min_dist = 1000.0f;
+    float min_dist = INFINITY;
     int32_t selection = -1;
     for (uint32_t i = 0; i < box_count; ++i) {
-        glm::vec3 ray_pos, ray_dir;
         float hit_dist;
-        ScreenPositionToWorldRay(mouse_x, mouse_y, swapchain_info.extent.width, swapchain_info.extent.height, boxes[i].ubo.view, boxes[i].ubo.projection, &ray_pos, &ray_dir);
-        if (RaycastAgainstBoundingBox(ray_pos, ray_dir, 1000.0f, &hit_dist, &boxes[i])) {
-            bool already_selected = false;
-            for (uint32_t j = 0; j < selected_count; ++j) {
-                if (selected_boxes[j] == i) {
-                    already_selected = true;
-                    break;
-                }
-            }
-            
-            if (!already_selected && hit_dist < min_dist) {
+        Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, swapchain_info.extent.width, swapchain_info.extent.height, boxes[i].ubo.view, boxes[i].ubo.projection, 1000.0f);
+        glm::vec3 intersection;
+        if (RaycastAgainstModelBounds(ray, &boxes[i], &intersection)) {
+            hit_dist = glm::distance2(ray.origin, intersection);
+            if (hit_dist < min_dist) {
                 min_dist = hit_dist;
                 selection = i;
-                added_selection = true;
             }
         }
     }
     if (selection >= 0) {
-        selected_boxes[selected_count] = selection;
-        selected_count++;
+        // Dumb hacky section incoming (just to get multiple selct working)
+        // Check if this box is already selected.
+        bool already_selected = false;
+        for (uint32_t j = 0; j < selected_count; ++j) {
+            if (selected_boxes[j] == selection) {
+                // If so, set the flag and quit checking.
+                already_selected = true;
+                break;
+            }
+        }
+        // If we are doing multi-select and this box was already selected, deselect it.
+        if (already_selected && accumulate) {
+            uint32_t new_index = 0;
+            // To deselect, iterate through all selected.
+            for (uint32_t j = 0; j < selected_count; ++j) {
+                // Add back all except the deselected box.
+                if (selected_boxes[j] == selection) continue;
+                selected_boxes[new_index] = selected_boxes[j];
+                new_index++;
+            }
+            // Decrement selected count.
+            selected_count--;
+            // End of dumb hacky section.
+        } else {
+            selected_boxes[selected_count] = selection;
+            selected_count++;
+        }
     }
 }

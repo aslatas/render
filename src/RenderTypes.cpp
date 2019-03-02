@@ -212,8 +212,8 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
     model.pos = pos;
     model.rot = glm::vec3(0.0f);
     model.scl = glm::vec3(1.0f);
-    model.bounds.pos = pos;
-    model.bounds.ext = ext;
+    model.bounds.min = glm::vec3(0.0f);
+    model.bounds.max = ext;
     model.ubo.model = glm::translate(glm::mat4(1.0f), pos);
     model.ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
     model.ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -223,104 +223,63 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
     return model;
 }
 
-// TODO(Matt): Refactor - this is a prototype.
-bool RaycastAgainstBoundingBox(glm::vec3 ray_origin, glm::vec3 ray_direction, float max_dist,float *hit_dist, Model *model)
+bool RayIntersectAxisAlignedBox(Ray ray, AxisAlignedBoundingBox box, glm::vec3 *intersection)
 {
-	
-	glm::vec3 bounds_min = model->bounds.pos;
-    glm::vec3 bounds_max = model->bounds.ext - bounds_min;
-    *hit_dist = -1.0f;
-	float t_min = 0.0f;
-	float t_max = max_dist;
-    
-	glm::vec3 world_pos = glm::vec3(model->ubo.model[3].x, model->ubo.model[3].y, model->ubo.model[3].z);
-    
-	glm::vec3 delta = world_pos - ray_origin;
-    
-	{
-		glm::vec3 x_axis(model->ubo.model[0].x, model->ubo.model[0].y, model->ubo.model[0].z);
-		float e = glm::dot(x_axis, delta);
-		float f = glm::dot(ray_direction, x_axis);
-        
-		if (fabs(f) > 0.0001f) {
-			float t1 = (e + bounds_min.x) / f;
-			float t2 = (e + bounds_max.x) / f;
-			if (t1 > t2) {
-				float w = t1;
-                t1 = t2;
-                t2 = w;
-            }
-			if (t2 < t_max) t_max = t2;
-			if (t1 > t_min) t_min = t1;
-			if (t_max < t_min) return false;
-		} else {
-			if (-e + bounds_min.x > 0.0f || -e + bounds_max.x < 0.0f) return false;
-		}
-	}
-    
-	{
-		glm::vec3 y_axis(model->ubo.model[1].x, model->ubo.model[1].y, model->ubo.model[1].z);
-		float e = glm::dot(y_axis, delta);
-		float f = glm::dot(ray_direction, y_axis);
-		if (fabs(f) > 0.0001f) {
-			float t1 = (e + bounds_min.y) / f;
-			float t2 = (e + bounds_max.y) / f;
-			if (t1 > t2) {
-                float w = t1;
-                t1 = t2;
-                t2 = w;
-            }
-			if (t2 < t_max) t_max = t2;
-			if (t1 > t_min) t_min = t1;
-			if (t_min > t_max) return false;
-		} else {
-			if (-e + bounds_min.y > 0.0f || -e + bounds_max.y < 0.0f) return false;
-		}
-	}
-    
-	{
-		glm::vec3 z_axis(model->ubo.model[2].x, model->ubo.model[2].y, model->ubo.model[2].z);
-		float e = glm::dot(z_axis, delta);
-		float f = glm::dot(ray_direction, z_axis);
-		if (fabs(f) > 0.0001f) {
-			float t1 = (e + bounds_min.z) / f;
-			float t2 = (e + bounds_max.z) / f;
-			if (t1 > t2){
-                float w = t1;
-                t1 = t2;
-                t2 = w;
-            }
-			if (t2 < t_max) t_max = t2;
-			if (t1 > t_min) t_min = t1;
-			if (t_min > t_max) return false;
-		} else {
-			if (-e + bounds_min.z > 0.0f || -e + bounds_max.z < 0.0f) return false;
-		}
-	}
-    
-    *hit_dist = t_min;
-    std::cout << "Hit the model at position (" << model->pos.x << ", " << model->pos.y << ", " << model->pos.z << ")" << std::endl;
-	return true;
+    // general method from https://tavianator.com/fast-branchless-raybounding-box-intersections-part-2-nans
+    float t1 = (box.min.x - ray.origin.x) * ray.inverse_direction.x;
+    float t2 = (box.max.x - ray.origin.x) * ray.inverse_direction.x;
+    float t3 = (box.min.y - ray.origin.y) * ray.inverse_direction.y;
+    float t4 = (box.max.y - ray.origin.y) * ray.inverse_direction.y;
+    float t5 = (box.min.z - ray.origin.z) * ray.inverse_direction.z;
+    float t6 = (box.max.z - ray.origin.z) * ray.inverse_direction.z;
+    float t_min = fmax(fmax(fmin(t1, t2), fmin(t3, t4)), fmin(t5, t6));
+    float t_max = t_max = fmin(fmin(fmax(t1, t2), fmax(t3, t4)), fmax(t5, t6));
+    float t = (t_min >= 0.0f) ? t_min : t_max;
+    *intersection = ray.origin + glm::vec3(ray.direction.x * t, ray.direction.y * t, ray.direction.z * t);
+    return t_max > fmax(t_min, 0.0f);
 }
 
-void ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, glm::vec3 *out_pos, glm::vec3 *out_dir)
+// TODO(Matt): Refactor - this is a prototype.
+bool RaycastAgainstModelBounds(Ray ray, const Model *model, glm::vec3 *intersection)
 {
-	glm::vec4 screen_start(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, -1.0, 1.0f);
-	glm::vec4 screen_end(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, 0.0, 1.0f);
-    
-    
-	glm::mat4 inverse_proj = glm::inverse(proj);
-	
-	glm::mat4 inverse_view = glm::inverse(view);
-	
-	glm::vec4 camera_start = inverse_proj * screen_start;    camera_start/=camera_start.w;
-	glm::vec4 world_start  = inverse_view       * camera_start; world_start /=world_start .w;
-	glm::vec4 camera_end   = inverse_proj * screen_end;      camera_end  /=camera_end  .w;
-	glm::vec4 world_end    = inverse_view       * camera_end;   world_end   /=world_end   .w;
-    
-	glm::vec3 world_dir(world_end - world_start);
-	world_dir = glm::normalize(world_dir);
-    
-	*out_pos = glm::vec3(world_start);
-    *out_dir = glm::normalize(world_dir);
+    glm::mat4 inverse = glm::inverse(model->ubo.model);
+    Ray local_ray = CreateRay(inverse * glm::vec4(ray.origin, 1.0f), inverse * glm::vec4(ray.direction, 0.0f), ray.length);
+    bool intersect = RayIntersectAxisAlignedBox(local_ray, model->bounds, intersection);
+    *intersection = model->ubo.model * glm::vec4(*intersection, 1.0f);
+    return intersect;
+}
+
+Ray ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 projection, float ray_length)
+{
+    glm::vec4 screen_start(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, -1.0, 1.0f);
+    glm::vec4 screen_end(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, 0.0, 1.0f);
+    glm::mat4 inverse_projection = glm::inverse(projection);
+    glm::mat4 inverse_view = glm::inverse(view);
+    glm::vec4 camera_start = inverse_projection * screen_start;
+    camera_start /= camera_start.w;
+    glm::vec4 world_start = inverse_view * camera_start;
+    world_start /= world_start.w;
+    glm::vec4 camera_end = inverse_projection * screen_end;
+    camera_end /= camera_end.w;
+    glm::vec4 world_end = inverse_view * camera_end;
+    world_end /= world_end.w;
+    glm::vec3 world_dir(world_end - world_start);
+    return CreateRay(world_start, world_dir, ray_length);
+}
+
+Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length)
+{
+    Ray ray;
+    ray.origin = origin;
+    ray.direction = glm::normalize(direction);
+    ray.inverse_direction = 1.0f / direction;
+    ray.length = length;
+    return ray;
+}
+
+void DebugPrintRay(Ray ray)
+{
+    std::cout << "Origin (" << ray.origin.x << ", " << ray.origin.y << ", " << ray.origin.z << ")" << std::endl;
+    std::cout << "Direction (" << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << ")" << std::endl;
+    std::cout << "Length (" << ray.length << ")" << std::endl;
 }

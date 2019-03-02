@@ -6,7 +6,8 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
-#include "glm/gtx/euler_angles.hpp" 
+#include "glm/gtx/euler_angles.hpp"
+#include "glm/gtx/norm.hpp"
 #pragma warning(pop)
 #pragma once
 
@@ -44,10 +45,18 @@ struct UniformBufferObject
 };
 
 
-struct BoundingBox
+struct AxisAlignedBoundingBox
 {
-    glm::vec3 pos;
-    glm::vec3 ext;
+    glm::vec3 min;
+    glm::vec3 max;
+};
+
+struct Ray
+{
+    glm::vec3 origin;
+    glm::vec3 direction;
+    glm::vec3 inverse_direction;
+    float length;
 };
 
 struct Model
@@ -55,7 +64,7 @@ struct Model
     uint32_t vertex_count;
     uint32_t index_count;
     UniformBufferObject ubo;
-    BoundingBox bounds;
+    AxisAlignedBoundingBox bounds;
     uint32_t shader_id;
     VkBuffer vertex_buffer;
     VkBuffer index_buffer;
@@ -77,7 +86,18 @@ struct Model
 void DestroyModel(Model *model);
 
 Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id);
+Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
 
-bool RaycastAgainstBoundingBox(glm::vec3 ray_origin, glm::vec3 ray_direction, float max_dist,float *hit_dist, Model *model);
+// Tests a ray against a model's oriented bounding box, by transforming the ray into the model's local space and
+// then performing an axis-aligned bounding box test. 
+// Returns true if there was an intersection, false otherwise.
+// Fills the intersection parameter with the intersection point if there was one.
+bool RaycastAgainstModelBounds(const Ray ray, const Model *model, glm::vec3 *intersection);
 
-void ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, glm::vec3 *out_pos, glm::vec3 *out_dir);
+// Tests a ray against an axis-aligned bounding box, assuming both are in the same coordinate space.
+// For each axis, tests the ray against both planes of the box. If the minimum distance in one axis exceeds the
+// maximum for another, no intersection occurs.
+// Returns true if there was an intersection, false otherwise.
+// Fills the distance parameter with the intersection point if there was one.
+bool RayIntersectAxisAlignedBox(const Ray *ray, const AxisAlignedBoundingBox *box, glm::vec3 *intersection);
+Ray ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);

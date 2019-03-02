@@ -13,7 +13,7 @@ void ResizeCallback(uint32_t width, uint32_t height)
 
 void KeyCallback(uint32_t key, EButtonState state)
 {
-    if (key == VK_CONTROL) is_ctrl_held = (state == PRESSED);
+    if (key == VK_CONTROL) is_ctrl_held = (state == PRESSED || state == HELD);
 }
 
 void MouseButtonCallback(uint32_t button, EButtonState state)
