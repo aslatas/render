@@ -4,7 +4,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
-#include "RenderTypes.h"
+#include "Text.h"
+
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 
@@ -46,8 +47,7 @@ void InitializeVulkan()
     CreateInstance();
     LoadVulkanInstanceFunctions(vulkan_info.instance);
     LoadVulkanInstanceExtensionFunctions(vulkan_info.instance);
-    if (enable_validation)
-        CreateDebugMessenger();
+    if (enable_validation) CreateDebugMessenger();
     CreateSurface();
     ChoosePhysicalDevice();
     CreateLogicalDevice();
