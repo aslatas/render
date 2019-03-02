@@ -6,7 +6,10 @@ void DestroyModel(Model *model)
 {
     free(model->vertices);
     free(model->indices);
-    free(model);
+    free(model->uniform_buffers);
+    free(model->uniform_buffers_memory);
+    free(model->descriptor_set_layouts);
+    free(model->descriptor_sets);
     model = nullptr;
 }
 
@@ -18,30 +21,30 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
     model.index_count = 36;
     model.vertices = (Vertex *)malloc(model.vertex_count * sizeof(Vertex));
     model.indices = (uint32_t *)malloc(sizeof(uint32_t) * model.index_count);
-    model.vertices[ 0].position = pos + glm::vec3(0.0f, 0.0f, 0.0f);
-    model.vertices[ 1].position = pos + glm::vec3(0.0f, 0.0f, ext.z);
-    model.vertices[ 2].position = pos + glm::vec3(ext.x, 0.0f, ext.z);
-    model.vertices[ 3].position = pos + glm::vec3(ext.x, 0.0f, 0.0f);
-    model.vertices[ 4].position = pos + glm::vec3(ext.x, 0.0f, 0.0f);
-    model.vertices[ 5].position = pos + glm::vec3(ext.x, 0.0f, ext.z);
-    model.vertices[ 6].position = pos + glm::vec3(ext.x, ext.y, ext.z);
-    model.vertices[ 7].position = pos + glm::vec3(ext.x, ext.y, 0.0f);
-    model.vertices[ 8].position = pos + glm::vec3(ext.x, ext.y, 0.0f);
-    model.vertices[ 9].position = pos + glm::vec3(ext.x, ext.y, ext.z);
-    model.vertices[10].position = pos + glm::vec3(0.0f, ext.y, ext.z);
-    model.vertices[11].position = pos + glm::vec3(0.0f, ext.y, 0.0f);
-    model.vertices[12].position = pos + glm::vec3(0.0f, ext.y, 0.0f);
-    model.vertices[13].position = pos + glm::vec3(0.0f, ext.y, ext.z);
-    model.vertices[14].position = pos + glm::vec3(0.0f, 0.0f, ext.z);
-    model.vertices[15].position = pos + glm::vec3(0.0f, 0.0f, 0.0f);
-    model.vertices[16].position = pos + glm::vec3(0.0f, 0.0f, ext.z);
-    model.vertices[17].position = pos + glm::vec3(0.0f, ext.y, ext.z);
-    model.vertices[18].position = pos + glm::vec3(ext.x, ext.y, ext.z);
-    model.vertices[19].position = pos + glm::vec3(ext.x, 0.0f, ext.z);
-    model.vertices[20].position = pos + glm::vec3(0.0f, 0.0f, 0.0f);
-    model.vertices[21].position = pos + glm::vec3(ext.x, 0.0f, 0.0f);
-    model.vertices[22].position = pos + glm::vec3(ext.x, ext.y, 0.0f);
-    model.vertices[23].position = pos + glm::vec3(0.0f, ext.y, 0.0f);
+    model.vertices[ 0].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    model.vertices[ 1].position = glm::vec3(0.0f, 0.0f, ext.z);
+    model.vertices[ 2].position = glm::vec3(ext.x, 0.0f, ext.z);
+    model.vertices[ 3].position = glm::vec3(ext.x, 0.0f, 0.0f);
+    model.vertices[ 4].position = glm::vec3(ext.x, 0.0f, 0.0f);
+    model.vertices[ 5].position = glm::vec3(ext.x, 0.0f, ext.z);
+    model.vertices[ 6].position = glm::vec3(ext.x, ext.y, ext.z);
+    model.vertices[ 7].position = glm::vec3(ext.x, ext.y, 0.0f);
+    model.vertices[ 8].position = glm::vec3(ext.x, ext.y, 0.0f);
+    model.vertices[ 9].position = glm::vec3(ext.x, ext.y, ext.z);
+    model.vertices[10].position = glm::vec3(0.0f, ext.y, ext.z);
+    model.vertices[11].position = glm::vec3(0.0f, ext.y, 0.0f);
+    model.vertices[12].position = glm::vec3(0.0f, ext.y, 0.0f);
+    model.vertices[13].position = glm::vec3(0.0f, ext.y, ext.z);
+    model.vertices[14].position = glm::vec3(0.0f, 0.0f, ext.z);
+    model.vertices[15].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    model.vertices[16].position = glm::vec3(0.0f, 0.0f, ext.z);
+    model.vertices[17].position = glm::vec3(0.0f, ext.y, ext.z);
+    model.vertices[18].position = glm::vec3(ext.x, ext.y, ext.z);
+    model.vertices[19].position = glm::vec3(ext.x, 0.0f, ext.z);
+    model.vertices[20].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    model.vertices[21].position = glm::vec3(ext.x, 0.0f, 0.0f);
+    model.vertices[22].position = glm::vec3(ext.x, ext.y, 0.0f);
+    model.vertices[23].position = glm::vec3(0.0f, ext.y, 0.0f);
     
     model.vertices[ 0].normal = glm::vec3(0.0f, -1.0f, 0.0f);
     model.vertices[ 1].normal = glm::vec3(0.0f, -1.0f, 0.0f);
@@ -206,10 +209,77 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
     model.indices[34] = 22;
     model.indices[35] = 21;
     
-    model.ubo.model = glm::mat4();
+    model.pos = pos;
+    model.rot = glm::vec3(0.0f);
+    model.scl = glm::vec3(1.0f);
+    model.bounds.min = glm::vec3(0.0f);
+    model.bounds.max = ext;
+    model.ubo.model = glm::translate(glm::mat4(1.0f), pos);
+    model.ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
     model.ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     model.ubo.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
     model.ubo.projection[1][1] *= -1;
     
     return model;
+}
+
+bool RayIntersectAxisAlignedBox(Ray ray, AxisAlignedBoundingBox box, glm::vec3 *intersection)
+{
+    // general method from https://tavianator.com/fast-branchless-raybounding-box-intersections-part-2-nans
+    float t1 = (box.min.x - ray.origin.x) * ray.inverse_direction.x;
+    float t2 = (box.max.x - ray.origin.x) * ray.inverse_direction.x;
+    float t3 = (box.min.y - ray.origin.y) * ray.inverse_direction.y;
+    float t4 = (box.max.y - ray.origin.y) * ray.inverse_direction.y;
+    float t5 = (box.min.z - ray.origin.z) * ray.inverse_direction.z;
+    float t6 = (box.max.z - ray.origin.z) * ray.inverse_direction.z;
+    float t_min = fmax(fmax(fmin(t1, t2), fmin(t3, t4)), fmin(t5, t6));
+    float t_max = t_max = fmin(fmin(fmax(t1, t2), fmax(t3, t4)), fmax(t5, t6));
+    float t = (t_min >= 0.0f) ? t_min : t_max;
+    *intersection = ray.origin + glm::vec3(ray.direction.x * t, ray.direction.y * t, ray.direction.z * t);
+    return t_max > fmax(t_min, 0.0f);
+}
+
+// TODO(Matt): Refactor - this is a prototype.
+bool RaycastAgainstModelBounds(Ray ray, const Model *model, glm::vec3 *intersection)
+{
+    glm::mat4 inverse = glm::inverse(model->ubo.model);
+    Ray local_ray = CreateRay(inverse * glm::vec4(ray.origin, 1.0f), inverse * glm::vec4(ray.direction, 0.0f), ray.length);
+    bool intersect = RayIntersectAxisAlignedBox(local_ray, model->bounds, intersection);
+    *intersection = model->ubo.model * glm::vec4(*intersection, 1.0f);
+    return intersect;
+}
+
+Ray ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 projection, float ray_length)
+{
+    glm::vec4 screen_start(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, -1.0, 1.0f);
+    glm::vec4 screen_end(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, 0.0, 1.0f);
+    glm::mat4 inverse_projection = glm::inverse(projection);
+    glm::mat4 inverse_view = glm::inverse(view);
+    glm::vec4 camera_start = inverse_projection * screen_start;
+    camera_start /= camera_start.w;
+    glm::vec4 world_start = inverse_view * camera_start;
+    world_start /= world_start.w;
+    glm::vec4 camera_end = inverse_projection * screen_end;
+    camera_end /= camera_end.w;
+    glm::vec4 world_end = inverse_view * camera_end;
+    world_end /= world_end.w;
+    glm::vec3 world_dir(world_end - world_start);
+    return CreateRay(world_start, world_dir, ray_length);
+}
+
+Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length)
+{
+    Ray ray;
+    ray.origin = origin;
+    ray.direction = glm::normalize(direction);
+    ray.inverse_direction = 1.0f / direction;
+    ray.length = length;
+    return ray;
+}
+
+void DebugPrintRay(Ray ray)
+{
+    std::cout << "Origin (" << ray.origin.x << ", " << ray.origin.y << ", " << ray.origin.z << ")" << std::endl;
+    std::cout << "Direction (" << ray.direction.x << ", " << ray.direction.y << ", " << ray.direction.z << ")" << std::endl;
+    std::cout << "Length (" << ray.length << ")" << std::endl;
 }
