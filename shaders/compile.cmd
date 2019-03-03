@@ -9,3 +9,6 @@ C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V stencil.vert -o stencil_vert
 
 C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V outline.vert -o outline_vert.spv
 C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V outline.frag -o outline_frag.spv
+
+C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V text.vert -o text_vert.spv
+C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V text.frag -o text_frag.spv

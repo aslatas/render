@@ -12,4 +12,6 @@ struct Texture
     uint32_t mip_count;
 };
 
-Texture LoadFont(char *path, uint32_t resolution, bool generate_mips, const VulkanInfo *vulkan_info);
+Texture LoadFontTexture(char *path, uint32_t resolution, bool generate_mips, const VulkanInfo *vulkan_info);
+
+Model CreateText(char *text, float x, float y, float screen_width, float screen_height);

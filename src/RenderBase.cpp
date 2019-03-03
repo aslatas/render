@@ -8,11 +8,11 @@
 
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
-
+Texture font;
 static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
 uint32_t box_count = 3;
-uint32_t material_count = 4;
+uint32_t material_count = 5;
 uint32_t selected_boxes[3] = {0, 0, 0};
 uint32_t selected_count = 0;
 
@@ -39,8 +39,7 @@ void InitializeVulkan()
     box_pos = glm::vec3(0.3f, 0.3f, -0.3f);
     boxes[1] = CreateBox(box_pos, box_ext, 1);
     box_pos = glm::vec3(0.0f, 0.0f, 0.3f);
-    boxes[2] = CreateBox(box_pos, box_ext, 0);
-    
+    //boxes[2] = CreateBox(box_pos, box_ext, 0);
     // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
     LoadVulkanGlobalFunctions();
@@ -61,6 +60,7 @@ void InitializeVulkan()
     CreatePipeline(&swapchain_info.pipelines[1], &swapchain_info.pipeline_layouts[1], "shaders/vert2.spv", "shaders/frag2.spv");
     CreateStencilPipeline(&swapchain_info.pipelines[2], &swapchain_info.pipeline_layouts[2],  "shaders/stencil_vert.spv");
     CreateOutlinePipeline(&swapchain_info.pipelines[3], &swapchain_info.pipeline_layouts[3],  "shaders/outline_vert.spv", "shaders/outline_frag.spv");
+    CreatePipeline(&swapchain_info.pipelines[4], &swapchain_info.pipeline_layouts[4], "shaders/text_vert.spv", "shaders/text_frag.spv");
     CreateCommandPools();
     CreateColorResources();
     CreateDepthResources();
@@ -68,6 +68,8 @@ void InitializeVulkan()
     CreateTextureImage("textures/proto.jpg");
     CreateTextureImageView();
     CreateTextureSampler();
+    font = LoadFontTexture("fonts/Hind-Regular.ttf", 512, true, &vulkan_info);
+    boxes[2] = CreateText("Hello, World!", 25.0f, 128.0f, (float)swapchain_info.extent.width, (float)swapchain_info.extent.height);
     CreateDescriptorPool();
     // TODO(Matt): Find a different solution for buffer allocation.
     for (uint32_t i = 0; i < box_count; ++i)
@@ -79,6 +81,7 @@ void InitializeVulkan()
     }
     CreateCommandBuffers();
     CreateSyncPrimitives();
+    
 }
 
 void CreateInstance()
@@ -1262,38 +1265,72 @@ void CreateDescriptorSets(Model *model)
         std::cerr << "Unable to create descriptor sets!" << std::endl;
         exit(EXIT_FAILURE);
     }
-    
-    for (uint32_t i = 0; i < swapchain_info.image_count; ++i)
-    {
-        VkDescriptorBufferInfo descriptor_info = {};
-        descriptor_info.buffer = model->uniform_buffers[i];
-        descriptor_info.offset = 0;
-        descriptor_info.range = sizeof(UniformBufferObject);
-        
-        VkDescriptorImageInfo image_info = {};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView = vulkan_info.texture_image_view;
-        image_info.sampler = vulkan_info.texture_sampler;
-        
-        VkWriteDescriptorSet uniform_write = {};
-        uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uniform_write.dstSet = model->descriptor_sets[i];
-        uniform_write.dstBinding = 0;
-        uniform_write.dstArrayElement = 0;
-        uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uniform_write.descriptorCount = 1;
-        uniform_write.pBufferInfo = &descriptor_info;
-        
-        VkWriteDescriptorSet sampler_write = {};
-        sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        sampler_write.dstSet = model->descriptor_sets[i];
-        sampler_write.dstBinding = 1;
-        sampler_write.dstArrayElement = 0;
-        sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        sampler_write.descriptorCount = 1;
-        sampler_write.pImageInfo = &image_info;
-        VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+    if (model->shader_id == 4) {
+        for (uint32_t i = 0; i < swapchain_info.image_count; ++i)
+        {
+            VkDescriptorBufferInfo descriptor_info = {};
+            descriptor_info.buffer = model->uniform_buffers[i];
+            descriptor_info.offset = 0;
+            descriptor_info.range = sizeof(UniformBufferObject);
+            
+            VkDescriptorImageInfo image_info = {};
+            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            image_info.imageView = font.image_view;
+            image_info.sampler = font.sampler;
+            
+            VkWriteDescriptorSet uniform_write = {};
+            uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            uniform_write.dstSet = model->descriptor_sets[i];
+            uniform_write.dstBinding = 0;
+            uniform_write.dstArrayElement = 0;
+            uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            uniform_write.descriptorCount = 1;
+            uniform_write.pBufferInfo = &descriptor_info;
+            
+            VkWriteDescriptorSet sampler_write = {};
+            sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            sampler_write.dstSet = model->descriptor_sets[i];
+            sampler_write.dstBinding = 1;
+            sampler_write.dstArrayElement = 0;
+            sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            sampler_write.descriptorCount = 1;
+            sampler_write.pImageInfo = &image_info;
+            VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
+            vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+        }
+    } else {
+        for (uint32_t i = 0; i < swapchain_info.image_count; ++i)
+        {
+            VkDescriptorBufferInfo descriptor_info = {};
+            descriptor_info.buffer = model->uniform_buffers[i];
+            descriptor_info.offset = 0;
+            descriptor_info.range = sizeof(UniformBufferObject);
+            
+            VkDescriptorImageInfo image_info = {};
+            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            image_info.imageView = vulkan_info.texture_image_view;
+            image_info.sampler = vulkan_info.texture_sampler;
+            
+            VkWriteDescriptorSet uniform_write = {};
+            uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            uniform_write.dstSet = model->descriptor_sets[i];
+            uniform_write.dstBinding = 0;
+            uniform_write.dstArrayElement = 0;
+            uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            uniform_write.descriptorCount = 1;
+            uniform_write.pBufferInfo = &descriptor_info;
+            
+            VkWriteDescriptorSet sampler_write = {};
+            sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            sampler_write.dstSet = model->descriptor_sets[i];
+            sampler_write.dstBinding = 1;
+            sampler_write.dstArrayElement = 0;
+            sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            sampler_write.descriptorCount = 1;
+            sampler_write.pImageInfo = &image_info;
+            VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
+            vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+        }
     }
 }
 
