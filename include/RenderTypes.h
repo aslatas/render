@@ -70,7 +70,7 @@ struct Model
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
     VkDeviceMemory index_buffer_memory;
-    
+    bool hit_test_enabled;
     glm::vec3 pos;
     glm::vec3 rot;
     glm::vec3 scl;

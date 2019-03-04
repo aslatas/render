@@ -26,12 +26,6 @@ struct VulkanInfo
     bool use_shared_queue;
     VkCommandPool primary_command_pool;
     VkDescriptorPool descriptor_pool;
-    // TODO(Matt): Move these into a proper texture representation.
-    VkImage texture_image;
-    VkImageView texture_image_view;
-    VkDeviceMemory texture_memory;
-    VkSampler texture_sampler;
-    uint32_t texture_mips;
     VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 };
 

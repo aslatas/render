@@ -17,6 +17,7 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
 {
     Model model;
     model.shader_id = shader_id;
+    model.hit_test_enabled = true;
     model.vertex_count = 24;
     model.index_count = 36;
     model.vertices = (Vertex *)malloc(model.vertex_count * sizeof(Vertex));

@@ -1,14 +1,11 @@
 // TODO(Matt): There are a few platform specific bits lingering in here.
-// Move surface creation and surface size query out.
 #include "RenderBase.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
-#include "Text.h"
+#include "Font.h"
 
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
-Texture font;
+BitmapFont font;
+Texture texture;
 static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
 uint32_t box_count = 3;
@@ -39,7 +36,6 @@ void InitializeVulkan()
     box_pos = glm::vec3(0.3f, 0.3f, -0.3f);
     boxes[1] = CreateBox(box_pos, box_ext, 1);
     box_pos = glm::vec3(0.0f, 0.0f, 0.3f);
-    //boxes[2] = CreateBox(box_pos, box_ext, 0);
     // TODO(Matt): Platform specific.
     Win32LoadVulkanLibrary();
     LoadVulkanGlobalFunctions();
@@ -65,11 +61,9 @@ void InitializeVulkan()
     CreateColorResources();
     CreateDepthResources();
     CreateFramebuffers();
-    CreateTextureImage("textures/proto.jpg");
-    CreateTextureImageView();
-    CreateTextureSampler();
-    font = LoadFontTexture("fonts/Hind-Regular.ttf", 512, true, &vulkan_info);
-    boxes[2] = CreateText("Hello, World!", 25.0f, 128.0f, (float)swapchain_info.extent.width, (float)swapchain_info.extent.height);
+    texture = LoadTexture("textures/proto.jpg", &vulkan_info, 4, true);
+    font = LoadBitmapFont("fonts/Hind-Regular.ttf", &vulkan_info, 4);
+    boxes[2] = CreateText("Hello, World!", &font, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height});
     CreateDescriptorPool();
     // TODO(Matt): Find a different solution for buffer allocation.
     for (uint32_t i = 0; i < box_count; ++i)
@@ -1275,8 +1269,8 @@ void CreateDescriptorSets(Model *model)
             
             VkDescriptorImageInfo image_info = {};
             image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            image_info.imageView = font.image_view;
-            image_info.sampler = font.sampler;
+            image_info.imageView = font.texture.image_view;
+            image_info.sampler = font.texture.sampler;
             
             VkWriteDescriptorSet uniform_write = {};
             uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1308,8 +1302,8 @@ void CreateDescriptorSets(Model *model)
             
             VkDescriptorImageInfo image_info = {};
             image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            image_info.imageView = vulkan_info.texture_image_view;
-            image_info.sampler = vulkan_info.texture_sampler;
+            image_info.imageView = texture.image_view;
+            image_info.sampler = texture.sampler;
             
             VkWriteDescriptorSet uniform_write = {};
             uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1571,6 +1565,7 @@ void DrawFrame()
     swapchain_info.current_frame = (swapchain_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
+// TODO(Matt): Need to recreate screen-space stuff here, like UI models.
 void RecreateSwapchain()
 {
     vkDeviceWaitIdle(vulkan_info.logical_device);
@@ -1587,6 +1582,7 @@ void RecreateSwapchain()
     CreatePipeline(&swapchain_info.pipelines[1], &swapchain_info.pipeline_layouts[1], "shaders/vert2.spv", "shaders/frag2.spv");
     CreateStencilPipeline(&swapchain_info.pipelines[2], &swapchain_info.pipeline_layouts[2],  "shaders/stencil_vert.spv");
     CreateOutlinePipeline(&swapchain_info.pipelines[3], &swapchain_info.pipeline_layouts[3],  "shaders/outline_vert.spv", "shaders/outline_frag.spv");
+    CreatePipeline(&swapchain_info.pipelines[4], &swapchain_info.pipeline_layouts[4], "shaders/text_vert.spv", "shaders/text_frag.spv");
     CreateColorResources();
     CreateDepthResources();
     CreateFramebuffers();
@@ -1634,10 +1630,8 @@ void ShutdownVulkan()
 {
     vkDeviceWaitIdle(vulkan_info.logical_device);
     CleanupSwapchain();
-    vkDestroySampler(vulkan_info.logical_device, vulkan_info.texture_sampler, nullptr);
-    vkDestroyImageView(vulkan_info.logical_device, vulkan_info.texture_image_view, nullptr);
-    vkDestroyImage(vulkan_info.logical_device, vulkan_info.texture_image, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, vulkan_info.texture_memory, nullptr);
+    DestroyTexture(&texture, &vulkan_info);
+    DestroyFont(&font, &vulkan_info);
     vkDestroyDescriptorPool(vulkan_info.logical_device, vulkan_info.descriptor_pool, nullptr);
     vkDestroyDescriptorSetLayout(vulkan_info.logical_device, swapchain_info.descriptor_set_layout, nullptr);
     for (uint32_t i = 0; i < box_count; ++i)
@@ -1702,39 +1696,6 @@ void UpdateUniforms(uint32_t current_image, Model *model)
     vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(model->ubo), 0, &data);
     memcpy(data, &model->ubo, sizeof(model->ubo));
     vkUnmapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image]);
-}
-
-void CreateTextureImage(char *file)
-{
-    int width, height, channel_count;
-    stbi_uc *pixels = stbi_load(file, &width, &height, &channel_count, STBI_rgb_alpha);
-    VkDeviceSize image_size = width * height * 4;
-    vulkan_info.texture_mips = 1 + (uint32_t)log2(fmax(width, height));
-    if (!pixels)
-    {
-        std::cerr << "Unable to load image file!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-    
-    CreateBuffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
-    
-    void *data;
-    vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, image_size, 0, &data);
-    memcpy(data, pixels, image_size);
-    vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
-    stbi_image_free(pixels);
-    CreateImage(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &vulkan_info.texture_image, &vulkan_info.texture_memory, vulkan_info.texture_mips, VK_SAMPLE_COUNT_1_BIT);
-    
-    TransitionImageLayout(vulkan_info.texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vulkan_info.texture_mips);
-    CopyBufferToImage(staging_buffer, vulkan_info.texture_image, (uint32_t)width, (uint32_t)height);
-    
-    GenerateMipmaps(vulkan_info.texture_image, VK_FORMAT_R8G8B8A8_UNORM, width, height, vulkan_info.texture_mips);
-    
-    vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
 }
 
 void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mips, VkSampleCountFlagBits samples)
@@ -1884,11 +1845,6 @@ void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t 
     EndOneTimeCommand(command_buffer);
 }
 
-void CreateTextureImageView()
-{
-    vulkan_info.texture_image_view = CreateImageView(vulkan_info.texture_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, vulkan_info.texture_mips);
-}
-
 VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, uint32_t mips)
 {
     VkImageViewCreateInfo create_info = {};
@@ -1910,33 +1866,6 @@ VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags a
     }
     
     return image_view;
-}
-
-void CreateTextureSampler()
-{
-    VkSamplerCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    create_info.magFilter = VK_FILTER_LINEAR;
-    create_info.minFilter = VK_FILTER_LINEAR;
-    create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    create_info.anisotropyEnable = VK_TRUE;
-    create_info.maxAnisotropy = 16;
-    create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    create_info.unnormalizedCoordinates = VK_FALSE;
-    create_info.compareEnable = VK_FALSE;
-    create_info.compareOp = VK_COMPARE_OP_ALWAYS;
-    create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    create_info.mipLodBias = 0.0f;
-    create_info.minLod = 0.0;
-    create_info.maxLod = (float)vulkan_info.texture_mips;
-    
-    if (vkCreateSampler(vulkan_info.logical_device, &create_info, nullptr, &vulkan_info.texture_sampler) != VK_SUCCESS)
-    {
-        std::cerr << "Unable to create texture sampler!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
 }
 
 VkFormat FindSupportedFormat(VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features)
@@ -2077,6 +2006,7 @@ void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
     float min_dist = INFINITY;
     int32_t selection = -1;
     for (uint32_t i = 0; i < box_count; ++i) {
+        if (!boxes[i].hit_test_enabled) continue;
         float hit_dist;
         Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, swapchain_info.extent.width, swapchain_info.extent.height, boxes[i].ubo.view, boxes[i].ubo.projection, 1000.0f);
         glm::vec3 intersection;
