@@ -83,7 +83,7 @@ struct Material
 {
     Model *mesh_list;
     VkPipeline pipeline;
-    VkPipelineLayout layout;
+    uint32_t layout_index;
 };
 
 
