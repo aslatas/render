@@ -1,4 +1,4 @@
-/* stb_ds.h - v0.3 - public domain data structures - Sean Barrett 2019
+/* stb_ds.h - v0.4 - public domain data structures - Sean Barrett 2019
 
    This is a single-header-file library that provides easy-to-use
    dynamic arrays and hash tables for C (also works in C++).
@@ -71,6 +71,10 @@ DOCUMENTATION
       arrlenu:
         size_t arrlenu(T*);
           Returns the number of elements in the array as an unsigned type.
+          
+      arrpop:
+        T arrpop(T* a)
+          Removes the final element of the array and returns it.
           
       arrput:
         T arrput(T* a, T b);
@@ -212,7 +216,8 @@ DOCUMENTATION
       shputs
         T hmputs(T*, T item)
         T shputs(T*, T item)
-          Returns the structure corresponding to 'key' in the hashmap.
+          Inserts a struct with T.key and T.value into the hashmap. If the struct is already
+          present in the hashmap, updates it.
           
       hmdel
       shdel
@@ -274,10 +279,10 @@ NOTES - HASH MAP
 
   * For compilers other than GCC and clang (e.g. Visual Studio), for hmput/hmget/hmdel
     and variants, the key must be an lvalue (so the macro can take the address of it).
-    For GCC and clang, extensions are used that eliminate this requirement if you're
-    using C99 and later or using C++.
+    Extensions are used that eliminate this requirement if you're using C99 and later
+    in GCC or clang, or if you're using C++ in GCC.
     
-  * To test for presence of a key in a hashmap, just do 'hmget(foo,key) >= 0'.
+  * To test for presence of a key in a hashmap, just do 'hmgeti(foo,key) >= 0'.
   
   * The iteration order of your data in the hashmap is determined solely by the
     order of insertions and deletions. In particular, if you never delete, new
@@ -306,7 +311,12 @@ CREDITS
 
   Sean Barrett -- library, idea for dynamic array API/implementation
   Per Vognsen  -- idea for hash table API/implementation
+  Rafael Sachetto -- arrpop()
 */
+
+#ifdef STBDS_UNIT_TESTS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #ifndef INCLUDE_STB_DS_H
 #define INCLUDE_STB_DS_H
@@ -320,6 +330,7 @@ CREDITS
 #define arrlenu     stbds_arrlenu
 #define arrput      stbds_arrput
 #define arrpush     stbds_arrput
+#define arrpop      stbds_arrpop
 #define arrfree     stbds_arrfree
 #define arraddn     stbds_arraddn
 #define arrsetlen   stbds_arrsetlen
@@ -417,7 +428,7 @@ extern "C" {
 #if __clang__
 #define STBDS_ADDRESSOF(typevar, value)     ((__typeof__(typevar)[1]){value}) // literal array decays to pointer to value
 #else
-#define STBDS_ADDRESSOF(typevar, value)     ((typeof(typevar)[]){value}) // literal array decays to pointer to value
+#define STBDS_ADDRESSOF(typevar, value)     ((typeof(typevar)[1]){value}) // literal array decays to pointer to value
 #endif
 #else
 #define STBDS_ADDRESSOF(typevar, value)     &(value)
@@ -435,6 +446,7 @@ extern "C" {
 #define stbds_arrlenu(a)      ((a) ?             stbds_header(a)->length : 0)
 #define stbds_arrput(a,v)     (stbds_arrmaybegrow(a,1), (a)[stbds_header(a)->length++] = (v))
 #define stbds_arrpush         stbds_arrput  // synonym
+#define stbds_arrpop(a)       (stbds_header(a)->length--, (a)[stbds_header(a)->length])
 #define stbds_arraddn(a,n)    (stbds_arrmaybegrow(a,n), stbds_header(a)->length += (n))
 #define stbds_arrlast(a)      ((a)[stbds_header(a)->length-1])
 #define stbds_arrfree(a)      ((void) ((a) ? realloc(stbds_header(a),0) : 0), (a)=NULL)
@@ -593,6 +605,7 @@ template<class T> static T * stbds_shmode_func_wrapper(T *, size_t elemsize, int
 #include <string.h>
 
 #ifndef STBDS_ASSERT
+#define STBDS_ASSERT_WAS_UNDEFINED
 #define STBDS_ASSERT(x)   ((void) 0)
 #endif
 
@@ -648,10 +661,15 @@ void *stbds_arrgrowf(void *a, size_t elemsize, size_t addlen, size_t min_cap)
 // stbds_hm hash table implementation
 //
 
-#define STBDS_CACHE_LINE_SIZE   64
+#ifdef STBDS_INTERNAL_SMALL_BUCKET
+#define STBDS_BUCKET_LENGTH      4
+#else
 #define STBDS_BUCKET_LENGTH      8
-#define STBDS_BUCKET_SHIFT       3
+#endif
+
+#define STBDS_BUCKET_SHIFT      (STBDS_BUCKET_LENGTH == 8 ? 3 : 2)
 #define STBDS_BUCKET_MASK       (STBDS_BUCKET_LENGTH-1)
+#define STBDS_CACHE_LINE_SIZE   64
 
 #define STBDS_ALIGN_FWD(n,a)   (((n) + (a) - 1) & ~((a)-1))
 
@@ -698,13 +716,12 @@ var ^= temp ^ v32
 
 static size_t stbds_probe_position(size_t hash, size_t slot_count, size_t slot_log2)
 {
-#if 1
-    size_t pos = (hash >> (STBDS_SIZE_T_BITS-slot_log2));
-    STBDS_ASSERT(pos < slot_count);
-    return pos;
-#else
-    return hash & (slot_count-1);
+    size_t pos;
+    pos = hash & (slot_count-1);
+#ifdef STBDS_INTERNAL_BUCKET_START
+    pos &= ~STBDS_BUCKET_MASK;
 #endif
+    return pos;
 }
 
 static size_t stbds_log2(size_t slot_count)
@@ -812,7 +829,6 @@ static stbds_hash_index *stbds_make_hash_index(size_t slot_count, stbds_hash_ind
                     for (;;) {
                         size_t limit,z;
                         stbds_hash_bucket *bucket;
-                        pos &= (t->slot_count-1);
                         bucket = &t->storage[pos >> STBDS_BUCKET_SHIFT];
                         STBDS_STATS(++stbds_rehash_probes);
                         
@@ -835,6 +851,7 @@ static stbds_hash_index *stbds_make_hash_index(size_t slot_count, stbds_hash_ind
                         
                         pos += step;                  // quadratic probing
                         step += STBDS_BUCKET_LENGTH;
+                        pos &= (t->slot_count-1);
                     }
                 }
                 done:
@@ -939,7 +956,7 @@ static size_t stbds_siphash_bytes(void *p, size_t len, size_t seed)
 #ifdef STBDS_SIPHASH_2_4
     return v0^v1^v2^v3;
 #else
-    return v1^v2^v3; // slightly stronger since v0^v3 in above cancels out final round operation
+    return v1^v2^v3; // slightly stronger since v0^v3 in above cancels out final round operation? I tweeted at the authors of SipHash about this but they didn't reply
 #endif
 }
 
@@ -954,10 +971,11 @@ size_t stbds_hash_bytes(void *p, size_t len, size_t seed)
         unsigned int hash = d[0] | (d[1] << 8) | (d[2] << 16) | (d[3] << 24);
 #if 0
         // HASH32-A  Bob Jenkin's hash function w/o large constants
-        hash ^= seed ^ len;
+        hash ^= seed;
         hash -= (hash<<6);
         hash ^= (hash>>17);
         hash -= (hash<<9);
+        hash ^= seed;
         hash ^= (hash<<4);
         hash -= (hash<<3);
         hash ^= (hash<<10);
@@ -966,22 +984,24 @@ size_t stbds_hash_bytes(void *p, size_t len, size_t seed)
         // HASH32-BB  Bob Jenkin's presumably-accidental version of Thomas Wang hash with rotates turned into shifts.
         // Note that converting these back to rotates makes it run a lot slower, presumably due to collisions, so I'm
         // not really sure what's going on.
-        hash ^= seed ^ len;
+        hash ^= seed;
         hash = (hash ^ 61) ^ (hash >> 16);
         hash = hash + (hash << 3);
         hash = hash ^ (hash >> 4);
         hash = hash * 0x27d4eb2d;
+        hash ^= seed;
         hash = hash ^ (hash >> 15);
 #else  // HASH32-C   -  Murmur3
+        hash ^= seed;
         hash *= 0xcc9e2d51;
         hash = (hash << 17) | (hash >> 15);
         hash *= 0x1b873593;
         hash ^= seed;
         hash = (hash << 19) | (hash >> 13);
         hash = hash*5 + 0xe6546b64;
-        hash ^= len;
         hash ^= hash >> 16;
         hash *= 0x85ebca6b;
+        hash ^= seed;
         hash ^= hash >> 13;
         hash *= 0xc2b2ae35;
         hash ^= hash >> 16;
@@ -1006,16 +1026,17 @@ size_t stbds_hash_bytes(void *p, size_t len, size_t seed)
     } else if (len == 8 && sizeof(size_t) == 8) {
         size_t hash = d[0] | (d[1] << 8) | (d[2] << 16) | (d[3] << 24);
         hash |= (size_t) (d[4] | (d[5] << 8) | (d[6] << 16) | (d[7] << 24)) << 16 << 16; // avoid warning if size_t == 4
-        hash ^= seed ^ len;
+        hash ^= seed;
         hash = (~hash) + (hash << 21);
         hash ^= STBDS_ROTATE_RIGHT(hash,24);
         hash *= 265;
         hash ^= STBDS_ROTATE_RIGHT(hash,14);
+        hash ^= seed;
         hash *= 21;
         hash ^= STBDS_ROTATE_RIGHT(hash,28);
         hash += (hash << 31);
         hash = (~hash) + (hash << 18);
-        return hash^seed;
+        return hash;
     } else {
         return stbds_siphash_bytes(p,len,seed);
     }
@@ -1272,6 +1293,8 @@ void * stbds_shmode_func(size_t elemsize, int mode)
 {
     void *a = stbds_arrgrowf(0, elemsize, 0, 1);
     stbds_hash_index *h;
+    memset(a, 0, elemsize);
+    stbds_header(a)->length = 1;
     stbds_header(a)->hash_table = h = (stbds_hash_index *) stbds_make_hash_index(STBDS_BUCKET_LENGTH, NULL);
     h->string.mode = mode;
     return STBDS_ARR_TO_HASH(a,elemsize);
@@ -1432,6 +1455,9 @@ void stbds_strreset(stbds_string_arena *a)
 
 #ifdef STBDS_UNIT_TESTS
 #include <stdio.h>
+#ifdef STBDS_ASSERT_WAS_UNDEFINED
+#undef STBDS_ASSERT
+#endif
 #ifndef STBDS_ASSERT
 #define STBDS_ASSERT assert
 #include <assert.h>
@@ -1442,7 +1468,11 @@ typedef struct { int key,b,c,d; } stbds_struct;
 static char buffer[256];
 char *strkey(int n)
 {
+#if defined(_WIN32) && defined(__STDC_WANT_SECURE_LIB__)
+    sprintf_s(buffer, sizeof(buffer), "test_%d", n);
+#else
     sprintf(buffer, "test_%d", n);
+#endif
     return buffer;
 }
 
@@ -1585,9 +1615,10 @@ void stbds_unit_tests(void)
     
     for (i=0; i < testsize; i += 1) {
         stbds_struct s = { i,i*2,i*3,i*4 };
-        stbds_struct t = { i,i*2,i*3,i*4 };
+        stbds_struct t = { i,i*2,i*3+1,i*4 };
         if (i & 1) STBDS_ASSERT(hmgets(map2, s.key).d == 0);
         else       STBDS_ASSERT(hmgets(map2, s.key).d == i*4);
+        STBDS_ASSERT(hmget(map, t) == 0);
     }
     hmfree(map2);
 #endif

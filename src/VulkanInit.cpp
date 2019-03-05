@@ -5,6 +5,7 @@
 // TODO(Matt): Switch these for dynamic arrays ASAP.
 #define material_count 5
 #define box_count 3
+
 // Debug callback relays messages from validation layers.
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data)
 {
