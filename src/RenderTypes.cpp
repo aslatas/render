@@ -1,11 +1,19 @@
 
 #include "RenderTypes.h"
+#include "RenderBase.h"
 
-// TODO(Matt): We aren't yet freeing vulkan buffers here.
-void DestroyModel(Model *model)
+void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
 {
     free(model->vertices);
     free(model->indices);
+    for (uint32_t i = 0; i < model->uniform_count; ++i) {
+        vkDestroyBuffer(vulkan_info->logical_device, model->uniform_buffers[i], nullptr);
+        vkFreeMemory(vulkan_info->logical_device, model->uniform_buffers_memory[i], nullptr);
+    }
+    vkDestroyBuffer(vulkan_info->logical_device, model->vertex_buffer, nullptr);
+    vkFreeMemory(vulkan_info->logical_device, model->vertex_buffer_memory, nullptr);
+    vkDestroyBuffer(vulkan_info->logical_device, model->index_buffer, nullptr);
+    vkFreeMemory(vulkan_info->logical_device, model->index_buffer_memory, nullptr);
     free(model->uniform_buffers);
     free(model->uniform_buffers_memory);
     free(model->descriptor_set_layouts);
@@ -13,10 +21,11 @@ void DestroyModel(Model *model)
     model = nullptr;
 }
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id)
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id, uint32_t uniform_count)
 {
     Model model;
     model.shader_id = shader_id;
+    model.uniform_count = uniform_count;
     model.hit_test_enabled = true;
     model.vertex_count = 24;
     model.index_count = 36;

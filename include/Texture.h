@@ -1,6 +1,7 @@
 
 #pragma once
 #include "RenderBase.h"
+#include "VulkanInit.h"
 
 // Holds information about an image texture.
 struct Texture
@@ -18,14 +19,16 @@ struct Texture
 };
 
 // Loads a texture from a PNG file. 
-Texture LoadTexture(const char *path, const VulkanInfo *vulkan_info, uint32_t channel_count, bool generate_mips);
+Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, uint32_t channel_count, bool generate_mips);
 
 // Creates the sampler for a texture.
-void CreateTextureSampler(Texture *texture, const VulkanInfo *vulkan_info);
+void CreateTextureSampler(const VulkanInfo *vulkan_info, Texture *texture);
 
 // Destroys a texture, freeing device memory and Vulkan objects.
 // Only call while queue is idle.
-void DestroyTexture(Texture *texture, const VulkanInfo *vulkan_info);
+void DestroyTexture(const VulkanInfo *vulkan_info, Texture *texture);
 
 // Gets a VkFormat for an image from the number of channels it uses.
 VkFormat GetFormatFromChannelCount(uint32_t channel_count);
+
+void CreateMipmaps(const VulkanInfo *vulkan_info, Texture *texture);

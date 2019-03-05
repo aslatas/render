@@ -81,11 +81,12 @@ struct Model
     VkDeviceMemory *uniform_buffers_memory;
     VkDescriptorSetLayout *descriptor_set_layouts;
     VkDescriptorSet *descriptor_sets;
+    uint32_t uniform_count;
 };
 
 void DestroyModel(Model *model);
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id);
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id, uint32_t uniform_count);
 Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
 
 // Tests a ray against a model's oriented bounding box, by transforming the ray into the model's local space and

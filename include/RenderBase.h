@@ -26,7 +26,11 @@ struct VulkanInfo
     bool use_shared_queue;
     VkCommandPool primary_command_pool;
     VkDescriptorPool descriptor_pool;
-    VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkSampleCountFlagBits msaa_samples;
+    VkFence *in_flight_fences;
+    VkSemaphore *image_available_semaphores;
+    VkSemaphore *render_finished_semaphores;
 };
 
 // Stores vulkan information that must be recreated with the swapchain.
@@ -39,15 +43,15 @@ struct SwapchainInfo
     VkExtent2D extent;
     VkSurfaceTransformFlagBitsKHR transform;
     VkRenderPass renderpass;
-    VkDescriptorSetLayout descriptor_set_layout;
-    uint32_t pipeline_count;
     uint32_t current_frame;
+    uint32_t pipeline_count;
     VkImage color_image;
     VkDeviceMemory color_image_memory;
     VkImageView color_image_view;
     VkImage depth_image;
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
+    VkFormat depth_format;
     
     // Heap allocated (make sure they get freed):
     VkPipelineLayout *pipeline_layouts;
@@ -56,81 +60,27 @@ struct SwapchainInfo
     VkImage *images;
     VkImageView *imageviews;
     VkCommandBuffer *primary_command_buffers;
-    //VkDescriptorSet *descriptor_sets;
-    //VkDescriptorSetLayout *descriptor_set_layouts;
-    VkFence *in_flight_fences;
-    VkSemaphore *image_available_semaphores;
-    VkSemaphore *render_finished_semaphores;
 };
 
 // Reads a shader file as a heap allocated byte array.
 // TODO(Matt): Merge me with the shader module creation, to simplify the usage code.
 char *ReadShaderFile(char *path, uint32_t *length);
 
-// Initialize renderer and attach to the window.
-void InitializeVulkan();
-
+void InitializeRenderer();
+void ShutdownRenderer();
 // Draw the next frame.
 void DrawFrame();
 
-// Shutdown vulkan and free associated memory.
-void ShutdownVulkan();
-// Helpers to initialize vulkan. 
-void CreateInstance();
-void CreateDebugMessenger();
-void CreateSurface();
-void ChoosePhysicalDevice();
-void CreateLogicalDevice();
-void CreateSwapchain();
-void CreateImageviews();
-void CreateRenderpass();
-void CreateDescriptorSetLayout();
 void CreatePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code, char *frag_code);
 void CreateStencilPipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code);
 void CreateOutlinePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code, char *frag_code);
-void CreateFramebuffers();
-void CreateCommandPools();
-void CreateDescriptorPool();
 void CreateVertexBuffer(Model *model);
 void CreateIndexBuffer(Model *model);
 void CreateUniformBuffers(Model *model);
 void CreateDescriptorSets(Model *model);
-void CreateCommandBuffers();
-void CreateSyncPrimitives();
 
-void CreateTextureImage(char *file);
-
-// TODO(Matt): Fix some of the sloppiness in these next few functions.
-void RecreateSwapchain();
-void CleanupSwapchain();
+void OnWindowResized();
 void UpdateUniforms(uint32_t image_index, Model *model);
-void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
-void CopyBuffer(VkBuffer source, VkBuffer destination, VkDeviceSize size);
-uint32_t FindMemoryType(uint32_t type, VkMemoryPropertyFlags properties);
-
-VkCommandBuffer BeginOneTimeCommand();
-void EndOneTimeCommand(VkCommandBuffer command_buffer);
-
-
-void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
-void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mips);
-void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mips, VkSampleCountFlagBits samples);
-void CreateTextureImageView();
-VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, uint32_t mips);
-void CreateTextureSampler();
-
-
-VkFormat FindSupportedFormat(VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features);
-void CreateDepthResources();
-VkFormat FindDepthFormat();
-
-
-void GenerateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t height, uint32_t mips);
-
-VkSampleCountFlagBits GetMSAASampleCount();
-
-void CreateColorResources();
 
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate);
 

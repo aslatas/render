@@ -1,14 +1,16 @@
 
 #include "Font.h"
+#include "VulkanInit.h"
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb/stb_truetype.h"
 
-BitmapFont LoadBitmapFont(const char *path, const VulkanInfo *vulkan_info, uint32_t shader_id, uint32_t first_character, uint32_t character_count, uint32_t resolution, float character_size, bool generate_mips)
+BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint32_t shader_id, uint32_t first_character, uint32_t character_count, uint32_t resolution, float character_size, bool generate_mips)
 {
+    BitmapFont font = {};
     FILE *file = fopen(path, "rb");
     if (!file) {
         std::cerr << "Unable to load font! (" << path << ")" << std::endl;
-        exit(EXIT_FAILURE);
+        return font;
     }
     fseek(file, 0, SEEK_END);
     uint32_t length = ftell(file);
@@ -17,7 +19,6 @@ BitmapFont LoadBitmapFont(const char *path, const VulkanInfo *vulkan_info, uint3
     fread(buffer, 1, length, file);
     fclose(file);
     
-    BitmapFont font = {};
     font.shader_id = shader_id;
     font.first_character = first_character;
     font.character_count = character_count;
@@ -31,23 +32,21 @@ BitmapFont LoadBitmapFont(const char *path, const VulkanInfo *vulkan_info, uint3
     VkDeviceSize image_size = resolution * resolution;
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
-    CreateBuffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+    CreateBuffer(vulkan_info, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
     void *data;
     vkMapMemory(vulkan_info->logical_device, staging_buffer_memory, 0, image_size, 0, &data);
     memcpy(data, bitmap, image_size);
     vkUnmapMemory(vulkan_info->logical_device, staging_buffer_memory);
-    CreateImage(resolution, resolution, VK_FORMAT_R8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &font.texture.image, &font.texture.device_memory, font.texture.mip_count, VK_SAMPLE_COUNT_1_BIT);
-    TransitionImageLayout(font.texture.image, VK_FORMAT_R8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, font.texture.mip_count);
-    CopyBufferToImage(staging_buffer, font.texture.image, resolution, resolution);
+    CreateImage(vulkan_info, resolution, resolution, VK_FORMAT_R8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &font.texture.image, &font.texture.device_memory, font.texture.mip_count, VK_SAMPLE_COUNT_1_BIT);
+    TransitionImageLayout(vulkan_info, font.texture.image, VK_FORMAT_R8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, font.texture.mip_count);
+    CopyBufferToImage(vulkan_info, staging_buffer, font.texture.image, resolution, resolution);
     
-    // TODO(Matt): I think there's a layout transition that happens in here,
-    // which should happen all the time.
-    if (generate_mips) GenerateMipmaps(font.texture.image, VK_FORMAT_R8_UNORM, resolution, resolution, font.texture.mip_count);
+    CreateMipmaps(vulkan_info, &font.texture);
     
     vkDestroyBuffer(vulkan_info->logical_device, staging_buffer, nullptr);
     vkFreeMemory(vulkan_info->logical_device, staging_buffer_memory, nullptr);
-    font.texture.image_view = CreateImageView(font.texture.image, VK_FORMAT_R8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, font.texture.mip_count);
-    CreateTextureSampler(&font.texture, vulkan_info);
+    font.texture.image_view = CreateImageView(vulkan_info, font.texture.image, VK_FORMAT_R8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, font.texture.mip_count);
+    CreateTextureSampler(vulkan_info, &font.texture);
     free(bitmap);
     free(buffer);
     return font;
@@ -130,9 +129,9 @@ Model CreateText(const char *text, const BitmapFont *font, glm::vec2 screen_posi
     return model;
 }
 
-void DestroyFont(BitmapFont *font, const VulkanInfo *vulkan_info)
+void DestroyFont(const VulkanInfo *vulkan_info, BitmapFont *font)
 {
     free(font->character_data);
-    DestroyTexture(&font->texture, vulkan_info);
+    DestroyTexture(vulkan_info, &font->texture);
     *font = {};
 }
