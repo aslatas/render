@@ -460,39 +460,6 @@ static void CreateRenderpass(const VulkanInfo *vulkan_info, SwapchainInfo *swapc
     VK_CHECK_RESULT(vkCreateRenderPass(vulkan_info->logical_device, &create_info, nullptr, &swapchain_info->renderpass));
 }
 
-// TODO(Matt): Rework as follows:
-// Binding 1 - per frame data (view/projection, camera pos, etc)
-// Binding 2 - per material data (samplers, etc)
-// Binding 3 - per instance data (model, constants, etc)
-static void CreateDescriptorSetLayout(VulkanInfo *vulkan_info)
-{
-    // Binding 0 is UBO, for now.
-    VkDescriptorSetLayoutBinding uniform_binding = {};
-    uniform_binding.binding = 0;
-    uniform_binding.descriptorCount = 1;
-    uniform_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uniform_binding.pImmutableSamplers = nullptr;
-    uniform_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    // Binding 1 is first sampler, for now.
-    VkDescriptorSetLayoutBinding sampler_binding = {};
-    sampler_binding.binding = 1;
-    sampler_binding.descriptorCount = 1;
-    sampler_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    sampler_binding.pImmutableSamplers = nullptr;
-    sampler_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    // Binding 2 is second sampler, for now.
-    VkDescriptorSetLayoutBinding bindings[] = {uniform_binding, sampler_binding};
-    VkDescriptorSetLayoutCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    create_info.bindingCount = 2;
-    create_info.pBindings = bindings;
-    
-    // Create descriptor set layout.
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info->logical_device, &create_info, nullptr, &vulkan_info->descriptor_set_layout));
-}
-
 static void CreateFramebuffers(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
     // Allocate space for framebuffers.
@@ -599,13 +566,7 @@ static void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapc
     free(swapchain_info->primary_command_buffers);
     
     // Destroy pipelines.
-    for (uint32_t i = 0; i < swapchain_info->pipeline_count; ++i) {
-        vkDestroyPipeline(vulkan_info->logical_device, swapchain_info->pipelines[i], nullptr);
-        vkDestroyPipelineLayout(vulkan_info->logical_device, swapchain_info->pipeline_layouts[i], nullptr);
-    }
-    free(swapchain_info->pipelines);
-    free(swapchain_info->pipeline_layouts);
-    
+    DestroyPipelines();
     // Destroy render pass.
     vkDestroyRenderPass(vulkan_info->logical_device, swapchain_info->renderpass, nullptr);
     
@@ -653,7 +614,7 @@ void InitializeVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     LoadVulkanDeviceExtensionFunctions(vulkan_info->logical_device);
     CreateSwapchain(vulkan_info, swapchain_info);
     CreateRenderpass(vulkan_info, swapchain_info);
-    CreateDescriptorSetLayout(vulkan_info);
+    CreatePipelines();
     CreateCommandPools(vulkan_info);
     CreateColorImage(vulkan_info, swapchain_info);
     CreateDepthImage(vulkan_info, swapchain_info);
@@ -676,11 +637,7 @@ void RecreateSwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_i
     }
     CreateSwapchain(vulkan_info, swapchain_info);
     CreateRenderpass(vulkan_info, swapchain_info);
-    CreatePipeline(&swapchain_info->pipelines[0], &swapchain_info->pipeline_layouts[0], "shaders/vert.spv", "shaders/frag.spv");
-    CreatePipeline(&swapchain_info->pipelines[1], &swapchain_info->pipeline_layouts[1], "shaders/vert2.spv", "shaders/frag2.spv");
-    CreateStencilPipeline(&swapchain_info->pipelines[2], &swapchain_info->pipeline_layouts[2],  "shaders/stencil_vert.spv");
-    CreateOutlinePipeline(&swapchain_info->pipelines[3], &swapchain_info->pipeline_layouts[3],  "shaders/outline_vert.spv", "shaders/outline_frag.spv");
-    CreatePipeline(&swapchain_info->pipelines[4], &swapchain_info->pipeline_layouts[4], "shaders/text_vert.spv", "shaders/text_frag.spv");
+    CreatePipelines();
     CreateColorImage(vulkan_info, swapchain_info);
     CreateDepthImage(vulkan_info, swapchain_info);
     CreateFramebuffers(vulkan_info, swapchain_info);
@@ -697,7 +654,6 @@ void ShutdownVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     DestroyScene();
     // Destroy descriptor pool and layout.
     vkDestroyDescriptorPool(vulkan_info->logical_device, vulkan_info->descriptor_pool, nullptr);
-    vkDestroyDescriptorSetLayout(vulkan_info->logical_device, vulkan_info->descriptor_set_layout, nullptr);
     
     // Destroy sync objects.
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -975,14 +931,4 @@ VkFormat FindSupportedFormat(const VulkanInfo *vulkan_info, VkFormat *acceptable
     // Otherwise, exit in error.
     ExitWithError("No acceptable format candidates found!");
     return acceptable_formats[0];
-}
-
-void DestroyScene()
-{
-    // TODO(Matt): Texture List
-    // DestroyTextures();
-    // TODO(Matt): Font List
-    // DestroyFonts();
-    // TODO(Matt): Model List
-    // DestroyModels();
 }

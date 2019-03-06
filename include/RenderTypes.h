@@ -1,6 +1,6 @@
 
+#pragma once
 #include "VulkanLoader.h"
-
 #define GLM_FORCE_RADIANS
 #pragma warning(push, 0)
 #include "glm/glm.hpp"
@@ -9,7 +9,31 @@
 #include "glm/gtx/euler_angles.hpp"
 #include "glm/gtx/norm.hpp"
 #pragma warning(pop)
-#pragma once
+#include "stb/stb_ds.h"
+
+// Stores vulkan instance/device information not dependent on swapchain.
+struct VulkanInfo
+{
+    VkInstance instance;
+    VkPhysicalDevice physical_device;
+    VkDevice logical_device;
+    VkSurfaceKHR surface;
+    VkDebugUtilsMessengerEXT debug_messenger;
+    uint32_t graphics_index;
+    uint32_t present_index;
+    VkQueue graphics_queue;
+    VkQueue present_queue;
+    // NOTE(Matt): Likely, graphics and present are the same queue. If so,
+    // calls to Vulkan cannot treat them as separate, hence this flag.
+    bool use_shared_queue;
+    VkCommandPool primary_command_pool;
+    VkDescriptorPool descriptor_pool;
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkSampleCountFlagBits msaa_samples;
+    VkFence *in_flight_fences;
+    VkSemaphore *image_available_semaphores;
+    VkSemaphore *render_finished_semaphores;
+};
 
 // TODO(Matt): Check out what other people are using here - maybe move up to
 // 128 bytes?
@@ -65,28 +89,31 @@ struct Model
     uint32_t index_count;
     UniformBufferObject ubo;
     AxisAlignedBoundingBox bounds;
+    bool hit_test_enabled;
+    
+    uint32_t material_type;
     uint32_t shader_id;
     VkBuffer vertex_buffer;
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
     VkDeviceMemory index_buffer_memory;
-    bool hit_test_enabled;
+    
     glm::vec3 pos;
     glm::vec3 rot;
     glm::vec3 scl;
+    
     // Heap allocated:
     Vertex *vertices;
     uint32_t *indices;
     VkBuffer *uniform_buffers;
     VkDeviceMemory *uniform_buffers_memory;
-    VkDescriptorSetLayout *descriptor_set_layouts;
     VkDescriptorSet *descriptor_sets;
     uint32_t uniform_count;
 };
 
-void DestroyModel(Model *model);
+void DestroyModel(Model *model, const VulkanInfo *vulkan_info);
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id, uint32_t uniform_count);
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count);
 Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
 
 // Tests a ray against a model's oriented bounding box, by transforming the ray into the model's local space and

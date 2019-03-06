@@ -1,6 +1,7 @@
 
 #include "RenderTypes.h"
-#include "RenderBase.h"
+#define STB_DS_IMPLEMENTATION
+#include "stb/stb_ds.h"
 
 void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
 {
@@ -16,14 +17,14 @@ void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
     vkFreeMemory(vulkan_info->logical_device, model->index_buffer_memory, nullptr);
     free(model->uniform_buffers);
     free(model->uniform_buffers_memory);
-    free(model->descriptor_set_layouts);
     free(model->descriptor_sets);
     model = nullptr;
 }
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t shader_id, uint32_t uniform_count)
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count)
 {
     Model model;
+    model.material_type = material_type;
     model.shader_id = shader_id;
     model.uniform_count = uniform_count;
     model.hit_test_enabled = true;

@@ -53,9 +53,12 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
 }
 
 // TODO(Matt): Font sizing via stb_truetype font attributes.
-Model CreateText(const char *text, const BitmapFont *font, glm::vec2 screen_position, glm::vec2 screen_size)
+Model CreateText(const char *text, const BitmapFont *font, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count,  glm::vec2 screen_position, glm::vec2 screen_size)
 {
     Model model = {};
+    model.material_type = material_type;
+    model.shader_id = shader_id;
+    model.uniform_count = uniform_count;
     uint32_t length = (uint32_t)strlen(text);
     model.vertex_count = length * 4;
     model.index_count = length * 6;
