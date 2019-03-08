@@ -28,7 +28,7 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    if (texture(texture_sampler, in_uv0).r < 0.333) discard;
-    out_color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    //if (texture(texture_sampler, in_uv0).r < 0.333) discard;
+    out_color = vec4(1.0f, 1.0f, 1.0f, texture(texture_sampler, in_uv0).r);
 
 }

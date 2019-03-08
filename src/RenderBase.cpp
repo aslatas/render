@@ -618,6 +618,13 @@ void CreatePipelines()
     arrput(material_types[0].materials, material);
     
     pipeline_info = CreateDefaultPipelineInfo("shaders/text_vert.spv", "shaders/text_frag.spv");
+    pipeline_info.blend.blendEnable = VK_TRUE;
+    pipeline_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    pipeline_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    pipeline_info.blend.colorBlendOp = VK_BLEND_OP_ADD;
+    pipeline_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    pipeline_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    pipeline_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
     material.pipeline = CreatePipeline(&pipeline_info, &material_types[0], swapchain_info.renderpass, 0);
     arrput(material_types[0].materials, material);
 }
