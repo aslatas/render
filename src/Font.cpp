@@ -4,7 +4,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb/stb_truetype.h"
 
-BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint32_t shader_id, uint32_t first_character, uint32_t character_count, uint32_t resolution, float character_size, bool generate_mips)
+BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint32_t material_type, uint32_t shader_id, uint32_t first_character, uint32_t character_count, uint32_t resolution, float character_size, bool generate_mips)
 {
     BitmapFont font = {};
     FILE *file = fopen(path, "rb");
@@ -19,6 +19,7 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
     fread(buffer, 1, length, file);
     fclose(file);
     
+    font.material_type = material_type;
     font.shader_id = shader_id;
     font.first_character = first_character;
     font.character_count = character_count;
@@ -53,11 +54,11 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
 }
 
 // TODO(Matt): Font sizing via stb_truetype font attributes.
-Model CreateText(const char *text, const BitmapFont *font, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count,  glm::vec2 screen_position, glm::vec2 screen_size)
+Model CreateText(const char *text, const BitmapFont *font, uint32_t uniform_count,  glm::vec2 screen_position, glm::vec2 screen_size)
 {
     Model model = {};
-    model.material_type = material_type;
-    model.shader_id = shader_id;
+    model.material_type = font->material_type;
+    model.shader_id = font->shader_id;
     model.uniform_count = uniform_count;
     uint32_t length = (uint32_t)strlen(text);
     model.vertex_count = length * 4;

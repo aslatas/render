@@ -634,14 +634,17 @@ void InitializeScene()
     boxes = (Model *)malloc(sizeof(Model) * box_count);
     glm::vec3 box_pos = glm::vec3(-0.3f, -0.3f, -0.3f);
     glm::vec3 box_ext = glm::vec3(0.5f, 0.5f, 0.5f);
+    //arrput(material_types[0].materials[0].models, CreateBox(box_pos, box_ext, 0, 0, swapchain_info.image_count));
     boxes[0] = CreateBox(box_pos, box_ext, 0, 0, swapchain_info.image_count);
     box_pos = glm::vec3(0.3f, 0.3f, -0.3f);
     boxes[1] = CreateBox(box_pos, box_ext, 0, 1, swapchain_info.image_count);
     box_pos = glm::vec3(0.0f, 0.0f, 0.3f);
     
     texture = LoadTexture(&vulkan_info, "textures/proto.jpg", 4, true);
-    font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 4);
-    boxes[2] = CreateText("Hello, World!", &font, 0, 4, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height});
+    font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 0, 4);
+    boxes[2] = CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, 0, 4, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false);
+    
+    //boxes[2] = CreateText("This is some text.", &font, 0, 4, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height});
     // TODO(Matt): Find a different solution for buffer allocation.
     for (uint32_t i = 0; i < box_count; ++i)
     {

@@ -129,3 +129,5 @@ bool RaycastAgainstModelBounds(const Ray ray, const Model *model, glm::vec3 *int
 // Fills the distance parameter with the intersection point if there was one.
 bool RayIntersectAxisAlignedBox(const Ray *ray, const AxisAlignedBoundingBox *box, glm::vec3 *intersection);
 Ray ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
+
+Model CreateDebugQuad2D(glm::vec2 top_left, glm::vec2 bottom_right, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count, glm::vec2 screen_size, bool filled);
