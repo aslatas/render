@@ -3,8 +3,8 @@
 #include "Main.h"
 
 // TODO(Matt): Switch these for dynamic arrays ASAP.
-#define material_count 5
-#define box_count 3
+#define material_count 8
+#define box_count 8
 
 // Debug callback relays messages from validation layers.
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data)
@@ -566,7 +566,7 @@ static void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapc
     free(swapchain_info->primary_command_buffers);
     
     // Destroy pipelines.
-    DestroyPipelines();
+    DestroyMaterials();
     // Destroy render pass.
     vkDestroyRenderPass(vulkan_info->logical_device, swapchain_info->renderpass, nullptr);
     
@@ -614,7 +614,7 @@ void InitializeVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     LoadVulkanDeviceExtensionFunctions(vulkan_info->logical_device);
     CreateSwapchain(vulkan_info, swapchain_info);
     CreateRenderpass(vulkan_info, swapchain_info);
-    CreatePipelines();
+    CreateMaterials();
     CreateCommandPools(vulkan_info);
     CreateColorImage(vulkan_info, swapchain_info);
     CreateDepthImage(vulkan_info, swapchain_info);
@@ -637,7 +637,7 @@ void RecreateSwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_i
     }
     CreateSwapchain(vulkan_info, swapchain_info);
     CreateRenderpass(vulkan_info, swapchain_info);
-    CreatePipelines();
+    CreateMaterials();
     CreateColorImage(vulkan_info, swapchain_info);
     CreateDepthImage(vulkan_info, swapchain_info);
     CreateFramebuffers(vulkan_info, swapchain_info);
@@ -648,10 +648,10 @@ void ShutdownVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
     // Wait for the device to finish any current work.
     vkDeviceWaitIdle(vulkan_info->logical_device);
-    // Destroy the swapchain.
-    DestroySwapchain(vulkan_info, swapchain_info);
     // Destroy scene objects.
     DestroyScene();
+    // Destroy the swapchain.
+    DestroySwapchain(vulkan_info, swapchain_info);
     // Destroy descriptor pool and layout.
     vkDestroyDescriptorPool(vulkan_info->logical_device, vulkan_info->descriptor_pool, nullptr);
     
