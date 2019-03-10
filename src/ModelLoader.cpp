@@ -76,6 +76,98 @@ struct BufferDataInfo {
     VkFormat weights_0_format = VK_FORMAT_UNDEFINED;
 };
 
+// TESTING
+void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory)
+{
+    //VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
+    //VkDeviceSize buffer_size = buffer_size;
+    
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
+    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+    
+    void *data;
+    vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
+    //memcpy(data, model->vertices, (size_t)buffer_size);
+    memcpy(data, buffer_data, (size_t)buffer_size);
+    vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
+    
+    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *buffer, *buffer_memory);
+    
+    CopyBuffer(&vulkan_info, staging_buffer, *buffer, buffer_size);
+    
+    vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
+    vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
+}
+
+void CreateModelUniformBuffers(VkDeviceSize buffer_size, 
+                               VkBuffer* uniform_buffers, 
+                               VkDeviceMemory* uniform_buffers_memory, 
+                               uint32_t uniform_count)
+{
+    // VkDeviceSize buffer_size = sizeof(UniformBufferObject);
+    // uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * uniform_count);
+    // uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * uniform_count);
+    for (uint32_t i = 0; i < uniform_count; ++i)
+    {
+        CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers[i], uniform_buffers_memory[i]);
+    }
+}
+
+void CreateModelDescriptorSets(uint32_t uniform_count, 
+                               uint32_t material_type, 
+                               uint32_t shader_id, 
+                               VkBuffer* uniform_buffers, 
+                               VkDescriptorSet *descriptor_sets)
+{
+    VkDescriptorSetAllocateInfo allocate_info = {};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.descriptorPool = vulkan_info.descriptor_pool;
+    allocate_info.descriptorSetCount = swapchain_info.image_count;
+    allocate_info.pSetLayouts = material_types[material_type].descriptor_layouts;
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, descriptor_sets));
+    
+    for (uint32_t i = 0; i < uniform_count; ++i)
+    {
+        VkDescriptorBufferInfo descriptor_info = {};
+        descriptor_info.buffer = uniform_buffers[i];
+        descriptor_info.offset = 0;
+        descriptor_info.range = sizeof(UniformBufferObject);
+        
+        VkDescriptorImageInfo image_info = {};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        // TODO(Matt): Temporary hack to get a second texture sampler for text.
+        if (shader_id == 4) {
+            
+            image_info.imageView = font.texture.image_view;
+            image_info.sampler = font.texture.sampler;
+            
+        } else {
+            image_info.imageView = texture.image_view;
+            image_info.sampler = texture.sampler;
+        }
+        VkWriteDescriptorSet uniform_write = {};
+        uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uniform_write.dstSet = descriptor_sets[i];
+        uniform_write.dstBinding = 0;
+        uniform_write.dstArrayElement = 0;
+        uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uniform_write.descriptorCount = 1;
+        uniform_write.pBufferInfo = &descriptor_info;
+        
+        VkWriteDescriptorSet sampler_write = {};
+        sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        sampler_write.dstSet = descriptor_sets[i];
+        sampler_write.dstBinding = 1;
+        sampler_write.dstArrayElement = 0;
+        sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        sampler_write.descriptorCount = 1;
+        sampler_write.pImageInfo = &image_info;
+        VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
+        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+    }
+}
+
 void DestroyGLTFModel(Model_GLTF *model, const VulkanInfo *vulkan_info)
 {
     cgltf_free(model->data);
