@@ -739,29 +739,29 @@ void InitializeScene()
     boxes[2] = CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, 0, 4, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false);
 
     // Test creating the models
-    //Model_GLTF* temp = (Model_GLTF*)malloc(sizeof(Model_GLTF));
-    //LoadGTLFModel(std::string(""), *temp, swapchain_info.image_count);
+    Model_GLTF* temp = (Model_GLTF*)malloc(sizeof(Model_GLTF));
+    LoadGTLFModel(std::string(""), *temp, swapchain_info.image_count);
     
-    //const VulkanInfo* t_v = &vulkan_info; 
-    //DestroyGLTFModel(temp, t_v);
+    const VulkanInfo* t_v = &vulkan_info; 
+    DestroyGLTFModel(temp, t_v);
     
     //boxes[2] = CreateText("This is some text.", &font, 0, 4, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height});
     // TODO(Matt): Find a different solution for buffer allocation.
     for (uint32_t i = 0; i < box_count; ++i)
     {
-        // boxes[i].uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * boxes[i].uniform_count);
-        // boxes[i].uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * boxes[i].uniform_count);
-        // boxes[i].descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * boxes[i].uniform_count);
+        boxes[i].uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * boxes[i].uniform_count);
+        boxes[i].uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * boxes[i].uniform_count);
+        boxes[i].descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * boxes[i].uniform_count);
 
-        // CreateModelBuffer(sizeof(Vertex) * boxes[i].vertex_count, boxes[i].vertices, &boxes[i].vertex_buffer, &boxes[i].vertex_buffer_memory);
-        // CreateModelBuffer(sizeof(uint32_t) * boxes[i].index_count, boxes[i].indices, &boxes[i].index_buffer, &boxes[i].index_buffer_memory);
-        // CreateModelUniformBuffers(sizeof(UniformBufferObject), boxes[i].uniform_buffers, boxes[i].uniform_buffers_memory, boxes[i].uniform_count);
-        // CreateModelDescriptorSets(boxes[i].uniform_count, boxes[i].material_type, boxes[i].shader_id, boxes[i].uniform_buffers, boxes[i].descriptor_sets);
+        CreateModelBuffer(sizeof(Vertex) * boxes[i].vertex_count, boxes[i].vertices, &boxes[i].vertex_buffer, &boxes[i].vertex_buffer_memory);
+        CreateModelBuffer(sizeof(uint32_t) * boxes[i].index_count, boxes[i].indices, &boxes[i].index_buffer, &boxes[i].index_buffer_memory);
+        CreateModelUniformBuffers(sizeof(UniformBufferObject), boxes[i].uniform_buffers, boxes[i].uniform_buffers_memory, boxes[i].uniform_count);
+        CreateModelDescriptorSets(boxes[i].uniform_count, boxes[i].material_type, boxes[i].shader_id, boxes[i].uniform_buffers, boxes[i].descriptor_sets);
         
-        CreateVertexBuffer(&boxes[i]);
-        CreateIndexBuffer(&boxes[i]);
-        CreateUniformBuffers(&boxes[i]);
-        CreateDescriptorSets(&boxes[i]);
+        // CreateVertexBuffer(&boxes[i]);
+        // CreateIndexBuffer(&boxes[i]);
+        // CreateUniformBuffers(&boxes[i]);
+        // CreateDescriptorSets(&boxes[i]);
     }
 }
 
