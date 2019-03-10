@@ -6,3 +6,5 @@ if not exist build\%mode% exit /b 0
 pushd build\%mode%
 call main.exe > log.txt 2> err.txt
 popd
+
+echo Exit Code is %errorlevel%

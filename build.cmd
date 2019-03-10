@@ -73,19 +73,11 @@ robocopy shaders build\%mode%\shaders *.spv /move /mir /ns /nc /nfl /ndl /np /nj
 
 echo.     -Copying Textures:
 if not exist build\%mode%\textures mkdir build\%mode%\textures
-<<<<<<< HEAD
-robocopy textures build\%mode%\textures /mir /ns /nc /nfl /ndl /np /njh /njs
-
-echo.     - Copying Models:
-if not exist build\%mode%\resources\models mkdir build\%mode%\resources\models
-robocopy resources\models build\%mode%\resources\models /mir /ns /nc /nfl /ndl /np /njh /njs
-=======
 robocopy textures build\%mode%\textures /mir /ns /nc /ndl /np /njh /njs
 
 echo.     -Copying Fonts:
 if not exist build\%mode%\fonts mkdir build\%mode%\fonts
 robocopy fonts build\%mode%\fonts /mir /ns /nc /ndl /np /njh /njs
->>>>>>> d6b8651810588481f2b077edc122de04be3568cf
 
 echo Build complete!
 exit /b 0

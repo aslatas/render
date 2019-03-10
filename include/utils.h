@@ -12,4 +12,4 @@
 
 // TODO(Dustin/Matthew): Temporary solution for model id
 // Unique Model id
-//extern unsigned int model_id = 0;
+// extern unsigned int model_id = 0;

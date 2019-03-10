@@ -1,6 +1,8 @@
 // Handles loading model files. Currently only supports GLTF formats.
 #pragma once
 
+#include <model_loader/cgltf.h>
+
 #include <string>
 
 #include <utils.h>
@@ -22,6 +24,8 @@ typedef enum EModelLoadResult {
 } EModelLoadResult;
 
 struct Model_GLTF {
+  cgltf_data* data;
+
   unsigned int shader_id;
   unsigned int material_id;
 
@@ -32,9 +36,21 @@ struct Model_GLTF {
   VkDeviceMemory vertex_buffer_memory;
   VkDeviceMemory index_buffer_memory;
 
-  VkBuffer *uniform_buffers;
-  VkDeviceMemory *uniform_buffer_memory;
+  VkBuffer        *uniform_buffers;
+  VkDeviceMemory  *uniform_buffers_memory;
+  VkDescriptorSet *descriptor_sets;
+  uint32_t         uniform_count;
+
+  glm::vec3 pos;
+  glm::vec3 rot;
+  glm::vec3 scl;
+
+  AxisAlignedBoundingBox bounds;
+  bool hit_test_enabled;
+
 };
 
 // Load a GLTF Model at the given filepath
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_GLTF* model);
+EModelLoadResult LoadGTLFModel(std::string filepath, Model_GLTF& model, uint32_t uniform_count);
+// Destroy loaded model
+void DestroyGLTFModel(Model_GLTF *model, const VulkanInfo *vulkan_info);

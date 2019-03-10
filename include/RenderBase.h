@@ -81,6 +81,10 @@ void ShutdownRenderer();
 // Draw the next frame.
 void DrawFrame();
 
+void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory);
+void CreateModelUniformBuffers(VkDeviceSize buffer_size, VkBuffer* uniform_buffers, VkDeviceMemory* uniform_buffers_memory, uint32_t uniform_count);
+void CreateModelDescriptorSets(uint32_t uniform_count, uint32_t material_type, uint32_t shader_id, VkBuffer* uniform_buffers, VkDescriptorSet *descriptor_sets);
+
 void CreateVertexBuffer(Model *model);
 void CreateIndexBuffer(Model *model);
 void CreateUniformBuffers(Model *model);
