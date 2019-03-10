@@ -1,5 +1,6 @@
 
 #include "Main.h"
+#include "VulkanInit.h"
 
 #define MAX_PHYSICS_DELTA 0.03
 #define MAX_PHYSICS_STEPS 4
@@ -8,7 +9,7 @@ static bool is_ctrl_held = false;
 
 void ResizeCallback(uint32_t width, uint32_t height)
 {
-    RecreateSwapchain();
+    OnWindowResized();
 }
 
 void KeyCallback(uint32_t key, EButtonState state)
@@ -57,10 +58,16 @@ int Main()
     Win32RegisterKeyCallback(KeyCallback);
     Win32RegisterMouseButtonCallback(MouseButtonCallback);
     Win32RegisterMouseWheelCallback(MouseWheelCallback);
-    InitializeVulkan();
+    InitializeRenderer();
     Win32ShowWindow();
     Win32InitializeTimer();
     RunMainLoop();
-    ShutdownVulkan();
+    ShutdownRenderer();
     return EXIT_SUCCESS;
+}
+
+void ExitWithError(const char *message)
+{
+    std::cerr << "Error in " << __FILE__<< ", line " << __LINE__ << "! message: \"" << message << "\"." << std::endl;
+    exit(EXIT_FAILURE);
 }

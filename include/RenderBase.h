@@ -8,33 +8,6 @@
 // There's a lot of easy to leak heap memory in here.
 #define MAX_FRAMES_IN_FLIGHT 2
 
-
-// Stores vulkan instance/device information not dependent on swapchain.
-struct VulkanInfo
-{
-    VkInstance instance;
-    VkPhysicalDevice physical_device;
-    VkDevice logical_device;
-    VkSurfaceKHR surface;
-    VkDebugUtilsMessengerEXT debug_messenger;
-    uint32_t graphics_index;
-    uint32_t present_index;
-    VkQueue graphics_queue;
-    VkQueue present_queue;
-    // NOTE(Matt): Likely, graphics and present are the same queue. If so,
-    // calls to Vulkan cannot treat them as separate, hence this flag.
-    bool use_shared_queue;
-    VkCommandPool primary_command_pool;
-    VkDescriptorPool descriptor_pool;
-    // TODO(Matt): Move these into a proper texture representation.
-    VkImage texture_image;
-    VkImageView texture_image_view;
-    VkDeviceMemory texture_memory;
-    VkSampler texture_sampler;
-    uint32_t texture_mips;
-    VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
-};
-
 // Stores vulkan information that must be recreated with the swapchain.
 struct SwapchainInfo
 {
@@ -45,15 +18,15 @@ struct SwapchainInfo
     VkExtent2D extent;
     VkSurfaceTransformFlagBitsKHR transform;
     VkRenderPass renderpass;
-    VkDescriptorSetLayout descriptor_set_layout;
-    uint32_t pipeline_count;
     uint32_t current_frame;
+    uint32_t pipeline_count;
     VkImage color_image;
     VkDeviceMemory color_image_memory;
     VkImageView color_image_view;
     VkImage depth_image;
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
+    VkFormat depth_format;
     
     // Heap allocated (make sure they get freed):
     VkPipelineLayout *pipeline_layouts;
@@ -62,83 +35,75 @@ struct SwapchainInfo
     VkImage *images;
     VkImageView *imageviews;
     VkCommandBuffer *primary_command_buffers;
-    //VkDescriptorSet *descriptor_sets;
-    //VkDescriptorSetLayout *descriptor_set_layouts;
-    VkFence *in_flight_fences;
-    VkSemaphore *image_available_semaphores;
-    VkSemaphore *render_finished_semaphores;
 };
+
+struct PipelineCreateInfo
+{
+    VkPipelineVertexInputStateCreateInfo input_info;
+    VkVertexInputBindingDescription binding_description;
+    VkVertexInputAttributeDescription attribute_descriptions[6];
+    VkPipelineInputAssemblyStateCreateInfo assembly_info;
+    VkViewport viewport;
+    VkPipelineViewportStateCreateInfo viewport_info;
+    VkRect2D scissor;
+    VkPipelineRasterizationStateCreateInfo raster_info;
+    VkPipelineMultisampleStateCreateInfo multisample_info;
+    VkPipelineColorBlendAttachmentState blend;
+    VkPipelineColorBlendStateCreateInfo blend_info;
+    VkPipelineDepthStencilStateCreateInfo depth_stencil;
+    VkPipelineShaderStageCreateInfo *shader_stages;
+    VkShaderModule *shader_modules;
+    uint32_t stage_count;
+};
+
+
+struct Material
+{
+    VkPipeline pipeline;
+    Model *mesh_list;
+};
+
+struct MaterialLayout
+{
+    VkPipelineLayout pipeline_layout;
+    VkDescriptorSetLayout *descriptor_layouts;
+    Material *materials;
+};
+
 
 // Reads a shader file as a heap allocated byte array.
 // TODO(Matt): Merge me with the shader module creation, to simplify the usage code.
-char *ReadShaderFile(char *path, uint32_t *length);
+char *ReadShaderFile(const char *path, uint32_t *length);
 
-// Initialize renderer and attach to the window.
-void InitializeVulkan();
+void InitializeRenderer();
+void ShutdownRenderer();
 
 // Draw the next frame.
 void DrawFrame();
 
-// Shutdown vulkan and free associated memory.
-void ShutdownVulkan();
-// Helpers to initialize vulkan. 
-void CreateInstance();
-void CreateDebugMessenger();
-void CreateSurface();
-void ChoosePhysicalDevice();
-void CreateLogicalDevice();
-void CreateSwapchain();
-void CreateImageviews();
-void CreateRenderpass();
-void CreateDescriptorSetLayout();
-void CreatePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code, char *frag_code);
-void CreateStencilPipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code);
-void CreateOutlinePipeline(VkPipeline *pipeline, VkPipelineLayout *pipeline_layout, char *vert_code, char *frag_code);
-void CreateFramebuffers();
-void CreateCommandPools();
-void CreateDescriptorPool();
 void CreateVertexBuffer(Model *model);
 void CreateIndexBuffer(Model *model);
 void CreateUniformBuffers(Model *model);
 void CreateDescriptorSets(Model *model);
-void CreateCommandBuffers();
-void CreateSyncPrimitives();
 
-void CreateTextureImage(char *file);
-
-// TODO(Matt): Fix some of the sloppiness in these next few functions.
-void RecreateSwapchain();
-void CleanupSwapchain();
+void OnWindowResized();
 void UpdateUniforms(uint32_t image_index, Model *model);
-void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
-void CopyBuffer(VkBuffer source, VkBuffer destination, VkDeviceSize size);
-uint32_t FindMemoryType(uint32_t type, VkMemoryPropertyFlags properties);
-
-VkCommandBuffer BeginOneTimeCommand();
-void EndOneTimeCommand(VkCommandBuffer command_buffer);
-
-
-void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
-void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mips);
-void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mips, VkSampleCountFlagBits samples);
-void CreateTextureImageView();
-VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, uint32_t mips);
-void CreateTextureSampler();
-
-
-VkFormat FindSupportedFormat(VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features);
-void CreateDepthResources();
-VkFormat FindDepthFormat();
-
-
-void GenerateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t height, uint32_t mips);
-
-VkSampleCountFlagBits GetMSAASampleCount();
-
-void CreateColorResources();
 
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate);
 
 void RecordPrimaryCommand(uint32_t image_index);
 void UpdateModels(double frame_delta);
+
+// Sets up a pipeline create info with defaults. Pass nullptr for fragment
+// code if not needed.
+PipelineCreateInfo CreateDefaultPipelineInfo(const char *vert_file, const char *frag_file);
+
+// Creates a graphics pipeline from create info generated by a call
+// to CreateDefaultPipelineInfo().
+VkPipeline CreatePipeline(PipelineCreateInfo *pipeline_info, const MaterialLayout *layout, VkRenderPass render_pass, uint32_t sub_pass);
+
+MaterialLayout CreateMaterialLayout();
+
+void CreatePipelines();
+void DestroyPipelines();
+void InitializeScene();
