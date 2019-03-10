@@ -56,11 +56,15 @@ struct MaterialCreateInfo
     uint32_t stage_count;
 };
 
+typedef enum EMaterialType {
+    MATERIAL_TYPE_OPAQUE,
+    MATERIAL_TYPE_TRANSLUCENT
+} EMaterialType;
 
 struct Material
 {
     VkPipeline pipeline;
-    uint32_t type;
+    EMaterialType type;
     Model *models;
 };
 

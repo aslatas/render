@@ -51,6 +51,7 @@ struct Model_GLTF {
 };
 
 // Load a GLTF Model at the given filepath
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_GLTF& model, uint32_t uniform_count);
+EModelLoadResult LoadGTLFModel(std::string filepath, Model_GLTF& model, EMaterialType material_type, 
+                               uint32_t shader_id, uint32_t uniform_count);
 // Destroy loaded model
 void DestroyGLTFModel(Model_GLTF *model, const VulkanInfo *vulkan_info);

@@ -227,7 +227,8 @@ ConvertGLTFAttributeFormatToVulkanFormat(cgltf_type type)
     }
 }
 
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_GLTF& model, uint32_t uniform_count) 
+EModelLoadResult LoadGTLFModel(std::string filepath, Model_GLTF& model, 
+                               EMaterialType material_type, uint32_t shader_id, uint32_t uniform_count) 
 {
 
     //model = (Model_GLTF*)malloc(sizeof(Model_GLTF));

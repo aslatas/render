@@ -584,7 +584,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     return result;
 }
 
-void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRenderPass render_pass, uint32_t sub_pass)
+void AddMaterial(MaterialCreateInfo *material_info, EMaterialType material_type, VkRenderPass render_pass, uint32_t sub_pass)
 {
     material_info->input_info.pVertexBindingDescriptions = &material_info->binding_description;
     material_info->input_info.pVertexAttributeDescriptions = material_info->attribute_descriptions;
@@ -625,10 +625,10 @@ void CreateMaterials()
     MaterialCreateInfo material_info;
     arrput(material_types, CreateMaterialLayout());
     material_info = CreateDefaultMaterialInfo("shaders/vert.spv", "shaders/frag.spv");
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/vert2.spv", "shaders/frag2.spv");
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/stencil_vert.spv", nullptr);
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
@@ -643,7 +643,7 @@ void CreateMaterials()
     material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
     material_info.depth_stencil.back.reference = 1;
     material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/outline_vert.spv", "shaders/outline_frag.spv");
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
@@ -659,7 +659,7 @@ void CreateMaterials()
     material_info.depth_stencil.back.writeMask = 0xff;
     material_info.depth_stencil.back.reference = 1;
     material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/text_vert.spv", "shaders/text_frag.spv");
     material_info.blend.blendEnable = VK_TRUE;
@@ -669,10 +669,10 @@ void CreateMaterials()
     material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/fill_vcolor_vert.spv", "shaders/fill_vcolor_frag.spv");
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
 }
 
 // TESTING
@@ -776,17 +776,23 @@ void InitializeScene()
     font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 0, 4);
     
     // Throw some boxes in the scene.
+    Model_GLTF* modelA = (Model_GLTF*)malloc(sizeof(Model_GLTF));
+    Model_GLTF* modelB = (Model_GLTF*)malloc(sizeof(Model_GLTF));
     glm::vec3 pos = glm::vec3(-0.3f, -0.3f, -0.3f);
     glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
-    AddToScene(CreateBox(pos, ext, 0, 0, swapchain_info.image_count));
+    LoadGTLFModel(std::string(""), *modelA, 
+                  MATERIAL_TYPE_OPAQUE, 0, swapchain_info.image_count);
+    //AddToScene(CreateBox(pos, ext, MATERIAL_TYPE_OPAQUE, 0, swapchain_info.image_count));
     pos = glm::vec3(0.3f, 0.3f, -0.3f);
-    AddToScene(CreateBox(pos, ext, 0, 1, swapchain_info.image_count));
+    LoadGTLFModel(std::string(""), *modelB, 
+                  MATERIAL_TYPE_OPAQUE, 0, swapchain_info.image_count);
+    //AddToScene(CreateBox(pos, ext, MATERIAL_TYPE_OPAQUE, 1, swapchain_info.image_count));
     pos = glm::vec3(0.0f, 0.0f, 0.3f);
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
     // It should probably live on its own.
-    AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, 0, 5, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false));
+    AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, MATERIAL_TYPE_OPAQUE, 5, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false));
     
     AddToScene(CreateText("This is some text.", &font, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}));
 }
