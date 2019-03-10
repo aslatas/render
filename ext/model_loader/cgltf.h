@@ -62,6 +62,8 @@
 #ifndef CGLTF_H_INCLUDED__
 #define CGLTF_H_INCLUDED__
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stddef.h>
 
 #ifdef __cplusplus

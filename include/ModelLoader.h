@@ -1,4 +1,5 @@
 // Handles loading model files. Currently only supports GLTF formats.
+#pragma once
 
 #include <string>
 
