@@ -1,4 +1,8 @@
 // TODO(Matt): There are a few platform specific bits lingering in here.
+// TODO(Matt): Use a texture list, and have models which use textures
+// specify which textures belong in which samplers.
+// TODO(Matt): Re-handle the way that uniforms are updated. It's hacky.
+
 #include "RenderBase.h"
 #include "VulkanInit.h"
 #include "Main.h"
