@@ -54,30 +54,31 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
 }
 
 // TODO(Matt): Font sizing via stb_truetype font attributes.
-Model CreateText(const char *text, const BitmapFont *font, uint32_t uniform_count,  glm::vec2 screen_position, glm::vec2 screen_size)
+Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 pos)
 {
     Model model = {};
     model.material_type = font->material_type;
     model.shader_id = font->shader_id;
-    model.uniform_count = uniform_count;
+    model.uniform_count = GetUniformCount();
     uint32_t length = (uint32_t)strlen(text);
     model.vertex_count = length * 4;
     model.index_count = length * 6;
     model.vertices = (Vertex *)malloc(sizeof(Vertex) * model.vertex_count);
     model.indices = (uint32_t *)malloc(sizeof(uint32_t) * model.index_count);
+    const SwapchainInfo *swapchain_info = GetSwapchainInfo();
+    float half_width = (float)swapchain_info->extent.width;
+    float half_height = (float)swapchain_info->extent.height;
+    pos.x = pos.x * half_width * 2.0f;
+    pos.y = pos.y * half_height * 2.0f;
     
-    // NOTE(Matt): Convert to NDC.
-    screen_size /= 2.0f;
-    screen_position.x /= screen_size.x;
-    screen_position.y /= screen_size.y;
     for (uint32_t i = 0; i < length; ++i) {
         if (text[i] >= font->first_character && text[i] < font->first_character + font->character_count) {
             stbtt_aligned_quad quad;
-            stbtt_GetBakedQuad(font->character_data, font->texture.width,font->texture.height, text[i] - font->first_character, &screen_position.x, &screen_position.y, &quad, 1);
-            quad.x0 /= screen_size.x;
-            quad.x1 /= screen_size.x;
-            quad.y0 /= screen_size.y;
-            quad.y1 /= screen_size.y;
+            stbtt_GetBakedQuad(font->character_data, font->texture.width,font->texture.height, text[i] - font->first_character, &pos.x, &pos.y, &quad, 1);
+            quad.x0 = (quad.x0 - half_width) / half_width;
+            quad.x1 = (quad.x1 - half_width) / half_width;
+            quad.y0 = (quad.y0 - half_height) / half_height;
+            quad.y1 = (quad.y1 - half_height) / half_height;
             model.vertices[(i * 4) + 0].position = glm::vec3(quad.x0, quad.y0, 0.0f);
             model.vertices[(i * 4) + 1].position = glm::vec3(quad.x0, quad.y1, 0.0f);
             model.vertices[(i * 4) + 2].position = glm::vec3(quad.x1, quad.y1, 0.0f);

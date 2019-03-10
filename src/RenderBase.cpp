@@ -14,7 +14,6 @@ static SwapchainInfo swapchain_info = {};
 BitmapFont font;
 Texture texture;
 MaterialLayout *material_types;
-uint32_t material_count = 6;
 
 //static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
@@ -201,8 +200,9 @@ void RecordPrimaryCommand(uint32_t image_index)
             vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline);
             
             // For each model of a given material.
-            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
-                Model *model = &material->models[k];
+            // GLTF MODEL
+            for (uint32_t k = 0; k < arrlen(material->gltf_models); ++k) {
+                Model_GLTF *model = &material->gltf_models[k];
                 
                 // Bind the vertex, index, and uniform buffers.
                 VkBuffer vertex_buffers[] = {model->vertex_buffer};
@@ -272,8 +272,8 @@ void DrawFrame()
         MaterialLayout material_type = material_types[i];
         for (uint32_t j = 0; j < arrlen(material_type.materials); ++j) {
             Material material = material_type.materials[j];
-            for (uint32_t k = 0; k < arrlen(material.models); ++k) {
-                UpdateUniforms(image_index, &material.models[k]);
+            for (uint32_t k = 0; k < arrlen(material.gltf_models); ++k) {
+                UpdateUniforms(image_index, &material.gltf_models[k]);
             }
         }
     }
@@ -332,8 +332,8 @@ void UpdateModels(double frame_delta)
         MaterialLayout *material_type = &material_types[i];
         for (uint32_t j = 0; j < arrlen(material_type->materials); ++j) {
             Material *material = &material_type->materials[j];
-            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
-                Model *model = &material->models[k];
+            for (uint32_t k = 0; k < arrlen(material->gltf_models); ++k) {
+                Model_GLTF *model = &material->gltf_models[k];
                 model->rot.z += (float)frame_delta * glm::radians(25.0f);
                 model->ubo.model = glm::translate(glm::mat4(1.0f), initial_positions[current_index]);
                 model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
@@ -349,7 +349,7 @@ void UpdateModels(double frame_delta)
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(uint32_t current_image, Model *model)
+void UpdateUniforms(uint32_t current_image, Model_GLTF *model)
 {
     void *data;
     vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(model->ubo), 0, &data);
@@ -493,7 +493,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.input_info.vertexAttributeDescriptionCount = 6;
     
     result.binding_description.binding = 0;
-    result.binding_description.stride = sizeof(Vertex);
+    result.binding_description.stride = sizeof(Vertex_GLTF);
     result.binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     
     result.attribute_descriptions[0].binding = 0;
@@ -777,24 +777,20 @@ void InitializeScene()
     
     // Throw some boxes in the scene.
     Model_GLTF* modelA = (Model_GLTF*)malloc(sizeof(Model_GLTF));
-    Model_GLTF* modelB = (Model_GLTF*)malloc(sizeof(Model_GLTF));
-    glm::vec3 pos = glm::vec3(-0.3f, -0.3f, -0.3f);
-    glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
-    LoadGTLFModel(std::string(""), *modelA, 
-                  MATERIAL_TYPE_OPAQUE, 0, swapchain_info.image_count);
-    //AddToScene(CreateBox(pos, ext, MATERIAL_TYPE_OPAQUE, 0, swapchain_info.image_count));
-    pos = glm::vec3(0.3f, 0.3f, -0.3f);
-    LoadGTLFModel(std::string(""), *modelB, 
-                  MATERIAL_TYPE_OPAQUE, 0, swapchain_info.image_count);
-    //AddToScene(CreateBox(pos, ext, MATERIAL_TYPE_OPAQUE, 1, swapchain_info.image_count));
-    pos = glm::vec3(0.0f, 0.0f, 0.3f);
+    // Model_GLTF* modelB = (Model_GLTF*)malloc(sizeof(Model_GLTF));
+    // glm::vec3 pos = glm::vec3(-0.3f, -0.3f, -0.3f);
+    // glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
+    LoadGTLFModel(std::string(""), *modelA, 0, 0, swapchain_info.image_count);
+    AddGLTFToScene(*modelA);
+    //AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
+    //AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 1));
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
     // It should probably live on its own.
-    AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, MATERIAL_TYPE_OPAQUE, 5, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false));
+    //AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {1.0f, 0.25f}, MATERIAL_TYPE_OPAQUE, 5, {1.0f, 0.0f, 0.0f, 1.0f}, false));
     
-    AddToScene(CreateText("This is some text.", &font, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}));
+    //AddToScene(CreateText("This is some text.", &font, {0.2f, 0.5f}));
 }
 
 void DestroyMaterials()
@@ -817,10 +813,10 @@ void DestroyMaterials()
 void DestroyScene() {
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
-            for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
-                DestroyModel(&material_types[i].materials[j].models[k], &vulkan_info);
+            for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].gltf_models); ++k) {
+                DestroyGLTFModel(&material_types[i].materials[j].gltf_models[k], &vulkan_info);
             }
-            arrfree(material_types[i].materials[j].models);
+            arrfree(material_types[i].materials[j].gltf_models);
         }
     }
     
@@ -857,5 +853,53 @@ void AddToScene(Model model)
     //CreateIndexBuffer(&model);
     //CreateUniformBuffers(&model);
     //CreateDescriptorSets(&model);
-    arrput(material_types[model.material_type].materials[model.shader_id].models, model);
+
+    // TODO(Dustin): Fix Later
+    // arrput(material_types[model.material_type].materials[model.shader_id].gltf_models, model);
+}
+
+void AddGLTFToScene(Model_GLTF model)
+{
+    // model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
+    // model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
+    // model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
+
+    // CreateModelBuffer(sizeof(Vertex) * model.vertex_count, 
+    //                   model.vertices, 
+    //                   &model.vertex_buffer, 
+    //                   &model.vertex_buffer_memory);
+    // CreateModelBuffer(sizeof(uint32_t) * model.index_count, 
+    //                   model.indices, 
+    //                   &model.index_buffer, 
+    //                   &model.index_buffer_memory);
+    // CreateModelUniformBuffers(sizeof(UniformBufferObject), 
+    //                           model.uniform_buffers, 
+    //                           model.uniform_buffers_memory, 
+    //                           model.uniform_count);
+    // CreateModelDescriptorSets(swapchain_info.image_count, 
+    //                           model.material_type, 
+    //                           model.shader_id, 
+    //                           model.uniform_buffers, 
+    //                           model.descriptor_sets);
+
+    //CreateVertexBuffer(&model);
+    //CreateIndexBuffer(&model);
+    //CreateUniformBuffers(&model);
+    //CreateDescriptorSets(&model);
+    arrput(material_types[model.material_type].materials[model.shader_id].gltf_models, model);
+}
+
+const VulkanInfo *GetRenderInfo()
+{
+    return &vulkan_info;
+}
+
+const SwapchainInfo *GetSwapchainInfo()
+{
+    return &swapchain_info;
+}
+
+uint32_t GetUniformCount()
+{
+    return swapchain_info.image_count;
 }

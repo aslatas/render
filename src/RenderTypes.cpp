@@ -1,12 +1,14 @@
 
 #include "RenderTypes.h"
+#include "RenderBase.h"
+
 #define STB_DS_IMPLEMENTATION
 #include "stb/stb_ds.h"
 
 void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
 {
-    free(model->vertices);
-    free(model->indices);
+    // free(gltf_model->vertices);
+    // free(gltf_model->indices);
     for (uint32_t i = 0; i < model->uniform_count; ++i) {
         vkDestroyBuffer(vulkan_info->logical_device, model->uniform_buffers[i], nullptr);
         vkFreeMemory(vulkan_info->logical_device, model->uniform_buffers_memory[i], nullptr);
@@ -21,12 +23,30 @@ void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
     model = nullptr;
 }
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count)
+void DestroyGLTFModel(Model_GLTF *model, const VulkanInfo *vulkan_info)
+{
+    // free(gltf_model->vertices);
+    // free(gltf_model->indices);
+    for (uint32_t i = 0; i < model->uniform_count; ++i) {
+        vkDestroyBuffer(vulkan_info->logical_device, model->uniform_buffers[i], nullptr);
+        vkFreeMemory(vulkan_info->logical_device, model->uniform_buffers_memory[i], nullptr);
+    }
+    vkDestroyBuffer(vulkan_info->logical_device, model->vertex_buffer, nullptr);
+    vkFreeMemory(vulkan_info->logical_device, model->vertex_buffer_memory, nullptr);
+    vkDestroyBuffer(vulkan_info->logical_device, model->index_buffer, nullptr);
+    vkFreeMemory(vulkan_info->logical_device, model->index_buffer_memory, nullptr);
+    free(model->uniform_buffers);
+    free(model->uniform_buffers_memory);
+    free(model->descriptor_sets);
+    model = nullptr;
+}
+
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id)
 {
     Model model;
     model.material_type = material_type;
     model.shader_id = shader_id;
-    model.uniform_count = uniform_count;
+    model.uniform_count = GetUniformCount();
     model.hit_test_enabled = true;
     model.vertex_count = 24;
     model.index_count = 36;
@@ -288,51 +308,33 @@ Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length)
     return ray;
 }
 
-Model CreateDebugQuad2D(glm::vec2 top_left, glm::vec2 bottom_right, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count, glm::vec2 screen_size, bool filled)
+Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, uint32_t shader_id, glm::vec4 color, bool filled)
 {
     Model model = {};
     model.material_type = material_type;
     model.shader_id = shader_id;
-    model.uniform_count = uniform_count;
+    model.uniform_count = GetUniformCount();
     model.vertex_count = 4;
     model.index_count = 6;
     model.vertices = (Vertex *)malloc(sizeof(Vertex) * model.vertex_count);
     model.indices = (uint32_t *)malloc(sizeof(uint32_t) * model.index_count);
     
-    screen_size /= 2.0f;
-    top_left.x /= screen_size.x;
-    top_left.y /= screen_size.y;
-    bottom_right.x /= screen_size.x;
-    bottom_right.y /= screen_size.y;
-    model.vertices[0].position = glm::vec3(top_left.x, top_left.y, 0.0f);
-    model.vertices[1].position = glm::vec3(bottom_right.x, top_left.y, 0.0f);
-    model.vertices[2].position = glm::vec3(bottom_right.x, bottom_right.y, 0.0f);
-    model.vertices[3].position = glm::vec3(top_left.x, bottom_right.y, 0.0f);
+    pos = (pos - 0.5f) * 2.0f;
+    ext *= 2.0f;
+    model.vertices[0].position = glm::vec3(pos.x, pos.y, 0.0f);
+    model.vertices[1].position = glm::vec3(pos.x + ext.x, pos.y, 0.0f);
+    model.vertices[2].position = glm::vec3(pos.x + ext.x, pos.y + ext.y, 0.0f);
+    model.vertices[3].position = glm::vec3(pos.x, pos.y + ext.y, 0.0f);
     
-    model.vertices[0].normal = glm::vec3(-1.0f, 0.0f, 0.0f);
-    model.vertices[1].normal = glm::vec3(-1.0f, 0.0f, 0.0f);
-    model.vertices[2].normal = glm::vec3(-1.0f, 0.0f, 0.0f);
-    model.vertices[3].normal = glm::vec3(-1.0f, 0.0f, 0.0f);
-    
-    model.vertices[0].color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-    model.vertices[1].color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-    model.vertices[2].color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-    model.vertices[3].color = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+    model.vertices[0].color = color;
+    model.vertices[1].color = color;
+    model.vertices[2].color = color;
+    model.vertices[3].color = color;
     
     model.vertices[0].uv0 = glm::vec2(0.0f, 0.0f);
     model.vertices[1].uv0 = glm::vec2(1.0f, 0.0f);
     model.vertices[2].uv0 = glm::vec2(1.0f, 1.0f);
     model.vertices[3].uv0 = glm::vec2(0.0f, 1.0f);
-    
-    model.vertices[0].uv1 = glm::vec2(0.0f, 0.0f);
-    model.vertices[1].uv1 = glm::vec2(1.0f, 0.0f);
-    model.vertices[2].uv1 = glm::vec2(1.0f, 1.0f);
-    model.vertices[3].uv1 = glm::vec2(0.0f, 1.0f);
-    
-    model.vertices[0].uv2 = glm::vec2(0.0f, 0.0f);
-    model.vertices[1].uv2 = glm::vec2(1.0f, 0.0f);
-    model.vertices[2].uv2 = glm::vec2(1.0f, 1.0f);
-    model.vertices[3].uv2 = glm::vec2(0.0f, 1.0f);
     
     model.indices[0] = 0;
     model.indices[1] = 2;

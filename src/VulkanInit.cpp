@@ -338,10 +338,6 @@ static void CreateSwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapch
     ChooseSurfaceFormat(vulkan_info, swapchain_info);
     ChoosePresentMode(vulkan_info, swapchain_info);
     ChooseSwapchainExtent(vulkan_info, swapchain_info);
-    // TODO(Matt): Use a dynamic array here.
-    swapchain_info->pipelines = (VkPipeline *)malloc(sizeof(VkPipeline) * material_count);
-    swapchain_info->pipeline_layouts = (VkPipelineLayout *)malloc(sizeof(VkPipelineLayout) * material_count);
-    swapchain_info->pipeline_count = material_count;
     
     // Create the swapchain from the given info.
     VkSwapchainCreateInfoKHR create_info = {};

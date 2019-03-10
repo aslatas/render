@@ -11,6 +11,8 @@
 #pragma warning(pop)
 #include "stb/stb_ds.h"
 
+#include <model_loader/cgltf.h>
+
 // Stores vulkan instance/device information not dependent on swapchain.
 struct VulkanInfo
 {
@@ -48,6 +50,17 @@ struct Vertex
     glm::vec2 uv0;   // 48
     glm::vec2 uv1;   // 56
     glm::vec2 uv2;   // 64
+};
+
+struct Vertex_GLTF
+{
+    glm::vec3 position; // 12
+    glm::vec3 normal;   // 24
+    glm::vec3 tangent;
+    // glm::vec4 color; // 40
+    glm::vec2 uv0;   // 48
+    // glm::vec2 uv1;   // 56
+    // glm::vec2 uv2;   // 64
 };
 
 struct DirectionalLight
@@ -111,9 +124,59 @@ struct Model
     uint32_t uniform_count;
 };
 
-void DestroyModel(Model *model, const VulkanInfo *vulkan_info);
+// Returned error cases for failed loading
+typedef enum EModelLoadResult {
+  MODEL_LOAD_RESULT_SUCCESS,
+  MODEL_LOAD_RESULT_DATA_TOO_SHORT,
+  MODEL_LOAD_RESULT_INVALID_JSON,
+  MODEL_LOAD_RESULT_INVALID_GLTF,
+  MODEL_LOAD_RESULT_INVALID_CGLTF_OPTIONS,
+  MODEL_LOAD_RESULT_FILE_NOT_FOUND,
+  MODEL_LOAD_RESULT_IO_ERROR,
+  MODEL_LOAD_RESULT_OUT_OF_MEMORY,
+  MODEL_LOAD_RESULT_UNKNOWN_FORMAT,
+  MODEL_LOAD_RESULT_UNKNOWN_ERROR
+} EModelLoadResult;
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count);
+struct Model_GLTF {
+  cgltf_data* data;
+
+  unsigned int shader_id;
+  uint32_t material_type;
+
+  UniformBufferObject ubo;
+
+  VkBuffer vertex_buffer;
+  
+  VkBuffer index_buffer;
+  uint32_t index_count;
+
+  VkDeviceMemory vertex_buffer_memory;
+  VkDeviceMemory index_buffer_memory;
+
+  VkBuffer        *uniform_buffers;
+  VkDeviceMemory  *uniform_buffers_memory;
+  VkDescriptorSet *descriptor_sets;
+  uint32_t         uniform_count;
+
+  glm::vec3 pos;
+  glm::vec3 rot;
+  glm::vec3 scl;
+
+  AxisAlignedBoundingBox bounds;
+  bool hit_test_enabled;
+
+};
+
+// Destroys a model, freeing associated resources.
+void DestroyModel(Model *model, const VulkanInfo *vulkan_info);
+void DestroyGLTFModel(Model_GLTF *model, const VulkanInfo *vulkan_info);
+
+
+// Creates a box given a world space position, size, and material info.
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id);
+
+// Creates a ray with a given world origin, direction, and length.
 Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
 
 // Tests a ray against a model's oriented bounding box, by transforming the ray into the model's local space and
@@ -128,6 +191,18 @@ bool RaycastAgainstModelBounds(const Ray ray, const Model *model, glm::vec3 *int
 // Returns true if there was an intersection, false otherwise.
 // Fills the distance parameter with the intersection point if there was one.
 bool RayIntersectAxisAlignedBox(const Ray *ray, const AxisAlignedBoundingBox *box, glm::vec3 *intersection);
-Ray ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
 
-Model CreateDebugQuad2D(glm::vec2 top_left, glm::vec2 bottom_right, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count, glm::vec2 screen_size, bool filled);
+// Converts an integer screen position to a ray, with the origin at the
+// world location of the screen position, and the direction towards
+// the object under the screen position. Takes in screen coordinates (which
+// can be negative if the position is outside the window), the screen size,
+// and projection/view matrices to deproject.
+// Returns a Ray object.
+Ray ScreenPositionToWorldRay(int32_t x, int32_t y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
+
+// Creates a screen-space quad given a normalized (0-1 range where (0, 0) is
+// the upper left) position and extent. Takes material type and shader ID
+// to identify the material to use. Color is used by the debug material.
+// If filled, creates an index buffer for triangle drawing. Otherwise,
+// index buffer is for line drawing (outline bounds).
+Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, uint32_t shader_id, glm::vec4 color, bool filled);
