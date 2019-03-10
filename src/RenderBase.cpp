@@ -1,4 +1,8 @@
 // TODO(Matt): There are a few platform specific bits lingering in here.
+// TODO(Matt): Use a texture list, and have models which use textures
+// specify which textures belong in which samplers.
+// TODO(Matt): Re-handle the way that uniforms are updated. It's hacky.
+
 #include "RenderBase.h"
 #include "VulkanInit.h"
 #include "Main.h"
@@ -10,14 +14,14 @@ static SwapchainInfo swapchain_info = {};
 BitmapFont font;
 Texture texture;
 MaterialLayout *material_types;
-uint32_t material_count = 5;
+uint32_t material_count = 6;
 
-static Model *boxes;
+//static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
-uint32_t box_count = 3;
-uint32_t selected_boxes[3] = {0, 0, 0};
-uint32_t selected_count = 0;
-
+//uint32_t box_count = 3;
+//uint32_t selected_boxes[3] = {0, 0, 0};
+//uint32_t selected_count = 0;
+Model **selected_models = nullptr;
 char *ReadShaderFile(const char *path, uint32_t *length)
 {
     FILE *file = fopen(path, "rb");
@@ -132,7 +136,7 @@ void CreateDescriptorSets(Model *model)
         VkDescriptorImageInfo image_info = {};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         // TODO(Matt): Temporary hack to get a second texture sampler for text.
-        if (model->shader_id == 4) {
+        if (model->shader_id == font.shader_id && model->material_type == font.material_type) {
             
             image_info.imageView = font.texture.image_view;
             image_info.sampler = font.texture.sampler;
@@ -165,82 +169,119 @@ void CreateDescriptorSets(Model *model)
 
 void RecordPrimaryCommand(uint32_t image_index)
 {
+    // Begin the command buffer.
     VkCommandBufferBeginInfo buffer_begin_info = {};
     buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    
     VK_CHECK_RESULT(vkBeginCommandBuffer(swapchain_info.primary_command_buffers[image_index], &buffer_begin_info));
     
+    // Begin the render pass.
     VkRenderPassBeginInfo pass_begin_info = {};
     pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     pass_begin_info.renderPass = swapchain_info.renderpass;
     pass_begin_info.framebuffer = swapchain_info.framebuffers[image_index];
     pass_begin_info.renderArea.offset = {0, 0};
     pass_begin_info.renderArea.extent = swapchain_info.extent;
-    
     VkClearValue clear_colors[2];
     clear_colors[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
     clear_colors[1].depthStencil = {1.0f, 0};
     pass_begin_info.clearValueCount = 2;
     pass_begin_info.pClearValues = clear_colors;
-    
     vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     
-    for (uint32_t model_index = 0; model_index < box_count; ++model_index)
-    {
-        vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[boxes[model_index].material_type].materials[boxes[model_index].shader_id].pipeline);
-        VkBuffer vertex_buffers[] = {boxes[model_index].vertex_buffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
-        vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], boxes[model_index].index_buffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[boxes[model_index].material_type].pipeline_layout, 0, 1, &boxes[model_index].descriptor_sets[image_index], 0, nullptr);
-        vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], boxes[model_index].index_count, 1, 0, 0, 0);
+    
+    // For each material type.
+    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
+        MaterialLayout *material_type = &material_types[i];
+        // For each material of a given type.
+        for (uint32_t j = 0; j < arrlen(material_type->materials); ++j) {
+            Material *material = &material_type->materials[j];
+            
+            // Bind the material pipeline.
+            vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline);
+            
+            // For each model of a given material.
+            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
+                Model *model = &material->models[k];
+                
+                // Bind the vertex, index, and uniform buffers.
+                VkBuffer vertex_buffers[] = {model->vertex_buffer};
+                VkDeviceSize offsets[] = {0};
+                vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
+                vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], model->index_buffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_type->pipeline_layout, 0, 1, &model->descriptor_sets[image_index], 0, nullptr);
+                
+                // Draw the model.
+                vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], model->index_count, 1, 0, 0, 0);
+            }
+        }
     }
     
+    // Do post process for outlines.
+    // NOTE(Matt): Outlines are done in two passes - one to draw selected
+    // into stencil buffer, and one to read stencil buffer for outlines.
     for (uint32_t outline_stage = 2; outline_stage <= 3; ++outline_stage) {
-        if (selected_count == 0) {
+        if (arrlen(selected_models) == 0) {
             break;
         }
+        
+        // TODO(Matt): Currently post process stuff is hard-coded. Should
+        // maybe use a separate set of materials entirely for post process.
+        // Bind the stenciling pipeline.
         vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].materials[outline_stage].pipeline);
-        for (uint32_t selected_index = 0; selected_index < selected_count; ++selected_index) {
-            VkBuffer vertex_buffers[] = {boxes[selected_boxes[selected_index]].vertex_buffer};
+        // For each selected model.
+        for (uint32_t i = 0; i < arrlen(selected_models); ++i) {
+            // Bind vertex and index buffers, and uniforms.
+            VkBuffer vertex_buffers[] = {selected_models[i]->vertex_buffer};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
-            vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], boxes[selected_boxes[selected_index]].index_buffer, 0, VK_INDEX_TYPE_UINT32);
-            vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &boxes[selected_boxes[selected_index]].descriptor_sets[image_index], 0, nullptr);
-            vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], boxes[selected_boxes[selected_index]].index_count, 1, 0, 0, 0);
+            vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], selected_models[i]->index_buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &selected_models[i]->descriptor_sets[image_index], 0, nullptr);
+            // Draw selected models.
+            vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], selected_models[i]->index_count, 1, 0, 0, 0);
         }
     }
     
+    // End render pass and command buffer recording.
     vkCmdEndRenderPass(swapchain_info.primary_command_buffers[image_index]);
-    
     VK_CHECK_RESULT(vkEndCommandBuffer(swapchain_info.primary_command_buffers[image_index]));
 }
 
 void DrawFrame()
 {
+    // Wait for an image to become available.
     vkWaitForFences(vulkan_info.logical_device, 1, &vulkan_info.in_flight_fences[swapchain_info.current_frame], VK_TRUE, 0xffffffffffffffff);
     
+    // Get the next available image.
     uint32_t image_index;
     VkResult result = vkAcquireNextImageKHR(vulkan_info.logical_device, swapchain_info.swapchain, 0xffffffffffffffff, vulkan_info.image_available_semaphores[swapchain_info.current_frame], VK_NULL_HANDLE, &image_index);
     
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
-    {
+    // If out of date, recreate swapchain. Will likely cause a frame hitch.
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         RecreateSwapchain(&vulkan_info, &swapchain_info);
         return;
-    }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-    {
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         std::cerr << "Failed to acquire swapchain image!" << std::endl;
         exit(EXIT_FAILURE);
     }
     
-    for (uint32_t i = 0; i < box_count; ++i)
-    {
-        UpdateUniforms(image_index, &boxes[i]);
+    // Update uniforms to reflect new state of all scene objects.
+    // TODO(Matt): Probably only update dynamic object uniforms - static
+    // geometry won't change.
+    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
+        MaterialLayout material_type = material_types[i];
+        for (uint32_t j = 0; j < arrlen(material_type.materials); ++j) {
+            Material material = material_type.materials[j];
+            for (uint32_t k = 0; k < arrlen(material.models); ++k) {
+                UpdateUniforms(image_index, &material.models[k]);
+            }
+        }
     }
     
+    // Record draw calls and other work for this frame.
     RecordPrimaryCommand(image_index);
+    
+    // Submit work for this frame.
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     VkSemaphore wait_semaphores[] = {vulkan_info.image_available_semaphores[swapchain_info.current_frame]};
@@ -253,53 +294,58 @@ void DrawFrame()
     VkSemaphore signal_semaphores[] = {vulkan_info.render_finished_semaphores[swapchain_info.current_frame]};
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
-    
     vkResetFences(vulkan_info.logical_device, 1, &vulkan_info.in_flight_fences[swapchain_info.current_frame]);
-    
     VK_CHECK_RESULT(vkQueueSubmit(vulkan_info.graphics_queue, 1, &submit_info, vulkan_info.in_flight_fences[swapchain_info.current_frame]));
     
+    // Present the newly acquired image.
     VkPresentInfoKHR present_info = {};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = signal_semaphores;
-    
     VkSwapchainKHR swapchains[] = {swapchain_info.swapchain};
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
-    
     present_info.pImageIndices = &image_index;
     if (vulkan_info.use_shared_queue) {
         result = vkQueuePresentKHR(vulkan_info.graphics_queue, &present_info);
     } else {
-        
         result = vkQueuePresentKHR(vulkan_info.present_queue, &present_info);
     }
     
+    // If the swapchain is bad, recreate it (will likely cause frame hitch).
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         RecreateSwapchain(&vulkan_info, &swapchain_info);
     } else if (result != VK_SUCCESS) {
         ExitWithError("Unable to present swapchain image!");
     }
     
+    // Increment frame counter.
     swapchain_info.current_frame = (swapchain_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-
+// TODO(Matt): Move this out of the rendering component.
 void UpdateModels(double frame_delta)
 {
-    for (uint32_t i = 0; i < box_count; ++i) {
-        boxes[i].rot.z += (float)frame_delta * glm::radians(25.0f);
-        boxes[i].ubo.model = glm::translate(glm::mat4(1.0f), initial_positions[i]);
-        boxes[i].ubo.model = glm::yawPitchRoll(boxes[i].rot.x, boxes[i].rot.y, boxes[i].rot.z) * boxes[i].ubo.model;
-        boxes[i].pos = glm::vec3(boxes[i].ubo.model[3].x, boxes[i].ubo.model[3].y, boxes[i].ubo.model[3].z);
-        
-        boxes[i].ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
-        boxes[i].ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
-        boxes[i].ubo.sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
-        boxes[i].ubo.sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
+    // TODO(Matt): hack here until we're using better simulation rules.
+    uint32_t current_index = 0;
+    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
+        MaterialLayout *material_type = &material_types[i];
+        for (uint32_t j = 0; j < arrlen(material_type->materials); ++j) {
+            Material *material = &material_type->materials[j];
+            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
+                Model *model = &material->models[k];
+                model->rot.z += (float)frame_delta * glm::radians(25.0f);
+                model->ubo.model = glm::translate(glm::mat4(1.0f), initial_positions[current_index]);
+                model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
+                model->pos = glm::vec3(model->ubo.model[3].x, model->ubo.model[3].y, model->ubo.model[3].z);
+                model->ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
+                model->ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
+                model->ubo.sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+                model->ubo.sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
+                current_index++;
+            }
+        }
     }
-    
 }
 
 // TODO(Matt): Figure out uniforms in general.
@@ -310,7 +356,7 @@ void UpdateUniforms(uint32_t current_image, Model *model)
     memcpy(data, &model->ubo, sizeof(model->ubo));
     vkUnmapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image]);
 }
-
+/*
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
 {
     if (!accumulate) selected_count = 0;
@@ -359,7 +405,7 @@ void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
         }
     }
 }
-
+*/
 void OnWindowResized()
 {
     RecreateSwapchain(&vulkan_info, &swapchain_info);
@@ -405,9 +451,9 @@ MaterialLayout CreateMaterialLayout()
     return layout;
 }
 
-PipelineCreateInfo CreateDefaultPipelineInfo(const char *vert_file, const char *frag_file)
+MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *frag_file)
 {
-    PipelineCreateInfo result = {};
+    MaterialCreateInfo result = {};
     
     result.stage_count = (frag_file) ? 2 : 1;
     result.shader_stages = (VkPipelineShaderStageCreateInfo *)malloc(sizeof(VkPipelineShaderStageCreateInfo) * result.stage_count);
@@ -538,96 +584,95 @@ PipelineCreateInfo CreateDefaultPipelineInfo(const char *vert_file, const char *
     return result;
 }
 
-VkPipeline CreatePipeline(PipelineCreateInfo *info, const MaterialLayout *layout, VkRenderPass render_pass, uint32_t sub_pass)
+void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRenderPass render_pass, uint32_t sub_pass)
 {
-    info->input_info.pVertexBindingDescriptions = &info->binding_description;
-    info->input_info.pVertexAttributeDescriptions = info->attribute_descriptions;
-    info->viewport_info.pViewports = &info->viewport;
-    info->viewport_info.pScissors = &info->scissor;
-    info->blend_info.pAttachments = &info->blend;
+    material_info->input_info.pVertexBindingDescriptions = &material_info->binding_description;
+    material_info->input_info.pVertexAttributeDescriptions = material_info->attribute_descriptions;
+    material_info->viewport_info.pViewports = &material_info->viewport;
+    material_info->viewport_info.pScissors = &material_info->scissor;
+    material_info->blend_info.pAttachments = &material_info->blend;
     
     VkGraphicsPipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipeline_info.stageCount = info->stage_count;
-    pipeline_info.pStages = info->shader_stages;
-    pipeline_info.pVertexInputState = &info->input_info;
-    pipeline_info.pInputAssemblyState = &info->assembly_info;
-    pipeline_info.pViewportState = &info->viewport_info;
-    pipeline_info.pRasterizationState = &info->raster_info;
-    pipeline_info.pMultisampleState = &info->multisample_info;
-    pipeline_info.pColorBlendState = &info->blend_info;
-    pipeline_info.pDepthStencilState = &info->depth_stencil;
-    pipeline_info.layout = layout->pipeline_layout;
+    pipeline_info.stageCount = material_info->stage_count;
+    pipeline_info.pStages = material_info->shader_stages;
+    pipeline_info.pVertexInputState = &material_info->input_info;
+    pipeline_info.pInputAssemblyState = &material_info->assembly_info;
+    pipeline_info.pViewportState = &material_info->viewport_info;
+    pipeline_info.pRasterizationState = &material_info->raster_info;
+    pipeline_info.pMultisampleState = &material_info->multisample_info;
+    pipeline_info.pColorBlendState = &material_info->blend_info;
+    pipeline_info.pDepthStencilState = &material_info->depth_stencil;
+    pipeline_info.layout = material_types[material_type].pipeline_layout;
     pipeline_info.renderPass = render_pass;
     pipeline_info.subpass = sub_pass;
     pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
     
-    VkPipeline pipeline;
-    VK_CHECK_RESULT(vkCreateGraphicsPipelines(vulkan_info.logical_device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipeline));
-    for (uint32_t i = 0; i < info->stage_count; ++i) {
-        vkDestroyShaderModule(vulkan_info.logical_device, info->shader_modules[i], nullptr);
+    Material material = {};
+    material.type = material_type;
+    VK_CHECK_RESULT(vkCreateGraphicsPipelines(vulkan_info.logical_device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &material.pipeline));
+    for (uint32_t i = 0; i < material_info->stage_count; ++i) {
+        vkDestroyShaderModule(vulkan_info.logical_device, material_info->shader_modules[i], nullptr);
     }
-    free(info->shader_stages);
-    free(info->shader_modules);
-    return pipeline;
+    
+    free(material_info->shader_stages);
+    free(material_info->shader_modules);
+    arrput(material_types[material.type].materials, material);
 }
 
-void CreatePipelines()
+void CreateMaterials()
 {
-    PipelineCreateInfo pipeline_info;
-    Material material = {};
+    MaterialCreateInfo material_info;
     arrput(material_types, CreateMaterialLayout());
+    material_info = CreateDefaultMaterialInfo("shaders/vert.spv", "shaders/frag.spv");
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    pipeline_info = CreateDefaultPipelineInfo("shaders/vert.spv", "shaders/frag.spv");
-    material.pipeline = CreatePipeline(&pipeline_info, &material_types[0], swapchain_info.renderpass, 0);
-    arrput(material_types[0].materials, material);
-    pipeline_info = CreateDefaultPipelineInfo("shaders/vert2.spv", "shaders/frag2.spv");
-    material.pipeline = CreatePipeline(&pipeline_info, &material_types[0], swapchain_info.renderpass, 0);
-    arrput(material_types[0].materials, material);
+    material_info = CreateDefaultMaterialInfo("shaders/vert2.spv", "shaders/frag2.spv");
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    pipeline_info = CreateDefaultPipelineInfo("shaders/stencil_vert.spv", nullptr);
-    pipeline_info.raster_info.cullMode = VK_CULL_MODE_NONE;
-    pipeline_info.depth_stencil.depthTestEnable = VK_FALSE;
-    pipeline_info.depth_stencil.depthWriteEnable = VK_FALSE;
-    pipeline_info.depth_stencil.stencilTestEnable = VK_TRUE;
-    pipeline_info.depth_stencil.back = {};
-    pipeline_info.depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
-    pipeline_info.depth_stencil.back.failOp = VK_STENCIL_OP_REPLACE;
-    pipeline_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
-    pipeline_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
-    pipeline_info.depth_stencil.back.compareMask = 0xff;pipeline_info.depth_stencil.back.writeMask = 0xff;
-    pipeline_info.depth_stencil.back.reference = 1;
-    pipeline_info.depth_stencil.front = pipeline_info.depth_stencil.back;
-    material.pipeline = CreatePipeline(&pipeline_info, &material_types[0], swapchain_info.renderpass, 0);
-    arrput(material_types[0].materials, material);
+    material_info = CreateDefaultMaterialInfo("shaders/stencil_vert.spv", nullptr);
+    material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
+    material_info.depth_stencil.depthTestEnable = VK_FALSE;
+    material_info.depth_stencil.depthWriteEnable = VK_FALSE;
+    material_info.depth_stencil.stencilTestEnable = VK_TRUE;
+    material_info.depth_stencil.back = {};
+    material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
+    material_info.depth_stencil.back.failOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
+    material_info.depth_stencil.back.reference = 1;
+    material_info.depth_stencil.front = material_info.depth_stencil.back;
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    pipeline_info = CreateDefaultPipelineInfo("shaders/outline_vert.spv", "shaders/outline_frag.spv");
-    pipeline_info.raster_info.cullMode = VK_CULL_MODE_NONE;
-    pipeline_info.depth_stencil.depthTestEnable = VK_FALSE;
-    pipeline_info.depth_stencil.depthWriteEnable = VK_FALSE;
-    pipeline_info.depth_stencil.stencilTestEnable = VK_TRUE;
-    pipeline_info.depth_stencil.back = {};
-    pipeline_info.depth_stencil.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
-    pipeline_info.depth_stencil.back.failOp = VK_STENCIL_OP_KEEP;
-    pipeline_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_KEEP;
-    pipeline_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
-    pipeline_info.depth_stencil.back.compareMask = 0xff;
-    pipeline_info.depth_stencil.back.writeMask = 0xff;
-    pipeline_info.depth_stencil.back.reference = 1;
-    pipeline_info.depth_stencil.front = pipeline_info.depth_stencil.back;
-    material.pipeline = CreatePipeline(&pipeline_info, &material_types[0], swapchain_info.renderpass, 0);
-    arrput(material_types[0].materials, material);
+    material_info = CreateDefaultMaterialInfo("shaders/outline_vert.spv", "shaders/outline_frag.spv");
+    material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
+    material_info.depth_stencil.depthTestEnable = VK_FALSE;
+    material_info.depth_stencil.depthWriteEnable = VK_FALSE;
+    material_info.depth_stencil.stencilTestEnable = VK_TRUE;
+    material_info.depth_stencil.back = {};
+    material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
+    material_info.depth_stencil.back.failOp = VK_STENCIL_OP_KEEP;
+    material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_KEEP;
+    material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.compareMask = 0xff;
+    material_info.depth_stencil.back.writeMask = 0xff;
+    material_info.depth_stencil.back.reference = 1;
+    material_info.depth_stencil.front = material_info.depth_stencil.back;
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    pipeline_info = CreateDefaultPipelineInfo("shaders/text_vert.spv", "shaders/text_frag.spv");
-    pipeline_info.blend.blendEnable = VK_TRUE;
-    pipeline_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    pipeline_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    pipeline_info.blend.colorBlendOp = VK_BLEND_OP_ADD;
-    pipeline_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    pipeline_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    pipeline_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
-    material.pipeline = CreatePipeline(&pipeline_info, &material_types[0], swapchain_info.renderpass, 0);
-    arrput(material_types[0].materials, material);
+    material_info = CreateDefaultMaterialInfo("shaders/text_vert.spv", "shaders/text_frag.spv");
+    material_info.blend.blendEnable = VK_TRUE;
+    material_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    material_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    material_info.blend.colorBlendOp = VK_BLEND_OP_ADD;
+    material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    
+    material_info = CreateDefaultMaterialInfo("shaders/fill_vcolor_vert.spv", "shaders/fill_vcolor_frag.spv");
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
 }
 
 // TESTING
@@ -725,47 +770,28 @@ void CreateModelDescriptorSets(uint32_t uniform_count,
 // INITIALIZING SCENE
 void InitializeScene()
 {
-    boxes = (Model *)malloc(sizeof(Model) * box_count);
-    glm::vec3 box_pos = glm::vec3(-0.3f, -0.3f, -0.3f);
-    glm::vec3 box_ext = glm::vec3(0.5f, 0.5f, 0.5f);
-    //arrput(material_types[0].materials[0].models, CreateBox(box_pos, box_ext, 0, 0, swapchain_info.image_count));
-    boxes[0] = CreateBox(box_pos, box_ext, 0, 0, swapchain_info.image_count);
-    box_pos = glm::vec3(0.3f, 0.3f, -0.3f);
-    boxes[1] = CreateBox(box_pos, box_ext, 0, 1, swapchain_info.image_count);
-    box_pos = glm::vec3(0.0f, 0.0f, 0.3f);
-    
+    // Load fonts and textures.
+    // TODO(Matt): Move texture/font initialization somewhere else.
     texture = LoadTexture(&vulkan_info, "textures/proto.jpg", 4, true);
     font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 0, 4);
-    boxes[2] = CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, 0, 4, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false);
-
-    // Test creating the models
-    Model_GLTF* temp = (Model_GLTF*)malloc(sizeof(Model_GLTF));
-    LoadGTLFModel(std::string(""), *temp, swapchain_info.image_count);
     
-    const VulkanInfo* t_v = &vulkan_info; 
-    DestroyGLTFModel(temp, t_v);
+    // Throw some boxes in the scene.
+    glm::vec3 pos = glm::vec3(-0.3f, -0.3f, -0.3f);
+    glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
+    AddToScene(CreateBox(pos, ext, 0, 0, swapchain_info.image_count));
+    pos = glm::vec3(0.3f, 0.3f, -0.3f);
+    AddToScene(CreateBox(pos, ext, 0, 1, swapchain_info.image_count));
+    pos = glm::vec3(0.0f, 0.0f, 0.3f);
     
-    //boxes[2] = CreateText("This is some text.", &font, 0, 4, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height});
-    // TODO(Matt): Find a different solution for buffer allocation.
-    for (uint32_t i = 0; i < box_count; ++i)
-    {
-        boxes[i].uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * boxes[i].uniform_count);
-        boxes[i].uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * boxes[i].uniform_count);
-        boxes[i].descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * boxes[i].uniform_count);
-
-        CreateModelBuffer(sizeof(Vertex) * boxes[i].vertex_count, boxes[i].vertices, &boxes[i].vertex_buffer, &boxes[i].vertex_buffer_memory);
-        CreateModelBuffer(sizeof(uint32_t) * boxes[i].index_count, boxes[i].indices, &boxes[i].index_buffer, &boxes[i].index_buffer_memory);
-        CreateModelUniformBuffers(sizeof(UniformBufferObject), boxes[i].uniform_buffers, boxes[i].uniform_buffers_memory, boxes[i].uniform_count);
-        CreateModelDescriptorSets(boxes[i].uniform_count, boxes[i].material_type, boxes[i].shader_id, boxes[i].uniform_buffers, boxes[i].descriptor_sets);
-        
-        // CreateVertexBuffer(&boxes[i]);
-        // CreateIndexBuffer(&boxes[i]);
-        // CreateUniformBuffers(&boxes[i]);
-        // CreateDescriptorSets(&boxes[i]);
-    }
+    // Add screen-space elements.
+    // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
+    // It should probably live on its own.
+    AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, 0, 5, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false));
+    
+    AddToScene(CreateText("This is some text.", &font, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}));
 }
 
-void DestroyPipelines()
+void DestroyMaterials()
 {
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
@@ -783,9 +809,47 @@ void DestroyPipelines()
 }
 
 void DestroyScene() {
-    for (uint32_t i = 0; i < box_count; ++i) {
-        DestroyModel(&boxes[i], &vulkan_info);
+    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
+        for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
+            for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
+                DestroyModel(&material_types[i].materials[j].models[k], &vulkan_info);
+            }
+            arrfree(material_types[i].materials[j].models);
+        }
     }
+    
+    // TODO(Matt): Move font/texture destruction somewhere else, probably.
     DestroyFont(&vulkan_info, &font);
     DestroyTexture(&vulkan_info, &texture);
+}
+
+void AddToScene(Model model)
+{
+    model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
+    model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
+    model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
+
+    CreateModelBuffer(sizeof(Vertex) * model.vertex_count, 
+                      model.vertices, 
+                      &model.vertex_buffer, 
+                      &model.vertex_buffer_memory);
+    CreateModelBuffer(sizeof(uint32_t) * model.index_count, 
+                      model.indices, 
+                      &model.index_buffer, 
+                      &model.index_buffer_memory);
+    CreateModelUniformBuffers(sizeof(UniformBufferObject), 
+                              model.uniform_buffers, 
+                              model.uniform_buffers_memory, 
+                              model.uniform_count);
+    CreateModelDescriptorSets(swapchain_info.image_count, 
+                              model.material_type, 
+                              model.shader_id, 
+                              model.uniform_buffers, 
+                              model.descriptor_sets);
+
+    //CreateVertexBuffer(&model);
+    //CreateIndexBuffer(&model);
+    //CreateUniformBuffers(&model);
+    //CreateDescriptorSets(&model);
+    arrput(material_types[model.material_type].materials[model.shader_id].models, model);
 }

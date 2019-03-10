@@ -19,16 +19,11 @@ layout(binding = 0) uniform UniformBufferObject {
 
 layout(binding = 1) uniform sampler2D texture_sampler;
 
-layout(location = 0) in vec3 in_position;
-layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec3 in_color;
-layout(location = 3) in vec2 in_uv0;
 
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    //if (texture(texture_sampler, in_uv0).r < 0.333) discard;
-    out_color = vec4(1.0f, 1.0f, 1.0f, texture(texture_sampler, in_uv0).r);
-    
+    out_color = vec4(in_color, 1.0f);
 }
