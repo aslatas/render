@@ -111,9 +111,13 @@ struct Model
     uint32_t uniform_count;
 };
 
+// Destroys a model, freeing associated resources.
 void DestroyModel(Model *model, const VulkanInfo *vulkan_info);
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count);
+// Creates a box given a world space position, size, and material info.
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id);
+
+// Creates a ray with a given world origin, direction, and length.
 Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
 
 // Tests a ray against a model's oriented bounding box, by transforming the ray into the model's local space and
@@ -128,6 +132,18 @@ bool RaycastAgainstModelBounds(const Ray ray, const Model *model, glm::vec3 *int
 // Returns true if there was an intersection, false otherwise.
 // Fills the distance parameter with the intersection point if there was one.
 bool RayIntersectAxisAlignedBox(const Ray *ray, const AxisAlignedBoundingBox *box, glm::vec3 *intersection);
-Ray ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
 
-Model CreateDebugQuad2D(glm::vec2 top_left, glm::vec2 bottom_right, uint32_t material_type, uint32_t shader_id, uint32_t uniform_count, glm::vec2 screen_size, bool filled);
+// Converts an integer screen position to a ray, with the origin at the
+// world location of the screen position, and the direction towards
+// the object under the screen position. Takes in screen coordinates (which
+// can be negative if the position is outside the window), the screen size,
+// and projection/view matrices to deproject.
+// Returns a Ray object.
+Ray ScreenPositionToWorldRay(int32_t x, int32_t y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
+
+// Creates a screen-space quad given a normalized (0-1 range where (0, 0) is
+// the upper left) position and extent. Takes material type and shader ID
+// to identify the material to use. Color is used by the debug material.
+// If filled, creates an index buffer for triangle drawing. Otherwise,
+// index buffer is for line drawing (outline bounds).
+Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, uint32_t shader_id, glm::vec4 color, bool filled);

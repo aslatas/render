@@ -13,7 +13,6 @@ static SwapchainInfo swapchain_info = {};
 BitmapFont font;
 Texture texture;
 MaterialLayout *material_types;
-uint32_t material_count = 6;
 
 //static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
@@ -682,19 +681,15 @@ void InitializeScene()
     font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 0, 4);
     
     // Throw some boxes in the scene.
-    glm::vec3 pos = glm::vec3(-0.3f, -0.3f, -0.3f);
-    glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
-    AddToScene(CreateBox(pos, ext, 0, 0, swapchain_info.image_count));
-    pos = glm::vec3(0.3f, 0.3f, -0.3f);
-    AddToScene(CreateBox(pos, ext, 0, 1, swapchain_info.image_count));
-    pos = glm::vec3(0.0f, 0.0f, 0.3f);
+    AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
+    AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 1));
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
     // It should probably live on its own.
-    AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {100.0f, 150.0f}, 0, 5, swapchain_info.image_count, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}, false));
+    AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {1.0f, 0.25f}, 0, 5, {1.0f, 0.0f, 0.0f, 1.0f}, false));
     
-    AddToScene(CreateText("This is some text.", &font, swapchain_info.image_count, {25.0f, 128.0f}, {(float)swapchain_info.extent.width, (float)swapchain_info.extent.height}));
+    AddToScene(CreateText("This is some text.", &font, {0.2f, 0.5f}));
 }
 
 void DestroyMaterials()
@@ -736,4 +731,19 @@ void AddToScene(Model model)
     CreateUniformBuffers(&model);
     CreateDescriptorSets(&model);
     arrput(material_types[model.material_type].materials[model.shader_id].models, model);
+}
+
+const VulkanInfo *GetRenderInfo()
+{
+    return &vulkan_info;
+}
+
+const SwapchainInfo *GetSwapchainInfo()
+{
+    return &swapchain_info;
+}
+
+uint32_t GetUniformCount()
+{
+    return swapchain_info.image_count;
 }
