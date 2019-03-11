@@ -68,7 +68,7 @@ static void ChoosePresentMode(const VulkanInfo *vulkan_info, SwapchainInfo *swap
 static void ChooseSwapchainExtent(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
     // Get the surface capabilities.
-    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceCapabilitiesKHR capabilities = {};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_info->physical_device, vulkan_info->surface, &capabilities);
     swapchain_info->transform = capabilities.currentTransform;
     swapchain_info->image_count = capabilities.minImageCount + 1;
@@ -541,7 +541,7 @@ static void CreateSyncPrimitives(VulkanInfo *vulkan_info)
     }
 }
 
-static void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
+void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
     // Destroy attachments.
     vkDestroyImageView(vulkan_info->logical_device, swapchain_info->color_image_view, nullptr);
@@ -561,8 +561,13 @@ static void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapc
     vkFreeCommandBuffers(vulkan_info->logical_device, vulkan_info->primary_command_pool, swapchain_info->image_count, swapchain_info->primary_command_buffers);
     free(swapchain_info->primary_command_buffers);
     
-    // Destroy pipelines.
+    // Destroy scene objects.
+    // TODO(Matt): This is very, very slow. Should be storing object data separately from materials, so the whole
+    // scene doesn't need rebuilt on window resize.
+    DestroyScene();
+    DestroySceneResources();
     DestroyMaterials();
+    
     // Destroy render pass.
     vkDestroyRenderPass(vulkan_info->logical_device, swapchain_info->renderpass, nullptr);
     
@@ -575,6 +580,9 @@ static void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapc
     // Destroy swapchain.
     vkDestroySwapchainKHR(vulkan_info->logical_device, swapchain_info->swapchain, nullptr);
     free(swapchain_info->images);
+    
+    // Destroy descriptor pool.
+    vkDestroyDescriptorPool(vulkan_info->logical_device, vulkan_info->descriptor_pool, nullptr);
 }
 
 
@@ -621,19 +629,22 @@ void InitializeVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 }
 
 // TODO(Matt): Need to recreate screen-space stuff here, like UI models.
-void RecreateSwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
+void RecreateSwapchain(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
     vkDeviceWaitIdle(vulkan_info->logical_device);
     DestroySwapchain(vulkan_info, swapchain_info);
     ChooseSwapchainExtent(vulkan_info, swapchain_info);
     // TODO(Matt): Platform specific.
     while (swapchain_info->extent.width == 0 || swapchain_info->extent.height == 0) {
-        Win32PollEvents();
+        if (!Win32PollEvents()) ShutdownVulkan(vulkan_info, swapchain_info);
         ChooseSwapchainExtent(vulkan_info, swapchain_info);
     }
     CreateSwapchain(vulkan_info, swapchain_info);
     CreateRenderpass(vulkan_info, swapchain_info);
+    CreateDescriptorPools(vulkan_info, swapchain_info);
     CreateMaterials();
+    InitializeSceneResources();
+    InitializeScene();
     CreateColorImage(vulkan_info, swapchain_info);
     CreateDepthImage(vulkan_info, swapchain_info);
     CreateFramebuffers(vulkan_info, swapchain_info);
@@ -644,12 +655,6 @@ void ShutdownVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
     // Wait for the device to finish any current work.
     vkDeviceWaitIdle(vulkan_info->logical_device);
-    // Destroy scene objects.
-    DestroyScene();
-    // Destroy the swapchain.
-    DestroySwapchain(vulkan_info, swapchain_info);
-    // Destroy descriptor pool and layout.
-    vkDestroyDescriptorPool(vulkan_info->logical_device, vulkan_info->descriptor_pool, nullptr);
     
     // Destroy sync objects.
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -685,6 +690,7 @@ void ShutdownVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     // Unload the Vulkan library.
     // TODO(Matt): Platform specific.
     Win32FreeVulkanLibrary();
+    exit(EXIT_SUCCESS);
 }
 
 void CreateBuffer(const VulkanInfo *vulkan_info, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory)

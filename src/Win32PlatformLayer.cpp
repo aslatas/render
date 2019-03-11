@@ -52,7 +52,7 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
             
             if (Win32GetSurfaceSize(&window_info.surface_width, &window_info.surface_height)) {
                 window_info.is_minimized = false;
-                window_info.resize_callback(window_info.surface_width, window_info.surface_height);
+                //window_info.resize_callback(window_info.surface_width, window_info.surface_height);
             }
         }
         return 0;
@@ -66,7 +66,7 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
             if (window_info.is_initialized) {
                 window_info.is_resizing = false;
                 if (Win32GetSurfaceSize(&window_info.surface_width, &window_info.surface_height)) {
-                    window_info.resize_callback(window_info.surface_width, window_info.surface_height);
+                    //window_info.resize_callback(window_info.surface_width, window_info.surface_height);
                 } else {
                     window_info.is_minimized = true;
                 }
@@ -152,8 +152,7 @@ bool Win32PeekEvents()
     MSG message = {};
     PeekMessage(&message, nullptr, 0, 0, PM_REMOVE);
     if (message.message == WM_QUIT) {
-        window_info.is_running = false;
-        return false;
+        return window_info.is_running = false;
     }
     TranslateMessage(&message);
     DispatchMessage(&message);
@@ -165,8 +164,7 @@ bool Win32PollEvents()
 {
     MSG message = {};
     if (!GetMessage(&message, nullptr, 0, 0)) {
-        window_info.is_running = false;
-        return false;
+        return window_info.is_running = false;
     }
     TranslateMessage(&message);
     DispatchMessage(&message);

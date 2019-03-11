@@ -149,3 +149,5 @@ const VulkanInfo *GetRenderInfo();
 // Gets the renderer SwapchainInfo struct.
 const SwapchainInfo *GetSwapchainInfo();
 uint32_t GetUniformCount();
+void InitializeSceneResources();
+void DestroySceneResources();
