@@ -56,34 +56,6 @@ goto :fail
 )
 popd
 
-::      Compile shaders and stuff. Needs replaced with a better system.       ::
-:: ---------------------------------------------------------------------------::
-echo.     -Compiling shaders:
-pushd shaders
-call compile.cmd
-if %errorlevel% neq 0 (
-echo Error during shader compilation!
-popd
-goto :fail
-)
-
-popd
-if not exist build\%mode%\shaders mkdir build\%mode%\shaders
-robocopy shaders build\%mode%\shaders *.spv /move /mir /ns /nc /nfl /ndl /np /njh /njs
-
-echo.     -Copying Textures:
-if not exist build\%mode%\textures mkdir build\%mode%\textures
-robocopy textures build\%mode%\textures /mir /ns /nc /ndl /np /njh /njs
-
-echo.     -Copying Fonts:
-if not exist build\%mode%\fonts mkdir build\%mode%\fonts
-robocopy fonts build\%mode%\fonts /mir /ns /nc /ndl /np /njh /njs
-
-echo.     -Copying Models:
-if not exist build\%mode%\resources mkdir build\%mode%\resources
-if not exist build\%mode%\resources\models mkdir build\%mode%\resources\models
-robocopy resources\models build\%mode%\resources\models /mir /ns /nc /ndl /np /njh /njs
-
 echo Build complete!
 exit /b 0
 

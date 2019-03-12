@@ -31,9 +31,11 @@ Material
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#define STB_DS_IMPLEMENTATION
+#include <stb/stb_ds.h>
 
 #define QUAD_TREE_CHILDREN 4
-#define QUAD_TREE_BIN_SIZE 10
+#define QUAD_TREE_BIN_SIZE 4
 
 #define OCT_TREE_CHILDREN 8
 #define OCT_TREE_BIN_SIZE 20
@@ -64,36 +66,23 @@ struct Model {
 // TODO(Dustin): In the future this will probably change to a differnet data structure
 // so that we can 
 struct Bin {
-  Model* model= nullptr; // list of models in this bin
+  Model* model= NULL; // list of models in this bin
   uint8_t count = 0;
 };
 
 struct Node {
-  char* memory_block; // block of memeroy for bins and child pointers
+  Node *parent   = NULL;
+  Bin  *bin      = NULL;
+  Node *children = NULL;
 
-  Node* parent;
-
-  // by default, mode is set to store in the bin
-  // Essentially a lookup array to determine if an element in the list of
-  // children is a branch or leaf node
-  uint8_t partition_type[QUAD_TREE_CHILDREN];
-  // Either point to the next Child node, or to a list of Bins
-  union {
-    Node* node;
-    Bin*  bin;
-  } child[QUAD_TREE_CHILDREN];
-
-  //Node* space_partitions[QUAD_TREE_CHILDREN];
-  Bin* bin[QUAD_TREE_BIN_SIZE];
-
-  // char* memory_block;
+  // Bounding Box for this node
   AABB_2D* bounding_box;
 };
 
 struct QuadTree {
   size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
   uint8_t num_levels = 0; // depth of the tree, default is 0
-  Node* root; // First node in the list
+  Node** tree = NULL; // array representation of the tree
 };
 
 /*
@@ -151,35 +140,56 @@ bool CheckBoundingBoxCollision3D(AABB_3D& boxA, AABB_3D& boxB) {
          CheckAxisPointOverlapp(boxA.min[2], boxA.max[2], boxB.min[2], boxB.max[2]);
 }
 
-static bool
-helper_add(Node& node, Model& model) {
-  // printf("ERROR: Helper add was called, and should not have been!!\n");
-
-  return false;
-}
-
-bool Add(QuadTree& qt, Model& model) {
-  // printf("Attempting to add model with bounsds:\nMin: (%f, %f)\nMax: (%f, %f)\n",
-    // model.aabb.min[0], model.aabb.min[1], model.aabb.max[0], model.aabb.max[1]);
-  // For now, simply add to the root
-  Node* root = qt.root;
-
-  AABB_2D aabb = *root->bounding_box;
-  // printf("Node min: %f %f\nNode max: %f %f\n", aabb.min[0], aabb.min[1], aabb.max[0], aabb.max[1]);
-  if (CheckBoundingBoxCollision2D(aabb, model.aabb)) {
-    // printf("Collistion!!!\n");
-    return true;
-  }
-  else {
-    return helper_add(*root, model);
-  }
-}
-
 void Split() {
 
 }
 
-Node* CreateNode(float* s_min, float* s_max, size_t per_element_bin_size) {
+static bool
+helper_add(Node** tree, int position, Model* model) {
+
+    Node* node = tree[position];
+    if (node->children) // this node has children, need to go further down the tree
+    {
+        bool at_least_one_node_intersection_found = false;
+        for (int i = 0; i < arrlen(node->children); ++i)
+        {
+            if (CheckBoundingBoxCollision2D(*node->children[i].bounding_box, model->aabb))
+            {
+                at_least_one_node_intersection_found = true;
+                assert((position + i) * QUAD_TREE_CHILDREN < arrlen(tree)); // the child node should be within bounds of the tree
+                helper_add(tree, (position + i) * QUAD_TREE_CHILDREN, model);
+            }
+        }
+
+        return at_least_one_node_intersection_found;
+    }
+    else // we are at a leaf
+    {
+        assert(node->bin); // the bin should be allocated
+        if (node->bin->count + 1 > QUAD_TREE_BIN_SIZE)
+        {
+            Split();
+        }
+        else 
+        {
+            arrput(node->bin->model, *model);
+            ++node->bin->count;
+        }
+
+        return true;
+    }
+}
+
+bool Add(QuadTree& qt, Model* model) {
+
+    // Preliminary check to verify the model exists within bounds of the tree
+    if (!CheckBoundingBoxCollision2D(*qt.tree[0]->bounding_box, model->aabb)) 
+        return false;    
+
+    return helper_add(qt.tree, 0, model);
+}
+
+Node* CreateNode(float* s_min, float* s_max, size_t per_element_bin_size, Node* parent) {
   // printf("MIN: %f %f\nMAX: %f %f\n", s_min[0], s_min[1], s_max[0], s_max[1]);
 
   size_t node_size = sizeof(Node);
@@ -190,98 +200,86 @@ Node* CreateNode(float* s_min, float* s_max, size_t per_element_bin_size) {
   aabb->max[0] = s_max[0];
   aabb->max[1] = s_max[1];
 
-
-  // Node Memory Layout:
-  //   Pointer to parent Node
-  //   Array
-
-  // Array Memory Layout
-  //   Set array size: (Bin element size * total number of bins * total number of children) 
-  //                    + (size of a Node * number of children)
-  //   Array structure:
-  //     Child 1
-  //     Child 2
-  //     ...
-  //     Child QUAD_TREE_CHILDREN
-  //     Bin 1
-  //     Bin 2
-  //     ...
-  //     Bin QUAD_TREE_CHILDREN * QUAD_TREE_BIN_SIZE
-  //   A Child element in the array will either point to a Bin START or to another Node
-
-  // Child memory layout:
-  //   AABB
-  //   type (uint8_t): Does it point to a bin or does it point to a Node?
-  //   pointer (void*): the pointer
-
-  // Bin Element Memory Layout:
-  //   This is essentially a model. The specifics can be determined in the future...
-
-  // This memory layout is easily scalable, so adding struct elements shouldn't break anything in terms
-  // of allocating memory. Cache coherency should be maintain amongst a Node's children as bins are stored
-  // No longer use the idea of a "node" but instead have pointers to arrays that represent the immediate
-  // layer below. 
-
-  size_t bin_size = per_element_bin_size * QUAD_TREE_BIN_SIZE;
-
-  assert(sizeof(Node*) == sizeof(Bin*));
-  size_t total_array_size = bin_size * QUAD_TREE_CHILDREN + sizeof(Node*) * QUAD_TREE_CHILDREN;
-
-  //
-  // printf("Size of element per bin: %lu\n", per_element_bin_size);
-  // printf("Size of Bins Total: %lu\n", per_element_bin_size * QUAD_TREE_BIN_SIZE * QUAD_TREE_CHILDREN);
-  // printf("Size of Pointers: %lu\n", sizeof(Node*));
-  // printf("Size of Pointers Array: %lu\n", sizeof(Node*) * QUAD_TREE_CHILDREN);
-  // printf("Size of Memory Block: %lu\n", per_element_bin_size * QUAD_TREE_BIN_SIZE * QUAD_TREE_CHILDREN +
-  //                           sizeof(Node*) * QUAD_TREE_CHILDREN);
-
-  Node* n = (Node*)malloc(sizeof(Node));
-  n->memory_block = (char*)malloc(total_array_size);
+  Node *n = (Node*)malloc(sizeof(Node));
   n->bounding_box = aabb;
+  n->parent       = parent;
+  n->children     = nullptr;
+  n->bin          = (Bin*)malloc(sizeof(Bin));
 
-  for (int i = 0; i < QUAD_TREE_CHILDREN; ++i) {
-    // Set partition type
-    n->partition_type[i] = BIN;
-
-    // Set pointer of each child to the correct bin
-    n->child[i].bin = (Bin*)(n->memory_block + (bin_size * i));
-  }
-
-  // printf("MIN AFTER: %f %f\nMAX AFTER: %f %f\n", 
-  //   n->bounding_box->min[0], n->bounding_box->min[1], n->bounding_box->max[0], n->bounding_box->max[1]);
-
+  // By default a node will have bins instead of children
+//   for (int i = 0; i < QUAD_TREE_BIN_SIZE; ++i)
+//   {
+//     Bin b;
+//     b.count = 0;
+//     b.model = nullptr;
+//     arrput(n->bin, b);
+//   }
 
   return n;
 }
 
 // Creates a Quad tree given a min and max bounds
 // min and max should be a 2 element array
-QuadTree* CreateQuadTree(float* min, float* max, size_t element_size_bin) {
-
+QuadTree* CreateQuadTree(float* min, float* max, size_t element_size_bin) 
+{
   QuadTree* qt = (QuadTree*)malloc(sizeof(QuadTree));
   qt->num_levels = 0;
   qt->size_element_per_bin = element_size_bin;
-  qt->root = CreateNode(min, max, element_size_bin);
+  qt->tree = nullptr;
+  Node* node = CreateNode(min, max, element_size_bin, nullptr);
+  arrput(qt->tree, node);
 
   return qt;
 }
 
 void PrintQuadTree(QuadTree& qt) {
 
-  Node* node = qt.root;
+  for (int i = 0; i < arrlen(qt.tree); ++i) 
+  {
+    Node *node = qt.tree[i];
 
-  printf("Node has bounds:\nMin: (%f,%f)\nMax: (%f,%f)\n", node->bounding_box->min[0],
-    node->bounding_box->min[1], node->bounding_box->max[0], node->bounding_box->max[1]);
-
-  for (int i = 0; i < QUAD_TREE_CHILDREN; ++i) {
-    assert((node->partition_type[i] & BIN) == BIN);
-
-    if ((node->partition_type[i] & BIN) == BIN) {
-      printf("Child %d: Bin\n", i + 1);
+    printf("Node %d at level %d.\n", i, i / 4);
+    if (!node->parent)
+    {
+      printf("  This node is the root.\n");
     }
-    else if ((node->partition_type[i] & SPACE) == SPACE) {
-      printf("Child %d: Space\n", i + 1);
+    if (node->children)
+    {
+      printf("  This node has the following children at the indices:\n");
+      printf("    Child 1: %d\n", (i + 0) * 4);
+      printf("    Child 2: %d\n", (i + 1) * 4);
+      printf("    Child 3: %d\n", (i + 2) * 4);
+      printf("    Child 4: %d\n", (i + 3) * 4);
     }
+    else
+    {
+      printf("  This node has no children.\n");
+    }
+
+    if (!node->bin) 
+    {
+      printf("  This node does not have a bin.\n");
+    }
+    else 
+    {
+      if (node->bin->count == 0)
+      {
+        printf("  This node has a bin, but contains no models.\n");
+      }
+      else 
+      {
+        for (int j = 0; j < node->bin->count; ++j)
+        {
+          Model* m = node->bin->model;
+          printf("  This node's bin contains:\n");
+          printf("    Bounding Box:\n      minimum: (%f, %f)\n      maximum: (%f, %f)\n", m->aabb.min[0], m->aabb.min[1], m->aabb.max[0], m->aabb.max[1]);
+          printf("    Data: %d\n", m->val);
+        }
+        //printf("  ");
+      }
+    }
+
+    printf("\n");
   }
 
 }
@@ -314,8 +312,40 @@ int main(void) {
   modelB.aabb.max[1] = 12;
   modelB.val = 20;
 
-  assert(Add(*qt, modelA));
-  assert(!Add(*qt, modelB));
+  Model modelC;
+  modelC.aabb.min[0] = 6;
+  modelC.aabb.min[1] = 0;
+  modelC.aabb.max[0] = 1;
+  modelC.aabb.max[1] = 7;
+  modelC.val = 30;
+
+  Model modelD;
+  modelD.aabb.min[0] = 0;
+  modelD.aabb.min[1] = 6;
+  modelD.aabb.max[0] = 1;
+  modelD.aabb.max[1] = 7;
+  modelD.val = 40;
+
+  Model modelE;
+  modelE.aabb.min[0] = 6;
+  modelE.aabb.min[1] = 6;
+  modelE.aabb.max[0] = 7;
+  modelE.aabb.max[1] = 7;
+  modelE.val = 50;
+
+//   Model modelF;
+//   modelF.aabb.min[0] = 11;
+//   modelF.aabb.min[1] = 11;
+//   modelF.aabb.max[0] = 12;
+//   modelF.aabb.max[1] = 12;
+//   modelF.val = 60;
+
+  assert(Add(*qt, &modelA));
+  assert(!Add(*qt, &modelB));
+  assert(Add(*qt, &modelC));
+  assert(Add(*qt, &modelD));
+  assert(Add(*qt, &modelE));
+//   assert(Add(*qt, &modelF));
 
   PrintQuadTree(*qt);
 
