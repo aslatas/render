@@ -53,6 +53,7 @@ struct Win32WindowInfo
     bool is_minimized;
     bool is_resizing;
     bool is_initialized;
+    bool is_running;
     Win32ResizeCallback resize_callback;
     Win32MouseButtonCallback mouse_button_callback;
     Win32MouseWheelCallback mouse_wheel_callback;
@@ -65,9 +66,10 @@ struct Win32WindowInfo
 void Win32CreateWindow();
 LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
-// Starts and runs the message loop.
+// Runs the message loop.
+bool Win32PeekEvents();
+// Runs the message loop, blocking until further messages are received.
 bool Win32PollEvents();
-
 // Gets the client area of the window. Returns false if either measure is zero (usually implies that the window is minimized).
 bool Win32GetSurfaceSize(uint32_t *width, uint32_t *height);
 
