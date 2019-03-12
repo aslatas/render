@@ -62,7 +62,7 @@ int Main()
     Win32ShowWindow();
     Win32InitializeTimer();
     RunMainLoop();
-    ShutdownRenderer();
+    Shutdown();
     return EXIT_SUCCESS;
 }
 
@@ -70,4 +70,9 @@ void ExitWithError(const char *message)
 {
     std::cerr << "Error in " << __FILE__<< ", line " << __LINE__ << "! message: \"" << message << "\"." << std::endl;
     exit(EXIT_FAILURE);
+}
+
+void Shutdown()
+{
+    ShutdownRenderer();
 }

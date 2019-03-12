@@ -23,7 +23,7 @@
 void InitializeVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info);
 
 // Recreates the swapchain, usually because of a window resize.
-void RecreateSwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info);
+void RecreateSwapchain(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info);
 
 // Frees vulkan objects, shuts down renderer.
 void ShutdownVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info);
@@ -62,3 +62,6 @@ VkImageView CreateImageView(const VulkanInfo *vulkan_info, VkImage image, VkForm
 
 // Finds a supported image format, given a preferential list of candidates.
 VkFormat FindSupportedFormat(const VulkanInfo *vulkan_info, VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features);
+
+// Destroys the swapchain. Should be called before shutting down the rest of the renderer.
+void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info);

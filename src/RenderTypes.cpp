@@ -290,12 +290,7 @@ Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, uint32
         model.model_data->uv2[23] = glm::vec2(0.0f, 0.0f);
         model.model_data->uv2[23] = glm::vec2(0.0f, 0.0f);
     // }
-    //model.model_data = data;
 
-    // printf("POSITIONS:\n");
-    for (int i = 0; i < model.vertex_count; ++i) {
-        printf("%lf %lf\n", model.model_data->uv2[i][0], model.model_data->uv2[i][1]);
-    }
 
     model.pos = pos;
     model.rot = glm::vec3(0.0f);

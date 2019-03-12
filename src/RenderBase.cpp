@@ -40,11 +40,13 @@ char *ReadShaderFile(const char *path, uint32_t *length)
 void InitializeRenderer()
 {
     InitializeVulkan(&vulkan_info, &swapchain_info);
+    InitializeSceneResources();
     InitializeScene();
 }
 
 void ShutdownRenderer()
 {
+    DestroySwapchain(&vulkan_info, &swapchain_info);
     ShutdownVulkan(&vulkan_info, &swapchain_info);
 }
 
@@ -821,13 +823,15 @@ void CreateModelDescriptorSets(uint32_t uniform_count,
     }
 }
 
-void InitializeScene()
+void InitializeSceneResources()
 {
     // Load fonts and textures.
     // TODO(Matt): Move texture/font initialization somewhere else.
     texture = LoadTexture(&vulkan_info, "textures/proto.jpg", 4, true);
     font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 0, 4);
-    
+}
+void InitializeScene()
+{
     // Throw some boxes in the scene.
     //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
@@ -875,10 +879,6 @@ void DestroyScene() {
             arrfree(material_types[i].materials[j].models);
         }
     }
-    
-    // TODO(Matt): Move font/texture destruction somewhere else, probably.
-    DestroyFont(&vulkan_info, &font);
-    DestroyTexture(&vulkan_info, &texture);
 }
 
 void AddToScene(Model_Separate_Data model)
@@ -925,4 +925,10 @@ const SwapchainInfo *GetSwapchainInfo()
 uint32_t GetUniformCount()
 {
     return swapchain_info.image_count;
+}
+
+void DestroySceneResources()
+{
+    DestroyFont(&vulkan_info, &font);
+    DestroyTexture(&vulkan_info, &texture);
 }
