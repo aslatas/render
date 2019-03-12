@@ -1,0 +1,2 @@
+Running in debug mode.
+Exit Code is -1073740940
