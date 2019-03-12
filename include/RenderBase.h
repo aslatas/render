@@ -42,8 +42,8 @@ struct SwapchainInfo
 struct MaterialCreateInfo
 {
     VkPipelineVertexInputStateCreateInfo input_info;
-    VkVertexInputBindingDescription binding_description;
-    VkVertexInputAttributeDescription attribute_descriptions[6];
+    VkVertexInputBindingDescription binding_description[7];
+    VkVertexInputAttributeDescription attribute_descriptions[7];
     VkPipelineInputAssemblyStateCreateInfo assembly_info;
     VkViewport viewport; // TODO(Matt): Dynamic?
     VkPipelineViewportStateCreateInfo viewport_info;
@@ -60,18 +60,12 @@ struct MaterialCreateInfo
     VkShaderModule *shader_modules;
 };
 
-typedef enum EMaterialType {
-    MATERIAL_TYPE_OPAQUE,
-    MATERIAL_TYPE_TRANSLUCENT
-} EMaterialType;
-
 // Holds info about a material, and the list of models that use it.
 struct Material
 {
     VkPipeline pipeline; // Pipeline object.
-    EMaterialType type; // Material type (by index).
-    //Model *models; // Model list.
-    Model_GLTF *gltf_models;
+    uint32_t type; // Material type (by index).
+    Model_Separate_Data *models; // Model list.
 };
 
 // Holds info about a material layout. Keeps a list of materials of its'
@@ -99,10 +93,6 @@ void ShutdownRenderer();
 // Draws the next frame.
 void DrawFrame();
 
-void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory);
-void CreateModelUniformBuffers(VkDeviceSize buffer_size, VkBuffer* uniform_buffers, VkDeviceMemory* uniform_buffers_memory, uint32_t uniform_count);
-void CreateModelDescriptorSets(uint32_t uniform_count, uint32_t material_type, uint32_t shader_id, VkBuffer* uniform_buffers, VkDescriptorSet *descriptor_sets);
-
 // Creates the vertex buffer for a given model, from its vertex array.
 void CreateVertexBuffer(Model *model);
 // Creates the index buffer for a given model, from its index array.
@@ -114,10 +104,21 @@ void CreateUniformBuffers(Model *model);
 // uniform info.
 void CreateDescriptorSets(Model *model);
 
+void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory);
+void CreateModelUniformBuffers(VkDeviceSize buffer_size, 
+                               VkBuffer* uniform_buffers, 
+                               VkDeviceMemory* uniform_buffers_memory, 
+                               uint32_t uniform_count);
+void CreateModelDescriptorSets(uint32_t uniform_count, 
+                               uint32_t material_type, 
+                               uint32_t shader_id, 
+                               VkBuffer* uniform_buffers, 
+                               VkDescriptorSet *descriptor_sets);
+
 // Callback for window resize. Recreates the swapchain.
 void OnWindowResized();
 // Updates the uniform buffers for a model to reflect its current state.
-void UpdateUniforms(uint32_t image_index, Model_GLTF *model);
+void UpdateUniforms(uint32_t image_index, Model_Separate_Data *model);
 
 // Performs a raycast in world space from the mouse location, selecting the
 // first object intersected. If accumulate is true, objects are added to a
@@ -150,7 +151,7 @@ void DestroyMaterials();
 // Initializes models and other resources in the scene.
 void InitializeScene();
 // Adds a given model to the scene, using its material type and shader ID.
-void AddToScene(Model model);
+void AddToScene(Model_Separate_Data model);
 // Destroys objects and materials in the scene.
 void DestroyScene();
 
@@ -159,7 +160,3 @@ const VulkanInfo *GetRenderInfo();
 // Gets the renderer SwapchainInfo struct.
 const SwapchainInfo *GetSwapchainInfo();
 uint32_t GetUniformCount();
-
-
-
-void AddGLTFToScene(Model_GLTF model);

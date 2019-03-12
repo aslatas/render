@@ -79,6 +79,11 @@ echo.     -Copying Fonts:
 if not exist build\%mode%\fonts mkdir build\%mode%\fonts
 robocopy fonts build\%mode%\fonts /mir /ns /nc /ndl /np /njh /njs
 
+echo.     -Copying Models:
+if not exist build\%mode%\resources mkdir build\%mode%\resources
+if not exist build\%mode%\resources\models mkdir build\%mode%\resources\models
+robocopy resources\models build\%mode%\resources\models /mir /ns /nc /ndl /np /njh /njs
+
 echo Build complete!
 exit /b 0
 

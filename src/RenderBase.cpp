@@ -9,6 +9,8 @@
 #include "Font.h"
 #include <ModelLoader.h>
 
+#include <assert.h>
+
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 BitmapFont font;
@@ -20,7 +22,7 @@ glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.
 //uint32_t box_count = 3;
 //uint32_t selected_boxes[3] = {0, 0, 0};
 //uint32_t selected_count = 0;
-Model **selected_models = nullptr;
+Model_Separate_Data **selected_models = nullptr;
 char *ReadShaderFile(const char *path, uint32_t *length)
 {
     FILE *file = fopen(path, "rb");
@@ -188,7 +190,6 @@ void RecordPrimaryCommand(uint32_t image_index)
     pass_begin_info.pClearValues = clear_colors;
     vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     
-    
     // For each material type.
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         MaterialLayout *material_type = &material_types[i];
@@ -200,14 +201,22 @@ void RecordPrimaryCommand(uint32_t image_index)
             vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline);
             
             // For each model of a given material.
-            // GLTF MODEL
-            for (uint32_t k = 0; k < arrlen(material->gltf_models); ++k) {
-                Model_GLTF *model = &material->gltf_models[k];
-                
+            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
+                // Model *model = &material->models[k];
+                Model_Separate_Data *model = &material->models[k];
+                static uint32_t pOffset   = 0;
+                static uint32_t nOffset   = pOffset + model->vertex_count * sizeof(glm::vec3);
+                static uint32_t tOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
+                static uint32_t cOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
+                static uint32_t uv0Offset = cOffset + model->vertex_count * sizeof(glm::vec4);
+                static uint32_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
+                static uint32_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
+                // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
+
                 // Bind the vertex, index, and uniform buffers.
-                VkBuffer vertex_buffers[] = {model->vertex_buffer};
-                VkDeviceSize offsets[] = {0};
-                vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
+                VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
+                VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
+                vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, offsets);
                 vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], model->index_buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_type->pipeline_layout, 0, 1, &model->descriptor_sets[image_index], 0, nullptr);
                 
@@ -232,9 +241,20 @@ void RecordPrimaryCommand(uint32_t image_index)
         // For each selected model.
         for (uint32_t i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
-            VkBuffer vertex_buffers[] = {selected_models[i]->vertex_buffer};
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
+            Model_Separate_Data* model = selected_models[i];
+            static uint32_t pOffset   = model->index_count * sizeof(uint32_t);
+            static uint32_t nOffset   = pOffset + model->vertex_count * sizeof(glm::vec3);
+            static uint32_t tOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
+            static uint32_t cOffset   = tOffset + model->vertex_count * sizeof(glm::vec4);
+            static uint32_t uv0Offset = cOffset + model->vertex_count * sizeof(glm::vec4);
+            static uint32_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
+            static uint32_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
+            // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
+
+            // Bind the vertex, index, and uniform buffers.
+            VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
+            VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
+            vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, offsets);
             vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], selected_models[i]->index_buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &selected_models[i]->descriptor_sets[image_index], 0, nullptr);
             // Draw selected models.
@@ -272,8 +292,8 @@ void DrawFrame()
         MaterialLayout material_type = material_types[i];
         for (uint32_t j = 0; j < arrlen(material_type.materials); ++j) {
             Material material = material_type.materials[j];
-            for (uint32_t k = 0; k < arrlen(material.gltf_models); ++k) {
-                UpdateUniforms(image_index, &material.gltf_models[k]);
+            for (uint32_t k = 0; k < arrlen(material.models); ++k) {
+                UpdateUniforms(image_index, &material.models[k]);
             }
         }
     }
@@ -332,8 +352,8 @@ void UpdateModels(double frame_delta)
         MaterialLayout *material_type = &material_types[i];
         for (uint32_t j = 0; j < arrlen(material_type->materials); ++j) {
             Material *material = &material_type->materials[j];
-            for (uint32_t k = 0; k < arrlen(material->gltf_models); ++k) {
-                Model_GLTF *model = &material->gltf_models[k];
+            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
+                Model_Separate_Data *model = &material->models[k];
                 model->rot.z += (float)frame_delta * glm::radians(25.0f);
                 model->ubo.model = glm::translate(glm::mat4(1.0f), initial_positions[current_index]);
                 model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
@@ -349,7 +369,7 @@ void UpdateModels(double frame_delta)
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(uint32_t current_image, Model_GLTF *model)
+void UpdateUniforms(uint32_t current_image, Model_Separate_Data *model)
 {
     void *data;
     vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(model->ubo), 0, &data);
@@ -487,44 +507,78 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
         frag_create_info.pName = "main";
         result.shader_stages[1] = frag_create_info;
     }
+
+    // TODO(Dustin): Figure out offsets
     
     result.input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    result.input_info.vertexBindingDescriptionCount = 1;
+    result.input_info.vertexBindingDescriptionCount = 6;
     result.input_info.vertexAttributeDescriptionCount = 6;
     
-    result.binding_description.binding = 0;
-    result.binding_description.stride = sizeof(Vertex_GLTF);
-    result.binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    
-    result.attribute_descriptions[0].binding = 0;
+    // Binding Descriptions
+    result.binding_description[0].binding = 0;
+    result.binding_description[0].stride = sizeof(glm::vec3);
+    result.binding_description[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[1].binding = 1;
+    result.binding_description[1].stride = sizeof(glm::vec3);
+    result.binding_description[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[2].binding = 2;
+    result.binding_description[2].stride = sizeof(glm::vec4);
+    result.binding_description[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[3].binding = 3;
+    result.binding_description[3].stride = sizeof(glm::vec4);
+    result.binding_description[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[4].binding = 4;
+    result.binding_description[4].stride = sizeof(glm::vec2);
+    result.binding_description[4].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[5].binding = 5;
+    result.binding_description[5].stride = sizeof(glm::vec2);
+    result.binding_description[5].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[6].binding = 6;
+    result.binding_description[6].stride = sizeof(glm::vec2);
+    result.binding_description[6].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+
+    // Attribute Descriptions
+    result.attribute_descriptions[0].binding = result.binding_description[0].binding;
     result.attribute_descriptions[0].location = 0;
     result.attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     result.attribute_descriptions[0].offset = 0;
     
-    result.attribute_descriptions[1].binding = 0;
+    result.attribute_descriptions[1].binding = result.binding_description[1].binding;
     result.attribute_descriptions[1].location = 1;
     result.attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    result.attribute_descriptions[1].offset = 12;
+    result.attribute_descriptions[1].offset = 0;   
     
-    result.attribute_descriptions[2].binding = 0;
+    result.attribute_descriptions[2].binding = result.binding_description[2].binding;
     result.attribute_descriptions[2].location = 2;
     result.attribute_descriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    result.attribute_descriptions[2].offset = 24;
-    
-    result.attribute_descriptions[3].binding = 0;
+    result.attribute_descriptions[2].offset = 0;
+
+    result.attribute_descriptions[3].binding = result.binding_description[2].binding;
     result.attribute_descriptions[3].location = 3;
-    result.attribute_descriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
-    result.attribute_descriptions[3].offset = 40;
-    
-    result.attribute_descriptions[4].binding = 0;
+    result.attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    result.attribute_descriptions[3].offset = 0;
+
+    result.attribute_descriptions[4].binding = result.binding_description[3].binding;
     result.attribute_descriptions[4].location = 4;
     result.attribute_descriptions[4].format = VK_FORMAT_R32G32_SFLOAT;
-    result.attribute_descriptions[4].offset = 48;
-    
-    result.attribute_descriptions[5].binding = 0;
+    result.attribute_descriptions[4].offset = 0;
+
+    result.attribute_descriptions[5].binding = result.binding_description[4].binding;
     result.attribute_descriptions[5].location = 5;
     result.attribute_descriptions[5].format = VK_FORMAT_R32G32_SFLOAT;
-    result.attribute_descriptions[5].offset = 56;
+    result.attribute_descriptions[5].offset = 0;
+    
+    result.attribute_descriptions[6].binding = result.binding_description[5].binding;
+    result.attribute_descriptions[6].location = 6;
+    result.attribute_descriptions[6].format = VK_FORMAT_R32G32_SFLOAT;
+    result.attribute_descriptions[6].offset = 0;
     
     result.assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     result.assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -584,9 +638,9 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     return result;
 }
 
-void AddMaterial(MaterialCreateInfo *material_info, EMaterialType material_type, VkRenderPass render_pass, uint32_t sub_pass)
+void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRenderPass render_pass, uint32_t sub_pass)
 {
-    material_info->input_info.pVertexBindingDescriptions = &material_info->binding_description;
+    material_info->input_info.pVertexBindingDescriptions = material_info->binding_description;
     material_info->input_info.pVertexAttributeDescriptions = material_info->attribute_descriptions;
     material_info->viewport_info.pViewports = &material_info->viewport;
     material_info->viewport_info.pScissors = &material_info->scissor;
@@ -625,10 +679,10 @@ void CreateMaterials()
     MaterialCreateInfo material_info;
     arrput(material_types, CreateMaterialLayout());
     material_info = CreateDefaultMaterialInfo("shaders/vert.spv", "shaders/frag.spv");
-    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/vert2.spv", "shaders/frag2.spv");
-    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/stencil_vert.spv", nullptr);
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
@@ -643,7 +697,7 @@ void CreateMaterials()
     material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
     material_info.depth_stencil.back.reference = 1;
     material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/outline_vert.spv", "shaders/outline_frag.spv");
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
@@ -659,7 +713,7 @@ void CreateMaterials()
     material_info.depth_stencil.back.writeMask = 0xff;
     material_info.depth_stencil.back.reference = 1;
     material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/text_vert.spv", "shaders/text_frag.spv");
     material_info.blend.blendEnable = VK_TRUE;
@@ -669,13 +723,13 @@ void CreateMaterials()
     material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
-    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
     material_info = CreateDefaultMaterialInfo("shaders/fill_vcolor_vert.spv", "shaders/fill_vcolor_frag.spv");
-    AddMaterial(&material_info, MATERIAL_TYPE_OPAQUE, swapchain_info.renderpass, 0);
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
 }
 
-// TESTING
+// offset is the offset into buffer memory the VkBuffer will be written to
 void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory)
 {
     //VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
@@ -767,7 +821,6 @@ void CreateModelDescriptorSets(uint32_t uniform_count,
     }
 }
 
-// INITIALIZING SCENE
 void InitializeScene()
 {
     // Load fonts and textures.
@@ -776,21 +829,23 @@ void InitializeScene()
     font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 0, 4);
     
     // Throw some boxes in the scene.
-    Model_GLTF* modelA = (Model_GLTF*)malloc(sizeof(Model_GLTF));
-    // Model_GLTF* modelB = (Model_GLTF*)malloc(sizeof(Model_GLTF));
-    // glm::vec3 pos = glm::vec3(-0.3f, -0.3f, -0.3f);
-    // glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
-    LoadGTLFModel(std::string(""), *modelA, 0, 0, swapchain_info.image_count);
-    AddGLTFToScene(*modelA);
-    //AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
-    //AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 1));
+    //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
+    Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
+    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, 0, 0, swapchain_info.image_count);
+    if (result == MODEL_LOAD_RESULT_SUCCESS)
+        AddToScene(*model);
+    else printf("FAILURE TO LOAD MODEL\n");
+    // Model_Separate_Data model = CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0);
+    // AddToScene(model);
+
+    // DestroyModelSeparateDataTest(&m, &vulkan_info);
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
     // It should probably live on its own.
-    //AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {1.0f, 0.25f}, MATERIAL_TYPE_OPAQUE, 5, {1.0f, 0.0f, 0.0f, 1.0f}, false));
+    // AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {1.0f, 0.25f}, 0, 5, {1.0f, 0.0f, 0.0f, 1.0f}, false));
     
-    //AddToScene(CreateText("This is some text.", &font, {0.2f, 0.5f}));
+    // AddToScene(CreateText("This is some text.", &font, {0.2f, 0.5f}));
 }
 
 void DestroyMaterials()
@@ -813,10 +868,11 @@ void DestroyMaterials()
 void DestroyScene() {
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
-            for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].gltf_models); ++k) {
-                DestroyGLTFModel(&material_types[i].materials[j].gltf_models[k], &vulkan_info);
+            for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
+                // DestroyModel(&material_types[i].materials[j].models[k], &vulkan_info);
+                DestroyModelSeparateDataTest(&material_types[i].materials[j].models[k], &vulkan_info);
             }
-            arrfree(material_types[i].materials[j].gltf_models);
+            arrfree(material_types[i].materials[j].models);
         }
     }
     
@@ -825,68 +881,35 @@ void DestroyScene() {
     DestroyTexture(&vulkan_info, &texture);
 }
 
-void AddToScene(Model model)
+void AddToScene(Model_Separate_Data model)
 {
     model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
     model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
     model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
 
-    CreateModelBuffer(sizeof(Vertex) * model.vertex_count, 
-                      model.vertices, 
-                      &model.vertex_buffer, 
-                      &model.vertex_buffer_memory);
-    CreateModelBuffer(sizeof(uint32_t) * model.index_count, 
-                      model.indices, 
-                      &model.index_buffer, 
-                      &model.index_buffer_memory);
-    CreateModelUniformBuffers(sizeof(UniformBufferObject), 
-                              model.uniform_buffers, 
-                              model.uniform_buffers_memory, 
-                              model.uniform_count);
-    CreateModelDescriptorSets(swapchain_info.image_count, 
-                              model.material_type, 
-                              model.shader_id, 
-                              model.uniform_buffers, 
-                              model.descriptor_sets);
+    // VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(uint32_t) * model.index_count);
+    VkDeviceSize v_len = model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec4) +
+                         model.vertex_count * sizeof(glm::vec4) + model.vertex_count * sizeof(glm::vec2) + model.vertex_count * sizeof(glm::vec2) + 
+                         model.vertex_count * sizeof(glm::vec2);
 
-    //CreateVertexBuffer(&model);
-    //CreateIndexBuffer(&model);
-    //CreateUniformBuffers(&model);
-    //CreateDescriptorSets(&model);
 
-    // TODO(Dustin): Fix Later
-    // arrput(material_types[model.material_type].materials[model.shader_id].gltf_models, model);
-}
+    CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory);
+    CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory);
+    CreateModelUniformBuffers(sizeof(VkBuffer) * model.uniform_count, 
+                               model.uniform_buffers, 
+                               model.uniform_buffers_memory, 
+                               model.uniform_count);
+    CreateModelDescriptorSets(model.uniform_count, 
+                               model.material_type, 
+                               model.shader_id, 
+                               model.uniform_buffers, 
+                               model.descriptor_sets);
 
-void AddGLTFToScene(Model_GLTF model)
-{
-    // model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
-    // model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
-    // model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
-
-    // CreateModelBuffer(sizeof(Vertex) * model.vertex_count, 
-    //                   model.vertices, 
-    //                   &model.vertex_buffer, 
-    //                   &model.vertex_buffer_memory);
-    // CreateModelBuffer(sizeof(uint32_t) * model.index_count, 
-    //                   model.indices, 
-    //                   &model.index_buffer, 
-    //                   &model.index_buffer_memory);
-    // CreateModelUniformBuffers(sizeof(UniformBufferObject), 
-    //                           model.uniform_buffers, 
-    //                           model.uniform_buffers_memory, 
-    //                           model.uniform_count);
-    // CreateModelDescriptorSets(swapchain_info.image_count, 
-    //                           model.material_type, 
-    //                           model.shader_id, 
-    //                           model.uniform_buffers, 
-    //                           model.descriptor_sets);
-
-    //CreateVertexBuffer(&model);
-    //CreateIndexBuffer(&model);
-    //CreateUniformBuffers(&model);
-    //CreateDescriptorSets(&model);
-    arrput(material_types[model.material_type].materials[model.shader_id].gltf_models, model);
+    // CreateVertexBuffer(&model);
+    // CreateIndexBuffer(&model);
+    // CreateUniformBuffers(&model);
+    // CreateDescriptorSets(&model);
+    arrput(material_types[model.material_type].materials[model.shader_id].models, model);
 }
 
 const VulkanInfo *GetRenderInfo()

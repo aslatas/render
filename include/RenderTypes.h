@@ -1,4 +1,3 @@
-
 #pragma once
 #include "VulkanLoader.h"
 #define GLM_FORCE_RADIANS
@@ -10,8 +9,6 @@
 #include "glm/gtx/norm.hpp"
 #pragma warning(pop)
 #include "stb/stb_ds.h"
-
-#include <model_loader/cgltf.h>
 
 // Stores vulkan instance/device information not dependent on swapchain.
 struct VulkanInfo
@@ -52,17 +49,6 @@ struct Vertex
     glm::vec2 uv2;   // 64
 };
 
-struct Vertex_GLTF
-{
-    glm::vec3 position; // 12
-    glm::vec3 normal;   // 24
-    glm::vec3 tangent;
-    // glm::vec4 color; // 40
-    glm::vec2 uv0;   // 48
-    // glm::vec2 uv1;   // 56
-    // glm::vec2 uv2;   // 64
-};
-
 struct DirectionalLight
 {
     glm::vec4 direction;
@@ -96,6 +82,90 @@ struct Ray
     float length;
 };
 
+// Contain offsets/strides for attributes. Essential for creating the Attributes
+// Offset
+// Size
+// Stride
+struct BufferDataInfo {
+    size_t index_offset = 0;
+    size_t index_size = 0;
+    size_t index_stride = 0;
+    VkFormat index_format = VK_FORMAT_UNDEFINED;
+
+    size_t pos_offset = 0;
+    size_t pos_size = 0;
+    size_t pos_stride = 0;
+    VkFormat pos_format = VK_FORMAT_UNDEFINED;
+    
+    size_t normal_offset = 0;
+    size_t normal_size = 0;
+    size_t normal_stride = 0;
+    VkFormat normal_format = VK_FORMAT_UNDEFINED;
+    
+    size_t tangent_offset = 0;
+    size_t tangent_size = 0;
+    size_t tangent_stride = 0;
+    VkFormat tangent_format = VK_FORMAT_UNDEFINED;
+
+    size_t tex_0_offset = 0;
+    size_t tex_0_size = 0;
+    size_t tex_0_stride = 0;
+    VkFormat tex_0_format = VK_FORMAT_UNDEFINED;
+
+    size_t tex_1_offset = 0;
+    size_t tex_1_size = 0;
+    size_t tex_1_stride = 0;
+    VkFormat tex_1_format = VK_FORMAT_UNDEFINED;
+
+    size_t color_0_offset = 0;
+    size_t color_0_size = 0;
+    size_t color_0_stride = 0;
+    VkFormat color_0_format = VK_FORMAT_UNDEFINED;
+};
+
+struct ModelData {
+    void*    memory_block;
+    size_t   memory_block_size;
+
+    uint32_t* indices;
+    glm::vec3* position;
+    glm::vec3* normal;   // 24
+    glm::vec4* tangent;
+    glm::vec4* color; // 40
+    glm::vec2* uv0;   // 48
+    glm::vec2* uv1;   // 56
+    glm::vec2* uv2;   // 64
+};
+
+struct Model_Separate_Data
+{
+    BufferDataInfo attribute_data_info;
+
+    uint32_t vertex_count;
+    uint32_t index_count;
+    UniformBufferObject ubo;
+    AxisAlignedBoundingBox bounds;
+    bool hit_test_enabled;
+    
+    uint32_t material_type;
+    uint32_t shader_id;
+    VkBuffer vertex_buffer;
+    VkBuffer index_buffer;
+    VkDeviceMemory vertex_buffer_memory;
+    VkDeviceMemory index_buffer_memory;
+    
+    glm::vec3 pos;
+    glm::vec3 rot;
+    glm::vec3 scl;
+    
+    // Heap allocated:
+    ModelData* model_data; // separate data format 
+    VkBuffer *uniform_buffers;
+    VkDeviceMemory *uniform_buffers_memory;
+    VkDescriptorSet *descriptor_sets;
+    uint32_t uniform_count;
+};
+
 struct Model
 {
     uint32_t vertex_count;
@@ -124,57 +194,42 @@ struct Model
     uint32_t uniform_count;
 };
 
-// Returned error cases for failed loading
-typedef enum EModelLoadResult {
-  MODEL_LOAD_RESULT_SUCCESS,
-  MODEL_LOAD_RESULT_DATA_TOO_SHORT,
-  MODEL_LOAD_RESULT_INVALID_JSON,
-  MODEL_LOAD_RESULT_INVALID_GLTF,
-  MODEL_LOAD_RESULT_INVALID_CGLTF_OPTIONS,
-  MODEL_LOAD_RESULT_FILE_NOT_FOUND,
-  MODEL_LOAD_RESULT_IO_ERROR,
-  MODEL_LOAD_RESULT_OUT_OF_MEMORY,
-  MODEL_LOAD_RESULT_UNKNOWN_FORMAT,
-  MODEL_LOAD_RESULT_UNKNOWN_ERROR
-} EModelLoadResult;
-
-struct Model_GLTF {
-  cgltf_data* data;
-
-  unsigned int shader_id;
-  uint32_t material_type;
-
-  UniformBufferObject ubo;
-
-  VkBuffer vertex_buffer;
-  
-  VkBuffer index_buffer;
-  uint32_t index_count;
-
-  VkDeviceMemory vertex_buffer_memory;
-  VkDeviceMemory index_buffer_memory;
-
-  VkBuffer        *uniform_buffers;
-  VkDeviceMemory  *uniform_buffers_memory;
-  VkDescriptorSet *descriptor_sets;
-  uint32_t         uniform_count;
-
-  glm::vec3 pos;
-  glm::vec3 rot;
-  glm::vec3 scl;
-
-  AxisAlignedBoundingBox bounds;
-  bool hit_test_enabled;
-
-};
+// struct Model
+// {
+//     uint32_t vertex_count;
+//     uint32_t index_count;
+//     UniformBufferObject ubo;
+//     AxisAlignedBoundingBox bounds;
+//     bool hit_test_enabled;
+    
+//     uint32_t material_type;
+//     uint32_t shader_id;
+//     VkBuffer vertex_buffer;
+//     VkBuffer index_buffer;
+//     VkDeviceMemory vertex_buffer_memory;
+//     VkDeviceMemory index_buffer_memory;
+    
+//     glm::vec3 pos;
+//     glm::vec3 rot;
+//     glm::vec3 scl;
+    
+//     // Heap allocated:
+//     Vertex *vertices;
+//     uint32_t *indices;
+//     VkBuffer *uniform_buffers;
+//     VkDeviceMemory *uniform_buffers_memory;
+//     VkDescriptorSet *descriptor_sets;
+//     uint32_t uniform_count;
+// };
 
 // Destroys a model, freeing associated resources.
 void DestroyModel(Model *model, const VulkanInfo *vulkan_info);
-void DestroyGLTFModel(Model_GLTF *model, const VulkanInfo *vulkan_info);
-
+void DestroyModelSeparateDataTest(Model_Separate_Data *model, const VulkanInfo *vulkan_info);
 
 // Creates a box given a world space position, size, and material info.
 Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id);
+Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id);
+
 
 // Creates a ray with a given world origin, direction, and length.
 Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
