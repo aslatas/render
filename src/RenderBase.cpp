@@ -7,6 +7,9 @@
 #include "VulkanInit.h"
 #include "Main.h"
 #include "Font.h"
+#include <ModelLoader.h>
+
+#include <assert.h>
 
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
@@ -19,7 +22,7 @@ glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.
 //uint32_t box_count = 3;
 //uint32_t selected_boxes[3] = {0, 0, 0};
 //uint32_t selected_count = 0;
-Model **selected_models = nullptr;
+Model_Separate_Data **selected_models = nullptr;
 char *ReadShaderFile(const char *path, uint32_t *length)
 {
     FILE *file = fopen(path, "rb");
@@ -189,7 +192,6 @@ void RecordPrimaryCommand(uint32_t image_index)
     pass_begin_info.pClearValues = clear_colors;
     vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     
-    
     // For each material type.
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         MaterialLayout *material_type = &material_types[i];
@@ -202,12 +204,21 @@ void RecordPrimaryCommand(uint32_t image_index)
             
             // For each model of a given material.
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
-                Model *model = &material->models[k];
-                
+                // Model *model = &material->models[k];
+                Model_Separate_Data *model = &material->models[k];
+                static uint32_t pOffset   = 0;
+                static uint32_t nOffset   = pOffset + model->vertex_count * sizeof(glm::vec3);
+                static uint32_t tOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
+                static uint32_t cOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
+                static uint32_t uv0Offset = cOffset + model->vertex_count * sizeof(glm::vec4);
+                static uint32_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
+                static uint32_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
+                // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
+
                 // Bind the vertex, index, and uniform buffers.
-                VkBuffer vertex_buffers[] = {model->vertex_buffer};
-                VkDeviceSize offsets[] = {0};
-                vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
+                VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
+                VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
+                vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, offsets);
                 vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], model->index_buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_type->pipeline_layout, 0, 1, &model->descriptor_sets[image_index], 0, nullptr);
                 
@@ -232,9 +243,20 @@ void RecordPrimaryCommand(uint32_t image_index)
         // For each selected model.
         for (uint32_t i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
-            VkBuffer vertex_buffers[] = {selected_models[i]->vertex_buffer};
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 1, vertex_buffers, offsets);
+            Model_Separate_Data* model = selected_models[i];
+            static uint32_t pOffset   = model->index_count * sizeof(uint32_t);
+            static uint32_t nOffset   = pOffset + model->vertex_count * sizeof(glm::vec3);
+            static uint32_t tOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
+            static uint32_t cOffset   = tOffset + model->vertex_count * sizeof(glm::vec4);
+            static uint32_t uv0Offset = cOffset + model->vertex_count * sizeof(glm::vec4);
+            static uint32_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
+            static uint32_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
+            // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
+
+            // Bind the vertex, index, and uniform buffers.
+            VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
+            VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
+            vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, offsets);
             vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], selected_models[i]->index_buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &selected_models[i]->descriptor_sets[image_index], 0, nullptr);
             // Draw selected models.
@@ -333,7 +355,7 @@ void UpdateModels(double frame_delta)
         for (uint32_t j = 0; j < arrlen(material_type->materials); ++j) {
             Material *material = &material_type->materials[j];
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
-                Model *model = &material->models[k];
+                Model_Separate_Data *model = &material->models[k];
                 model->rot.z += (float)frame_delta * glm::radians(25.0f);
                 model->ubo.model = glm::translate(glm::mat4(1.0f), initial_positions[current_index]);
                 model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
@@ -349,7 +371,7 @@ void UpdateModels(double frame_delta)
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(uint32_t current_image, Model *model)
+void UpdateUniforms(uint32_t current_image, Model_Separate_Data *model)
 {
     void *data;
     vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(model->ubo), 0, &data);
@@ -487,44 +509,78 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
         frag_create_info.pName = "main";
         result.shader_stages[1] = frag_create_info;
     }
+
+    // TODO(Dustin): Figure out offsets
     
     result.input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    result.input_info.vertexBindingDescriptionCount = 1;
+    result.input_info.vertexBindingDescriptionCount = 6;
     result.input_info.vertexAttributeDescriptionCount = 6;
     
-    result.binding_description.binding = 0;
-    result.binding_description.stride = sizeof(Vertex);
-    result.binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    
-    result.attribute_descriptions[0].binding = 0;
+    // Binding Descriptions
+    result.binding_description[0].binding = 0;
+    result.binding_description[0].stride = sizeof(glm::vec3);
+    result.binding_description[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[1].binding = 1;
+    result.binding_description[1].stride = sizeof(glm::vec3);
+    result.binding_description[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[2].binding = 2;
+    result.binding_description[2].stride = sizeof(glm::vec4);
+    result.binding_description[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[3].binding = 3;
+    result.binding_description[3].stride = sizeof(glm::vec4);
+    result.binding_description[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[4].binding = 4;
+    result.binding_description[4].stride = sizeof(glm::vec2);
+    result.binding_description[4].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[5].binding = 5;
+    result.binding_description[5].stride = sizeof(glm::vec2);
+    result.binding_description[5].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    result.binding_description[6].binding = 6;
+    result.binding_description[6].stride = sizeof(glm::vec2);
+    result.binding_description[6].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+
+    // Attribute Descriptions
+    result.attribute_descriptions[0].binding = result.binding_description[0].binding;
     result.attribute_descriptions[0].location = 0;
     result.attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     result.attribute_descriptions[0].offset = 0;
     
-    result.attribute_descriptions[1].binding = 0;
+    result.attribute_descriptions[1].binding = result.binding_description[1].binding;
     result.attribute_descriptions[1].location = 1;
     result.attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    result.attribute_descriptions[1].offset = 12;
+    result.attribute_descriptions[1].offset = 0;   
     
-    result.attribute_descriptions[2].binding = 0;
+    result.attribute_descriptions[2].binding = result.binding_description[2].binding;
     result.attribute_descriptions[2].location = 2;
     result.attribute_descriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    result.attribute_descriptions[2].offset = 24;
-    
-    result.attribute_descriptions[3].binding = 0;
+    result.attribute_descriptions[2].offset = 0;
+
+    result.attribute_descriptions[3].binding = result.binding_description[2].binding;
     result.attribute_descriptions[3].location = 3;
-    result.attribute_descriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
-    result.attribute_descriptions[3].offset = 40;
-    
-    result.attribute_descriptions[4].binding = 0;
+    result.attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    result.attribute_descriptions[3].offset = 0;
+
+    result.attribute_descriptions[4].binding = result.binding_description[3].binding;
     result.attribute_descriptions[4].location = 4;
     result.attribute_descriptions[4].format = VK_FORMAT_R32G32_SFLOAT;
-    result.attribute_descriptions[4].offset = 48;
-    
-    result.attribute_descriptions[5].binding = 0;
+    result.attribute_descriptions[4].offset = 0;
+
+    result.attribute_descriptions[5].binding = result.binding_description[4].binding;
     result.attribute_descriptions[5].location = 5;
     result.attribute_descriptions[5].format = VK_FORMAT_R32G32_SFLOAT;
-    result.attribute_descriptions[5].offset = 56;
+    result.attribute_descriptions[5].offset = 0;
+    
+    result.attribute_descriptions[6].binding = result.binding_description[5].binding;
+    result.attribute_descriptions[6].location = 6;
+    result.attribute_descriptions[6].format = VK_FORMAT_R32G32_SFLOAT;
+    result.attribute_descriptions[6].offset = 0;
     
     result.assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     result.assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -586,7 +642,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
 
 void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRenderPass render_pass, uint32_t sub_pass)
 {
-    material_info->input_info.pVertexBindingDescriptions = &material_info->binding_description;
+    material_info->input_info.pVertexBindingDescriptions = material_info->binding_description;
     material_info->input_info.pVertexAttributeDescriptions = material_info->attribute_descriptions;
     material_info->viewport_info.pViewports = &material_info->viewport;
     material_info->viewport_info.pScissors = &material_info->scissor;
@@ -675,6 +731,98 @@ void CreateMaterials()
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
 }
 
+// offset is the offset into buffer memory the VkBuffer will be written to
+void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory)
+{
+    //VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
+    //VkDeviceSize buffer_size = buffer_size;
+    
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
+    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+    
+    void *data;
+    vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
+    //memcpy(data, model->vertices, (size_t)buffer_size);
+    memcpy(data, buffer_data, (size_t)buffer_size);
+    vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
+    
+    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *buffer, *buffer_memory);
+    
+    CopyBuffer(&vulkan_info, staging_buffer, *buffer, buffer_size);
+    
+    vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
+    vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
+}
+
+void CreateModelUniformBuffers(VkDeviceSize buffer_size, 
+                               VkBuffer* uniform_buffers, 
+                               VkDeviceMemory* uniform_buffers_memory, 
+                               uint32_t uniform_count)
+{
+    // VkDeviceSize buffer_size = sizeof(UniformBufferObject);
+    // uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * uniform_count);
+    // uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * uniform_count);
+    for (uint32_t i = 0; i < uniform_count; ++i)
+    {
+        CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers[i], uniform_buffers_memory[i]);
+    }
+}
+
+void CreateModelDescriptorSets(uint32_t uniform_count, 
+                               uint32_t material_type, 
+                               uint32_t shader_id, 
+                               VkBuffer* uniform_buffers, 
+                               VkDescriptorSet *descriptor_sets)
+{
+    VkDescriptorSetAllocateInfo allocate_info = {};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.descriptorPool = vulkan_info.descriptor_pool;
+    allocate_info.descriptorSetCount = swapchain_info.image_count;
+    allocate_info.pSetLayouts = material_types[material_type].descriptor_layouts;
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, descriptor_sets));
+    
+    for (uint32_t i = 0; i < uniform_count; ++i)
+    {
+        VkDescriptorBufferInfo descriptor_info = {};
+        descriptor_info.buffer = uniform_buffers[i];
+        descriptor_info.offset = 0;
+        descriptor_info.range = sizeof(UniformBufferObject);
+        
+        VkDescriptorImageInfo image_info = {};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        // TODO(Matt): Temporary hack to get a second texture sampler for text.
+        if (shader_id == 4) {
+            
+            image_info.imageView = font.texture.image_view;
+            image_info.sampler = font.texture.sampler;
+            
+        } else {
+            image_info.imageView = texture.image_view;
+            image_info.sampler = texture.sampler;
+        }
+        VkWriteDescriptorSet uniform_write = {};
+        uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uniform_write.dstSet = descriptor_sets[i];
+        uniform_write.dstBinding = 0;
+        uniform_write.dstArrayElement = 0;
+        uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uniform_write.descriptorCount = 1;
+        uniform_write.pBufferInfo = &descriptor_info;
+        
+        VkWriteDescriptorSet sampler_write = {};
+        sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        sampler_write.dstSet = descriptor_sets[i];
+        sampler_write.dstBinding = 1;
+        sampler_write.dstArrayElement = 0;
+        sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        sampler_write.descriptorCount = 1;
+        sampler_write.pImageInfo = &image_info;
+        VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
+        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+    }
+}
+
 void InitializeSceneResources()
 {
     // Load fonts and textures.
@@ -685,15 +833,23 @@ void InitializeSceneResources()
 void InitializeScene()
 {
     // Throw some boxes in the scene.
-    AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
-    AddToScene(CreateBox({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 1));
+    //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
+    Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
+    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, 0, 0, swapchain_info.image_count);
+    if (result == MODEL_LOAD_RESULT_SUCCESS)
+        AddToScene(*model);
+    else printf("FAILURE TO LOAD MODEL\n");
+    // Model_Separate_Data model = CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0);
+    // AddToScene(model);
+
+    // DestroyModelSeparateDataTest(&m, &vulkan_info);
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
     // It should probably live on its own.
-    AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {1.0f, 0.25f}, 0, 5, {1.0f, 0.0f, 0.0f, 1.0f}, false));
+    // AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {1.0f, 0.25f}, 0, 5, {1.0f, 0.0f, 0.0f, 1.0f}, false));
     
-    AddToScene(CreateText("This is some text.", &font, {0.2f, 0.5f}));
+    // AddToScene(CreateText("This is some text.", &font, {0.2f, 0.5f}));
 }
 
 void DestroyMaterials()
@@ -717,19 +873,42 @@ void DestroyScene() {
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
             for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
-                DestroyModel(&material_types[i].materials[j].models[k], &vulkan_info);
+                // DestroyModel(&material_types[i].materials[j].models[k], &vulkan_info);
+                DestroyModelSeparateDataTest(&material_types[i].materials[j].models[k], &vulkan_info);
             }
             arrfree(material_types[i].materials[j].models);
         }
     }
 }
 
-void AddToScene(Model model)
+void AddToScene(Model_Separate_Data model)
 {
-    CreateVertexBuffer(&model);
-    CreateIndexBuffer(&model);
-    CreateUniformBuffers(&model);
-    CreateDescriptorSets(&model);
+    model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
+    model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
+    model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
+
+    // VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(uint32_t) * model.index_count);
+    VkDeviceSize v_len = model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec4) +
+                         model.vertex_count * sizeof(glm::vec4) + model.vertex_count * sizeof(glm::vec2) + model.vertex_count * sizeof(glm::vec2) + 
+                         model.vertex_count * sizeof(glm::vec2);
+
+
+    CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory);
+    CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory);
+    CreateModelUniformBuffers(sizeof(VkBuffer) * model.uniform_count, 
+                               model.uniform_buffers, 
+                               model.uniform_buffers_memory, 
+                               model.uniform_count);
+    CreateModelDescriptorSets(model.uniform_count, 
+                               model.material_type, 
+                               model.shader_id, 
+                               model.uniform_buffers, 
+                               model.descriptor_sets);
+
+    // CreateVertexBuffer(&model);
+    // CreateIndexBuffer(&model);
+    // CreateUniformBuffers(&model);
+    // CreateDescriptorSets(&model);
     arrput(material_types[model.material_type].materials[model.shader_id].models, model);
 }
 
