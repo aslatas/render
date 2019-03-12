@@ -543,6 +543,8 @@ static void CreateSyncPrimitives(VulkanInfo *vulkan_info)
 
 void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
+    // Wait until the swapchain is unused.
+    vkDeviceWaitIdle(vulkan_info->logical_device);
     // Destroy attachments.
     vkDestroyImageView(vulkan_info->logical_device, swapchain_info->color_image_view, nullptr);
     vkDestroyImage(vulkan_info->logical_device, swapchain_info->color_image, nullptr);
@@ -631,7 +633,6 @@ void InitializeVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 // TODO(Matt): Need to recreate screen-space stuff here, like UI models.
 void RecreateSwapchain(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
-    vkDeviceWaitIdle(vulkan_info->logical_device);
     DestroySwapchain(vulkan_info, swapchain_info);
     ChooseSwapchainExtent(vulkan_info, swapchain_info);
     // TODO(Matt): Platform specific.
