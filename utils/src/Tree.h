@@ -6,32 +6,36 @@
 // Bounding region for 2D space
 //   min: minimum x,y values located in the model
 //   max: maximum x,y values located in the model
-struct AABB_2D {
-  float min[2];
-  float max[2];
+struct AABB_2D
+{
+    float min[2];
+    float max[2];
 };
 // Bounding region for 3D space
 //   min: minimum x,y,z values located in the model
 //   max: maximum x,y,z values located in the model
-struct AABB_3D {
-  float min[3];
-  float max[3];
+struct AABB_3D
+{
+    float min[3];
+    float max[3];
 };
 
 // Temporary model used for the Quad tree. Values are currently harcoded
 // into the tree, but this will change in later iterations.
-struct Model {
-  // General representation of a model in a scene
-  AABB_2D aabb;
-  int val; // For now a model is simply an integer type
+struct Model
+{
+    // General representation of a model in a scene
+    AABB_2D aabb;
+    int val; // For now a model is simply an integer type
 };
 
 // Bins contain a list of models.
 //   model: an array of models utilizing the header only library, stb_ds.h.
 //   count: number of models located in the bin.
-struct Bin {
-  Model** model= NULL; // list of models in this bin
-  uint8_t count = 0;
+struct Bin
+{
+    Model** model= NULL; // list of models in this bin
+    uint8_t count = 0;
 };
 
 // A node in the QuadTree.
@@ -43,13 +47,14 @@ struct Bin {
 //    be set to NULL. When the bin is allocated, the Node will be a leaf node, otherwise the node is a
 //    branch node. At Node creation, the bin is always allocated and assumbed to be a leaf.
 //  isLeaf: a quick check whether or not the Node is a leaf. True if leaf node, false otherwise.
-struct Node {
-  // Bounding Box for this node
-  AABB_2D* bounding_box;
-
-  Node *parent   = NULL;
-  Bin  *bin      = NULL;
-  bool isLeaf = true;
+struct Node
+{
+    // Bounding Box for this node
+    AABB_2D* bounding_box;
+    
+    Node *parent   = NULL;
+    Bin  *bin      = NULL;
+    bool isLeaf = true;
 };
 
 // Quad Tree structure
@@ -64,10 +69,11 @@ struct Node {
 //   Hueristic Functions: Hueristics can be applied to a Tree to improve space/time complexities. The currrent plan is to have
 //     a set of heuristics the user can define should they desire. These hueristics will either be void* for the user to set from
 //     either a custom implementation or one of ours. 
-struct QuadTree {
-  size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
-  uint8_t num_levels = 0; // depth of the tree, default is 0
-  Node** tree = NULL; // array representation of the tree
+struct QuadTree
+{
+    size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
+    uint8_t num_levels = 0; // depth of the tree, default is 0
+    Node** tree = NULL; // array representation of the tree
 };
 
 // Check bounding box-bounding box collisions. Return true if there was a collision, false otherwise 
