@@ -680,13 +680,13 @@ void CreateMaterials()
 {
     MaterialCreateInfo material_info;
     arrput(material_types, CreateMaterialLayout());
-    material_info = CreateDefaultMaterialInfo("shaders/vert.spv", "shaders/frag.spv");
+    material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("shaders/vert2.spv", "shaders/frag2.spv");
+    material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("shaders/stencil_vert.spv", nullptr);
+    material_info = CreateDefaultMaterialInfo("resources/shaders/stencil_vert.spv", nullptr);
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
     material_info.depth_stencil.depthTestEnable = VK_FALSE;
     material_info.depth_stencil.depthWriteEnable = VK_FALSE;
@@ -701,7 +701,7 @@ void CreateMaterials()
     material_info.depth_stencil.front = material_info.depth_stencil.back;
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("shaders/outline_vert.spv", "shaders/outline_frag.spv");
+    material_info = CreateDefaultMaterialInfo("resources/shaders/outline_vert.spv", "resources/shaders/outline_frag.spv");
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
     material_info.depth_stencil.depthTestEnable = VK_FALSE;
     material_info.depth_stencil.depthWriteEnable = VK_FALSE;
@@ -717,7 +717,7 @@ void CreateMaterials()
     material_info.depth_stencil.front = material_info.depth_stencil.back;
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("shaders/text_vert.spv", "shaders/text_frag.spv");
+    material_info = CreateDefaultMaterialInfo("resources/shaders/text_vert.spv", "resources/shaders/text_frag.spv");
     material_info.blend.blendEnable = VK_TRUE;
     material_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     material_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -727,7 +727,7 @@ void CreateMaterials()
     material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("shaders/fill_vcolor_vert.spv", "shaders/fill_vcolor_frag.spv");
+    material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
 }
 
@@ -827,8 +827,8 @@ void InitializeSceneResources()
 {
     // Load fonts and textures.
     // TODO(Matt): Move texture/font initialization somewhere else.
-    texture = LoadTexture(&vulkan_info, "textures/proto.jpg", 4, true);
-    font = LoadBitmapFont(&vulkan_info, "fonts/Hind-Regular.ttf", 0, 4);
+    texture = LoadTexture(&vulkan_info, "resources/textures/proto.jpg", 4, true);
+    font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
 }
 void InitializeScene()
 {
