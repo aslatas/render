@@ -104,7 +104,7 @@ void CreateUniformBuffers(Model *model);
 // uniform info.
 void CreateDescriptorSets(Model *model);
 
-void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory);
+void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory, VkBufferUsageFlagBits flags);
 void CreateModelUniformBuffers(VkDeviceSize buffer_size, 
                                VkBuffer* uniform_buffers, 
                                VkDeviceMemory* uniform_buffers_memory, 

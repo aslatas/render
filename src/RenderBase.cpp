@@ -732,7 +732,8 @@ void CreateMaterials()
 }
 
 // offset is the offset into buffer memory the VkBuffer will be written to
-void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory)
+// flags will probably be either VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory, VkBufferUsageFlagBits flags)
 {
     //VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
     //VkDeviceSize buffer_size = buffer_size;
@@ -747,7 +748,7 @@ void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* bu
     memcpy(data, buffer_data, (size_t)buffer_size);
     vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
     
-    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *buffer, *buffer_memory);
+    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *buffer, *buffer_memory);
     
     CopyBuffer(&vulkan_info, staging_buffer, *buffer, buffer_size);
     
@@ -893,8 +894,8 @@ void AddToScene(Model_Separate_Data model)
                          model.vertex_count * sizeof(glm::vec2);
 
 
-    CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory);
-    CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory);
+    CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     CreateModelUniformBuffers(sizeof(VkBuffer) * model.uniform_count, 
                                model.uniform_buffers, 
                                model.uniform_buffers_memory, 
