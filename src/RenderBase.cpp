@@ -214,14 +214,22 @@ void RecordPrimaryCommand(uint32_t image_index)
                 static uint32_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
                 static uint32_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
                 // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
-
+                
                 // Bind the vertex, index, and uniform buffers.
                 VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
                 VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
                 vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, offsets);
                 vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], model->index_buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_type->pipeline_layout, 0, 1, &model->descriptor_sets[image_index], 0, nullptr);
-                
+                PushConstantBlock push_block = {};
+                push_block.scalar_parameters[0] = 1;
+                push_block.scalar_parameters[1] = 2;
+                push_block.scalar_parameters[2] = 3;
+                push_block.scalar_parameters[3] = 4;
+                push_block.scalar_parameters[4] = 5;
+                push_block.scalar_parameters[5] = 6;
+                push_block.scalar_parameters[6] = 7;
+                vkCmdPushConstants(swapchain_info.primary_command_buffers[image_index], material_type->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantBlock), (void *)&push_block);
                 // Draw the model.
                 vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], model->index_count, 1, 0, 0, 0);
             }
@@ -252,7 +260,7 @@ void RecordPrimaryCommand(uint32_t image_index)
             static uint32_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
             static uint32_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
             // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
-
+            
             // Bind the vertex, index, and uniform buffers.
             VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
             VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
@@ -464,11 +472,22 @@ MaterialLayout CreateMaterialLayout()
         VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
         arrput(layout.descriptor_layouts, descriptor_layout);
     }
+    // NOTE(Matt): Push block has 128 bytes (the maximum guaranteed size):
+    //   - 4  byte Draw Index (for indexing into the uniform buffer).
+    //   - 32 byte texture index array (for accessing up to 16 textures).
+    //   - 48 byte user data (3 vectors of 4 channels).
+    //   - 60 byte user data (7 scalars at 4 bytes each).
+    VkPushConstantRange push_block = {};
+    push_block.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    push_block.offset = 0;
+    push_block.size = sizeof(PushConstantBlock);
+    std::cout << "Push Block Size: " << sizeof(PushConstantBlock) << " bytes" << std::endl;
     VkPipelineLayoutCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_info.setLayoutCount = swapchain_info.image_count;
     pipeline_info.pSetLayouts = layout.descriptor_layouts;
-    
+    pipeline_info.pushConstantRangeCount = 1;
+    pipeline_info.pPushConstantRanges = &push_block;
     VK_CHECK_RESULT(vkCreatePipelineLayout(vulkan_info.logical_device, &pipeline_info, nullptr, &layout.pipeline_layout));
     return layout;
 }
@@ -509,7 +528,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
         frag_create_info.pName = "main";
         result.shader_stages[1] = frag_create_info;
     }
-
+    
     // TODO(Dustin): Figure out offsets
     
     result.input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -520,32 +539,32 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.binding_description[0].binding = 0;
     result.binding_description[0].stride = sizeof(glm::vec3);
     result.binding_description[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     result.binding_description[1].binding = 1;
     result.binding_description[1].stride = sizeof(glm::vec3);
     result.binding_description[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     result.binding_description[2].binding = 2;
     result.binding_description[2].stride = sizeof(glm::vec4);
     result.binding_description[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     result.binding_description[3].binding = 3;
     result.binding_description[3].stride = sizeof(glm::vec4);
     result.binding_description[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     result.binding_description[4].binding = 4;
     result.binding_description[4].stride = sizeof(glm::vec2);
     result.binding_description[4].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     result.binding_description[5].binding = 5;
     result.binding_description[5].stride = sizeof(glm::vec2);
     result.binding_description[5].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     result.binding_description[6].binding = 6;
     result.binding_description[6].stride = sizeof(glm::vec2);
     result.binding_description[6].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-
+    
+    
     // Attribute Descriptions
     result.attribute_descriptions[0].binding = result.binding_description[0].binding;
     result.attribute_descriptions[0].location = 0;
@@ -561,17 +580,17 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.attribute_descriptions[2].location = 2;
     result.attribute_descriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     result.attribute_descriptions[2].offset = 0;
-
+    
     result.attribute_descriptions[3].binding = result.binding_description[2].binding;
     result.attribute_descriptions[3].location = 3;
     result.attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     result.attribute_descriptions[3].offset = 0;
-
+    
     result.attribute_descriptions[4].binding = result.binding_description[3].binding;
     result.attribute_descriptions[4].location = 4;
     result.attribute_descriptions[4].format = VK_FORMAT_R32G32_SFLOAT;
     result.attribute_descriptions[4].offset = 0;
-
+    
     result.attribute_descriptions[5].binding = result.binding_description[4].binding;
     result.attribute_descriptions[5].location = 5;
     result.attribute_descriptions[5].format = VK_FORMAT_R32G32_SFLOAT;
@@ -842,7 +861,7 @@ void InitializeScene()
     else printf("FAILURE TO LOAD MODEL\n");
     // Model_Separate_Data model = CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0);
     // AddToScene(model);
-
+    
     // DestroyModelSeparateDataTest(&m, &vulkan_info);
     
     // Add screen-space elements.
@@ -887,25 +906,25 @@ void AddToScene(Model_Separate_Data model)
     model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
     model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
     model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
-
+    
     // VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(uint32_t) * model.index_count);
     VkDeviceSize v_len = model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec4) +
-                         model.vertex_count * sizeof(glm::vec4) + model.vertex_count * sizeof(glm::vec2) + model.vertex_count * sizeof(glm::vec2) + 
-                         model.vertex_count * sizeof(glm::vec2);
-
-
+        model.vertex_count * sizeof(glm::vec4) + model.vertex_count * sizeof(glm::vec2) + model.vertex_count * sizeof(glm::vec2) + 
+        model.vertex_count * sizeof(glm::vec2);
+    
+    
     CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     CreateModelUniformBuffers(sizeof(VkBuffer) * model.uniform_count, 
-                               model.uniform_buffers, 
-                               model.uniform_buffers_memory, 
-                               model.uniform_count);
+                              model.uniform_buffers, 
+                              model.uniform_buffers_memory, 
+                              model.uniform_count);
     CreateModelDescriptorSets(model.uniform_count, 
-                               model.material_type, 
-                               model.shader_id, 
-                               model.uniform_buffers, 
-                               model.descriptor_sets);
-
+                              model.material_type, 
+                              model.shader_id, 
+                              model.uniform_buffers, 
+                              model.descriptor_sets);
+    
     // CreateVertexBuffer(&model);
     // CreateIndexBuffer(&model);
     // CreateUniformBuffers(&model);

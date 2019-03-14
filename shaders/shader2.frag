@@ -9,6 +9,14 @@ struct DirectionalLight
     vec4 ambient;
 };
 
+layout(push_constant) uniform PushBlock
+{
+    uint draw_index;
+    int scalar_parameters[7];
+    uint texture_indices[8];
+    vec4 vector_parameters[4];
+} push_block;
+
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
@@ -37,9 +45,9 @@ void main()
     vec3 view_dir = normalize(ubo.view_pos.rgb - in_position);
     vec3 reflect_dir = reflect(-light_dir, norm);  
     vec3 specular = pow(max(dot(view_dir, reflect_dir), 0.0), 64.0f) * ubo.sun.specular.rgb;  
-        
+    
     vec3 result = ubo.sun.ambient.rgb + diffuse + specular;
     out_color = vec4(result * texture(texture_sampler, in_uv0).rgb, 1.0f);
-
+    
 }
 

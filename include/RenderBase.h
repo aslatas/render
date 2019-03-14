@@ -68,6 +68,26 @@ struct Material
     Model_Separate_Data *models; // Model list.
 };
 
+// Push block has 128 bytes (the maximum guaranteed size):
+//   -  4 byte Draw Index (for indexing into the uniform buffer).
+//   - 48 byte user data (3 vectors of 4 channels).
+//   - 32 byte texture index array (for accessing up to 16 textures).
+//   - 60 byte user data (7 scalars at 4 bytes each).
+// NOTE(Matt): If a material uses 8 or fewer textures, it can access texture
+// indices directly. Otherwise, 16 bit indices can be packed instead, but must
+// be manually unpacked in the shader.
+struct PushConstantBlock
+{
+    uint32_t draw_index;
+    int32_t scalar_parameters[7];
+    union texture_indices
+    {
+        uint16_t thin[16];
+        uint32_t wide[8];
+    };
+    glm::vec4 vector_parameters[4];
+};
+
 // Holds info about a material layout. Keeps a list of materials of its'
 // type.
 struct MaterialLayout
