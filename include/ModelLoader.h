@@ -1,7 +1,7 @@
 // Handles loading model files. Currently only supports GLTF formats.
 #pragma once
 
-#include <model_loader/cgltf.h>
+//#include <model_loader/cgltf.h>
 
 #include <string>
 
@@ -24,7 +24,7 @@ typedef enum EModelLoadResult {
 } EModelLoadResult;
 
 struct Model_GLTF {
-  cgltf_data* data;
+  void* data;
 
   unsigned int shader_id;
   unsigned int material_type;
