@@ -92,18 +92,20 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &ten, u
     glm::vec3 box_ext = glm::vec3(0.5f, 0.5f, 0.5f);
 
     ten.pos = box_pos;
-    ten.rot = glm::vec3(0.0f);
+    ten.rot = glm::vec3(0);
     ten.scl = glm::vec3(1.0f);
     ten.bounds.min = glm::vec3(0.0f);
     ten.bounds.max = box_ext;
-    ten.ubo.model = glm::translate(glm::mat4(1.0f), box_pos);
+    ten.ubo.model = glm::rotate(glm::mat4(1.0f), 90.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+    ten.ubo.model = glm::translate(ten.ubo.model, box_pos);
+    ten.ubo.model = glm::scale(ten.ubo.model, glm::vec3(0.5));
     ten.ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
     ten.ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ten.ubo.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
     ten.ubo.projection[1][1] *= -1;
 
-    // char *file = "resources/models/BlenderCube.glb";
-    char *file = "resources/models/Cube/glTF/Cube.gltf";
+    char *file = "resources/models/BlenderCube.glb";
+    // char *file = "resources/models/Cube/glTF/Cube.gltf";
     char *file_bin = "resources/models/BoxTextured/glTF/BoxTextured.bin";
 
     tinygltf::Model model;
@@ -112,6 +114,7 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &ten, u
     std::string warn;
 
     bool ret = gltf_ctx.LoadBinaryFromFile(&model, &err, &warn, file);
+    // bool ret = gltf_ctx.LoadASCIIFromFile(&model, &err, &warn, file);
     if (!ret)
       return MODEL_LOAD_RESULT_FILE_NOT_FOUND;
 
@@ -234,7 +237,7 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &ten, u
                     ten.model_data->position[k] = glm::make_vec3((position_buffer + (k * 3)));
                     ten.model_data->normal[k] = (normal_buffer) ? glm::make_vec3((normal_buffer + (k * 3))) : glm::vec3(0);
                     ten.model_data->tangent[k] = (tangent_buffer) ? glm::make_vec4((tangent_buffer + (k * 4))) : glm::vec4(0);
-                    ten.model_data->color[k] = (color_buffer) ? glm::make_vec4((color_buffer + (k * 4))) : glm::vec4(0);
+                    ten.model_data->color[k] = (color_buffer) ? glm::make_vec4((color_buffer + (k * 4))) : glm::vec4(1);
                     ten.model_data->uv0[k] = (uv0_buffer) ? glm::make_vec2((uv0_buffer + (k * 2))) : glm::vec2(0);
                     ten.model_data->uv1[k] = (uv1_buffer) ? glm::make_vec2((uv1_buffer + (k * 2))) : glm::vec2(0);
                     ten.model_data->uv2[k] = (uv2_buffer) ? glm::make_vec2((uv2_buffer + (k * 2))) : glm::vec2(0);

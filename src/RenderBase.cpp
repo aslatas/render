@@ -356,9 +356,14 @@ void UpdateModels(double frame_delta)
             Material *material = &material_type->materials[j];
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
                 Model_Separate_Data *model = &material->models[k];
-                model->rot.z += (float)frame_delta * glm::radians(25.0f);
-                model->ubo.model = glm::translate(glm::mat4(1.0f), initial_positions[current_index]);
+                //model->rot.z += (float)frame_delta * glm::radians(25.0f);
+                model->rot.y = glm::radians(90.0f);
+                model->rot.z = 0;
+                model->rot.z = 0;
+                model->ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.f, -1.f, 0.f));
+                // model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
                 model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
+                model->ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f)) * model->ubo.model;
                 model->pos = glm::vec3(model->ubo.model[3].x, model->ubo.model[3].y, model->ubo.model[3].z);
                 model->ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
                 model->ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
