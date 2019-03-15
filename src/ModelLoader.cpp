@@ -1,11 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
-//#define CGLTF_IMPLEMENTATION
-//#include <model_loader/cgltf.h>
 
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NOEXCEPTION
 #define JSON_NOEXCEPTION
-//#define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "tinygltf/tiny_gltf.h"
 
@@ -13,155 +10,102 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "RenderBase.h"
 
-//#include <stb/stb_ds.h>
-
-char default_model_location[] = "resources/models/Cube/glTF/";
-
-// Convert the CGLTF result return type to be a more engine-friendly type
-// internal EModelLoadResult
-// GLTFFailType(cgltf_result result)
-// {
-//     if (result == cgltf_result_data_too_short)
-//         return MODEL_LOAD_RESULT_DATA_TOO_SHORT;
-//     else if (result == cgltf_result_unknown_format)
-//         return MODEL_LOAD_RESULT_UNKNOWN_FORMAT;
-//     else if (result == cgltf_result_invalid_json)
-//         return MODEL_LOAD_RESULT_INVALID_JSON;
-//     else if (result == cgltf_result_invalid_gltf)
-//         return MODEL_LOAD_RESULT_INVALID_GLTF;
-//     else if (result == cgltf_result_invalid_options)
-//         return MODEL_LOAD_RESULT_INVALID_CGLTF_OPTIONS;
-//     else if (result == cgltf_result_file_not_found)
-//         return MODEL_LOAD_RESULT_FILE_NOT_FOUND;
-//     else if (result == cgltf_result_io_error)
-//         return MODEL_LOAD_RESULT_IO_ERROR;
-//     else if (result == cgltf_result_out_of_memory)
-//         return MODEL_LOAD_RESULT_OUT_OF_MEMORY;
-//     else
-//         return MODEL_LOAD_RESULT_UNKNOWN_ERROR;
-// }
-
-// internal VkFormat
-// ConvertGLTFAttributeFormatToVulkanFormat(cgltf_type type)
-// {
-//     switch (type) {
-//         case cgltf_type_scalar:
-//         {
-//             return VK_FORMAT_R32_SINT;
-//         } break;
-//         case cgltf_type_vec2:
-//         {
-//             return VK_FORMAT_R32G32_SFLOAT;
-//         } break;
-//         case cgltf_type_vec3:
-//         {
-//             return VK_FORMAT_R32G32B32_SFLOAT;
-//         } break;
-//         case cgltf_type_vec4:
-//         {
-//             return VK_FORMAT_R32G32B32A32_SFLOAT;
-//         } break;
-//         case cgltf_type_mat2:
-//         {
-//             // TODO(Dustin)
-//             return VK_FORMAT_UNDEFINED;
-//         } break;
-//         case cgltf_type_mat3:
-//         {
-//             // TODO(Dustin)
-//             return VK_FORMAT_UNDEFINED;
-//         } break;
-//         case cgltf_type_mat4:
-//         {
-//             // TODO(Dustin)
-//             return VK_FORMAT_UNDEFINED;
-//         } break;
-//         default: return VK_FORMAT_UNDEFINED;;
-//     }
-// }
-
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &ten, uint32_t material_type,
+EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model, uint32_t material_type,
                                uint32_t shader_id, uint32_t uniform_count)
 {
 
-    ten.material_type = material_type;
-    ten.shader_id = shader_id;
-    ten.uniform_count = uniform_count;
+    // TODO(Dustin): Remove this hardcoded nonsense
+    model.material_type = material_type;
+    model.shader_id = shader_id;
+    model.uniform_count = uniform_count;
 
-    glm::vec3 box_pos = glm::vec3(0.f, 0.f, 0.f);
+    glm::vec3 box_pos = glm::vec3(0.f, -3.f, 0.f);
     glm::vec3 box_ext = glm::vec3(0.5f, 0.5f, 0.5f);
 
-    ten.pos = box_pos;
-    ten.rot = glm::vec3(0);
-    ten.scl = glm::vec3(1.0f);
-    ten.bounds.min = glm::vec3(0.0f);
-    ten.bounds.max = box_ext;
-    ten.ubo.model = glm::rotate(glm::mat4(1.0f), 90.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-    ten.ubo.model = glm::translate(ten.ubo.model, box_pos);
-    ten.ubo.model = glm::scale(ten.ubo.model, glm::vec3(0.5));
-    ten.ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
-    ten.ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ten.ubo.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
-    ten.ubo.projection[1][1] *= -1;
+    model.pos                   = box_pos;
+    model.rot                   = glm::vec3(0);
+    model.scl                   = glm::vec3(1.0f);
+    model.bounds.min            = glm::vec3(0.0f);
+    model.bounds.max            = box_ext;
+    model.ubo.model             = glm::rotate(glm::mat4(1.0f), 90.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+    model.ubo.model             = glm::translate(model.ubo.model, box_pos);
+    model.ubo.model             = glm::scale(model.ubo.model, glm::vec3(0.5));
+    model.ubo.view_position     = glm::vec4(2.0f, 3.0f, 2.0f, 1.0f);
+    model.ubo.view              = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    model.ubo.projection        = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
+    model.ubo.projection[1][1] *= -1;
 
-    char *file = "resources/models/BlenderCube.glb";
-    // char *file = "resources/models/Cube/glTF/Cube.gltf";
-    char *file_bin = "resources/models/BoxTextured/glTF/BoxTextured.bin";
+    // char *file = "resources/models/BlenderCube.glb";
+    char *file = "resources/models/Lantern/glTF-Binary/Lantern.glb";
 
-    tinygltf::Model model;
+    tinygltf::Model gltf_model;
     tinygltf::TinyGLTF gltf_ctx;
     std::string err;
     std::string warn;
 
-    bool ret = gltf_ctx.LoadBinaryFromFile(&model, &err, &warn, file);
+    bool ret = gltf_ctx.LoadBinaryFromFile(&gltf_model, &err, &warn, file);
     // bool ret = gltf_ctx.LoadASCIIFromFile(&model, &err, &warn, file);
     if (!ret)
-      return MODEL_LOAD_RESULT_FILE_NOT_FOUND;
-
-    // for now I am going to assume:
-    //   1 model, so one node
-    //   that there is a node
+        return MODEL_LOAD_RESULT_FILE_NOT_FOUND;
 
     glm::vec3 max;
     glm::vec3 min;
 
-    ten.model_data = (ModelData *)malloc(sizeof(ModelData));
+    model.model_data = (ModelData *)malloc(sizeof(ModelData));
 
-    tinygltf::Node node = model.nodes[0];
-    tinygltf::Mesh mesh = model.meshes[node.mesh];
-    tinygltf::Primitive primitive = mesh.primitives[0];
-    tinygltf::Accessor &pos_accessor = model.accessors[primitive.attributes.find("POSITION")->second];
-    tinygltf::BufferView &pos_buffer_view = model.bufferViews[pos_accessor.bufferView];
-
-    ten.vertex_count = pos_accessor.count;
-    ten.index_count = model.accessors[model.meshes[model.nodes[0].mesh].primitives[0].indices].count;
-
-    size_t indices_length = ten.index_count * sizeof(uint32_t);
-    size_t position_length = ten.vertex_count * sizeof(glm::vec3);
-    size_t normal_length = ten.vertex_count * sizeof(glm::vec3);
-    size_t tangent_length = ten.vertex_count * sizeof(glm::vec4);
-    size_t color_length = ten.vertex_count * sizeof(glm::vec4);
-    size_t uv0_length = ten.vertex_count * sizeof(glm::vec2);
-    size_t uv1_length = ten.vertex_count * sizeof(glm::vec2);
-    size_t uv2_length = ten.vertex_count * sizeof(glm::vec2);
-
-    ten.model_data->memory_block_size = indices_length + position_length + normal_length + tangent_length + color_length + uv0_length + uv1_length + uv2_length;
-    ten.model_data->memory_block = (void *)malloc(ten.model_data->memory_block_size);
-
-    ten.model_data->indices = (uint32_t *)ten.model_data->memory_block;
-    ten.model_data->position = (glm::vec3 *)((char *)ten.model_data->memory_block + indices_length);
-    ten.model_data->normal = (glm::vec3 *)((char *)ten.model_data->memory_block + indices_length + position_length);
-    ten.model_data->tangent = (glm::vec4 *)((char *)ten.model_data->memory_block + indices_length + position_length + normal_length);
-    ten.model_data->color = (glm::vec4 *)((char *)ten.model_data->memory_block + indices_length + position_length + normal_length + tangent_length);
-    ten.model_data->uv0 = (glm::vec2 *)((char *)ten.model_data->memory_block + indices_length + position_length + normal_length + tangent_length + color_length);
-    ten.model_data->uv1 = (glm::vec2 *)((char *)ten.model_data->memory_block + indices_length + position_length + normal_length + tangent_length + color_length + uv0_length);
-    ten.model_data->uv2 = (glm::vec2 *)((char *)ten.model_data->memory_block + indices_length + position_length + normal_length + tangent_length + color_length + uv0_length + uv1_length);
-
-    for (int i = 0; i < model.nodes.size(); ++i)
+    // determine the size of the model
+    model.vertex_count = 0;
+    model.index_count  = 0;
+    for (int i = 0; i < gltf_model.nodes.size(); ++i)
     {
+        if (gltf_model.nodes[i].mesh < 0)
+            continue;
 
-        tinygltf::Node node = model.nodes[i];
-        tinygltf::Mesh mesh = model.meshes[node.mesh];
+        model.vertex_count += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].attributes.find("POSITION")->second].count;
+        model.index_count  += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].indices].count;
+    }
+
+     // Allocate memory for the model
+    {
+        size_t indices_length  = model.index_count * sizeof(uint32_t);
+        size_t position_length = model.vertex_count * sizeof(glm::vec3);
+        size_t normal_length   = model.vertex_count * sizeof(glm::vec3);
+        size_t tangent_length  = model.vertex_count * sizeof(glm::vec4);
+        size_t color_length    = model.vertex_count * sizeof(glm::vec4);
+        size_t uv0_length      = model.vertex_count * sizeof(glm::vec2);
+        size_t uv1_length      = model.vertex_count * sizeof(glm::vec2);
+        size_t uv2_length      = model.vertex_count * sizeof(glm::vec2);
+
+        model.model_data->memory_block_size = indices_length + position_length + normal_length + tangent_length + color_length + uv0_length + uv1_length + uv2_length;
+        model.model_data->memory_block      = (void *)malloc(model.model_data->memory_block_size);
+
+        model.model_data->indices  = (uint32_t *)model.model_data->memory_block;
+        model.model_data->position = (glm::vec3 *)((char *)model.model_data->memory_block + indices_length);
+        model.model_data->normal   = (glm::vec3 *)((char *)model.model_data->memory_block + indices_length + position_length);
+        model.model_data->tangent  = (glm::vec4 *)((char *)model.model_data->memory_block + indices_length + position_length + normal_length);
+        model.model_data->color    = (glm::vec4 *)((char *)model.model_data->memory_block + indices_length + position_length + normal_length + tangent_length);
+        model.model_data->uv0      = (glm::vec2 *)((char *)model.model_data->memory_block + indices_length + position_length + normal_length + tangent_length + color_length);
+        model.model_data->uv1      = (glm::vec2 *)((char *)model.model_data->memory_block + indices_length + position_length + normal_length + tangent_length + color_length + uv0_length);
+        model.model_data->uv2      = (glm::vec2 *)((char *)model.model_data->memory_block + indices_length + position_length + normal_length + tangent_length + color_length + uv0_length + uv1_length);
+
+        model.model_data->attribute_offsets[0] = 0; // First offset into the VertexBuffer is 0
+        model.model_data->attribute_offsets[1] = position_length;
+        model.model_data->attribute_offsets[2] = position_length + normal_length;
+        model.model_data->attribute_offsets[3] = position_length + normal_length + tangent_length;
+        model.model_data->attribute_offsets[4] = position_length + normal_length + tangent_length + color_length;
+        model.model_data->attribute_offsets[5] = position_length + normal_length + tangent_length + color_length + uv0_length;
+        model.model_data->attribute_offsets[6] = position_length + normal_length + tangent_length + color_length + uv0_length + uv1_length;
+    }
+
+    int vertex_offset = 0;
+    int index_offset = 0;
+    for (int i = 0; i < gltf_model.nodes.size(); ++i)
+    {
+        if (gltf_model.nodes[i].mesh < 0)
+            continue;
+
+        tinygltf::Node node = gltf_model.nodes[i];
+        tinygltf::Mesh mesh = gltf_model.meshes[node.mesh];
 
         for (int j = 0; j < mesh.primitives.size(); ++j) // what is a case where there will be more than one primitive?
         {
@@ -169,115 +113,114 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &ten, u
             if (primitive.indices < 0)
                 continue; // no indices were found
 
-    //         // Allocate memory for the memory block
-    //         //{
-
-    //         //}
-
-            // vertices
+            // Vertex Attributes
             {
                 float *position_buffer = nullptr;
-                float *normal_buffer = nullptr;
-                float *tangent_buffer = nullptr;
-                float *color_buffer = nullptr;
-                float *uv0_buffer = nullptr;
-                float *uv1_buffer = nullptr;
-                float *uv2_buffer = nullptr;
+                float *normal_buffer   = nullptr;
+                float *tangent_buffer  = nullptr;
+                float *color_buffer    = nullptr;
+                float *uv0_buffer      = nullptr;
+                float *uv1_buffer      = nullptr;
+                float *uv2_buffer      = nullptr;
 
                 if (primitive.attributes.find("POSITION") == primitive.attributes.end())
                     return MODEL_LOAD_RESULT_INVALID_GLTF;
 
-                tinygltf::Accessor &pos_accessor = model.accessors[primitive.attributes.find("POSITION")->second];
-                tinygltf::BufferView &pos_buffer_view = model.bufferViews[pos_accessor.bufferView];
-                position_buffer = (float *)(&(model.buffers[pos_buffer_view.buffer].data[pos_accessor.byteOffset + pos_buffer_view.byteOffset]));
+                tinygltf::Accessor &pos_accessor = gltf_model.accessors[primitive.attributes.find("POSITION")->second];
+                tinygltf::BufferView &pos_buffer_view = gltf_model.bufferViews[pos_accessor.bufferView];
+                position_buffer = (float *)(&(gltf_model.buffers[pos_buffer_view.buffer].data[pos_accessor.byteOffset + pos_buffer_view.byteOffset]));
                 min = glm::vec3(pos_accessor.minValues[0], pos_accessor.minValues[1], pos_accessor.minValues[2]);
                 max = glm::vec3(pos_accessor.maxValues[0], pos_accessor.maxValues[1], pos_accessor.maxValues[2]);
 
                 if (primitive.attributes.find("NORMAL") != primitive.attributes.end())
                 {
-                    tinygltf::Accessor &normal_accessor = model.accessors[primitive.attributes.find("NORMAL")->second];
-                    tinygltf::BufferView &normal_buffer_view = model.bufferViews[normal_accessor.bufferView];
-                    normal_buffer = (float *)(&(model.buffers[normal_buffer_view.buffer].data[normal_accessor.byteOffset + normal_buffer_view.byteOffset]));
+                    tinygltf::Accessor &normal_accessor = gltf_model.accessors[primitive.attributes.find("NORMAL")->second];
+                    tinygltf::BufferView &normal_buffer_view = gltf_model.bufferViews[normal_accessor.bufferView];
+                    normal_buffer = (float *)(&(gltf_model.buffers[normal_buffer_view.buffer].data[normal_accessor.byteOffset + normal_buffer_view.byteOffset]));
                 }
 
                 if (primitive.attributes.find("TANGENT") != primitive.attributes.end())
                 {
-                    tinygltf::Accessor &tangent_accessor = model.accessors[primitive.attributes.find("TANGENT")->second];
-                    tinygltf::BufferView &tangent_buffer_view = model.bufferViews[tangent_accessor.bufferView];
-                    tangent_buffer = (float *)(&(model.buffers[tangent_buffer_view.buffer].data[tangent_accessor.byteOffset + tangent_buffer_view.byteOffset]));
+                    tinygltf::Accessor &tangent_accessor = gltf_model.accessors[primitive.attributes.find("TANGENT")->second];
+                    tinygltf::BufferView &tangent_buffer_view = gltf_model.bufferViews[tangent_accessor.bufferView];
+                    tangent_buffer = (float *)(&(gltf_model.buffers[tangent_buffer_view.buffer].data[tangent_accessor.byteOffset + tangent_buffer_view.byteOffset]));
                 }
 
                 if (primitive.attributes.find("COLOR_0") != primitive.attributes.end())
                 {
-                    tinygltf::Accessor &color_accessor = model.accessors[primitive.attributes.find("COLOR_0")->second];
-                    tinygltf::BufferView &color_buffer_view = model.bufferViews[color_accessor.bufferView];
-                    color_buffer = (float *)(&(model.buffers[color_buffer_view.buffer].data[color_accessor.byteOffset + color_buffer_view.byteOffset]));
+                    tinygltf::Accessor &color_accessor = gltf_model.accessors[primitive.attributes.find("COLOR_0")->second];
+                    tinygltf::BufferView &color_buffer_view = gltf_model.bufferViews[color_accessor.bufferView];
+                    color_buffer = (float *)(&(gltf_model.buffers[color_buffer_view.buffer].data[color_accessor.byteOffset + color_buffer_view.byteOffset]));
                 }
 
                 if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end())
                 {
-                    tinygltf::Accessor &uv0_accessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
-                    tinygltf::BufferView &uv0_buffer_view = model.bufferViews[uv0_accessor.bufferView];
-                    uv0_buffer = (float *)(&(model.buffers[uv0_buffer_view.buffer].data[uv0_accessor.byteOffset + uv0_buffer_view.byteOffset]));
+                    tinygltf::Accessor &uv0_accessor = gltf_model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
+                    tinygltf::BufferView &uv0_buffer_view = gltf_model.bufferViews[uv0_accessor.bufferView];
+                    uv0_buffer = (float *)(&(gltf_model.buffers[uv0_buffer_view.buffer].data[uv0_accessor.byteOffset + uv0_buffer_view.byteOffset]));
                 }
 
                 if (primitive.attributes.find("TEXCOORD_1") != primitive.attributes.end())
                 {
-                    tinygltf::Accessor &uv1_accessor = model.accessors[primitive.attributes.find("TEXCOORD_1")->second];
-                    tinygltf::BufferView &uv1_buffer_view = model.bufferViews[uv1_accessor.bufferView];
-                    uv1_buffer = (float *)(&(model.buffers[uv1_buffer_view.buffer].data[uv1_accessor.byteOffset + uv1_buffer_view.byteOffset]));
+                    tinygltf::Accessor &uv1_accessor = gltf_model.accessors[primitive.attributes.find("TEXCOORD_1")->second];
+                    tinygltf::BufferView &uv1_buffer_view = gltf_model.bufferViews[uv1_accessor.bufferView];
+                    uv1_buffer = (float *)(&(gltf_model.buffers[uv1_buffer_view.buffer].data[uv1_accessor.byteOffset + uv1_buffer_view.byteOffset]));
                 }
 
                 if (primitive.attributes.find("TEXCOORD_2") != primitive.attributes.end()) // gltf files do not current have a 3rd tex coord
                 {
                 }
 
-                for (size_t k = 0; k < ten.vertex_count; ++k)
+                // Fill in the memory block from the vertex_offset onwards
+                for (size_t k = 0; k < pos_accessor.count; ++k)
                 {
-                    ten.model_data->position[k] = glm::make_vec3((position_buffer + (k * 3)));
-                    ten.model_data->normal[k] = (normal_buffer) ? glm::make_vec3((normal_buffer + (k * 3))) : glm::vec3(0);
-                    ten.model_data->tangent[k] = (tangent_buffer) ? glm::make_vec4((tangent_buffer + (k * 4))) : glm::vec4(0);
-                    ten.model_data->color[k] = (color_buffer) ? glm::make_vec4((color_buffer + (k * 4))) : glm::vec4(1);
-                    ten.model_data->uv0[k] = (uv0_buffer) ? glm::make_vec2((uv0_buffer + (k * 2))) : glm::vec2(0);
-                    ten.model_data->uv1[k] = (uv1_buffer) ? glm::make_vec2((uv1_buffer + (k * 2))) : glm::vec2(0);
-                    ten.model_data->uv2[k] = (uv2_buffer) ? glm::make_vec2((uv2_buffer + (k * 2))) : glm::vec2(0);
+                    model.model_data->position[k + vertex_offset] = glm::make_vec3((position_buffer + (k * 3)));
+                    model.model_data->normal[k + vertex_offset]   = (normal_buffer) ? glm::make_vec3((normal_buffer + (k * 3))) : glm::vec3(0);
+                    model.model_data->tangent[k + vertex_offset]  = (tangent_buffer) ? glm::make_vec4((tangent_buffer + (k * 4))) : glm::vec4(0);
+                    model.model_data->color[k + vertex_offset]    = (color_buffer) ? glm::make_vec4((color_buffer + (k * 4))) : glm::vec4(1);
+                    model.model_data->uv0[k + vertex_offset]      = (uv0_buffer) ? glm::make_vec2((uv0_buffer + (k * 2))) : glm::vec2(0);
+                    model.model_data->uv1[k + vertex_offset]      = (uv1_buffer) ? glm::make_vec2((uv1_buffer + (k * 2))) : glm::vec2(0);
+                    model.model_data->uv2[k + vertex_offset]      = (uv2_buffer) ? glm::make_vec2((uv2_buffer + (k * 2))) : glm::vec2(0);
                 }
             }
 
             // indices
             {
-                tinygltf::Accessor indices_accessor = model.accessors[primitive.indices];
-                tinygltf::BufferView indices_buffer_view = model.bufferViews[indices_accessor.bufferView];
-                tinygltf::Buffer &buffer = model.buffers[indices_buffer_view.buffer];
+                tinygltf::Accessor indices_accessor = gltf_model.accessors[primitive.indices];
+                tinygltf::BufferView indices_buffer_view = gltf_model.bufferViews[indices_accessor.bufferView];
+                tinygltf::Buffer &buffer = gltf_model.buffers[indices_buffer_view.buffer];
 
                 void *data_ptr = &(buffer.data[indices_accessor.byteOffset + indices_buffer_view.byteOffset]);
 
+                int idx_count = (int)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].indices].count;
+
+                // Fill in the memory block from the index_offset onwards
                 switch (indices_accessor.componentType)
                 {
                 case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
                 {
                     uint32_t *buf = static_cast<uint32_t *>(data_ptr);
-                    for (size_t k = 0; k < ten.index_count; ++k)
+                    for (size_t k = 0; k < idx_count; ++k)
                     {
-                        ten.model_data->indices[k] = buf[k];
+                        model.model_data->indices[k + index_offset] = buf[k] + vertex_offset;
                     }
                 }
                 break;
                 case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
                 {
                     uint16_t *buf = static_cast<uint16_t *>(data_ptr);
-                    for (size_t k = 0; k < ten.index_count; ++k)
+                    for (size_t k = 0; k < idx_count; ++k)
                     {
-                        ten.model_data->indices[k] = buf[k];
+                        model.model_data->indices[k + index_offset] = buf[k] + vertex_offset;
                     }
                 }
                 break;
                 case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
                 {
                     uint8_t *buf = static_cast<uint8_t *>(data_ptr);
-                    for (size_t k = 0; k < ten.index_count; ++k)
+                    for (size_t k = 0; k < idx_count; ++k)
                     {
-                        ten.model_data->indices[k] = buf[k];
+                        model.model_data->indices[k + index_offset] = buf[k] + vertex_offset;
                     }
                 }
                 break;
@@ -288,281 +231,293 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &ten, u
                 break;
                 }
             }
+
+            vertex_offset += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].attributes.find("POSITION")->second].count;
+            index_offset  += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].indices].count;
         }
     }
-
-    // for (auto node : model.nodes)
-    // {
-    //     delete node;
-    // }
-    //model.nodes.resize(0);
 
     return MODEL_LOAD_RESULT_SUCCESS;
 }
 
-// EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data& model, uint32_t material_type,
-//                                uint32_t shader_id, uint32_t uniform_count)
-// {
-//     LoadTinyGTLFModel();
 
-//     model.material_type = material_type;
-//     model.shader_id = shader_id;
-//     model.uniform_count = uniform_count;
+void DestroyModelSeparateDataTest(Model_Separate_Data *model, const VulkanInfo *vulkan_info)
+{
+    free(model->model_data->memory_block);
+    free(model->model_data);
+    for (uint32_t i = 0; i < model->uniform_count; ++i) {
+        vkDestroyBuffer(vulkan_info->logical_device, model->uniform_buffers[i], nullptr);
+        vkFreeMemory(vulkan_info->logical_device, model->uniform_buffers_memory[i], nullptr);
+    }
+    vkDestroyBuffer(vulkan_info->logical_device, model->vertex_buffer, nullptr);
+    vkFreeMemory(vulkan_info->logical_device, model->vertex_buffer_memory, nullptr);
+    vkDestroyBuffer(vulkan_info->logical_device, model->index_buffer, nullptr);
+    vkFreeMemory(vulkan_info->logical_device, model->index_buffer_memory, nullptr);
+    free(model->uniform_buffers);
+    free(model->uniform_buffers_memory);
+    free(model->descriptor_sets);
+    model = nullptr;
+}
 
-//     //model = (Model_GLTF*)malloc(sizeof(Model_GLTF));
+Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id) 
+{
 
-//     cgltf_options options = {}; // it should auto-detect the file type
-//     cgltf_data* data = NULL;
-//     cgltf_result result = cgltf_parse_file(&options, "resources/models/Cube/glTF/Cube.gltf", &data);
+    Model_Separate_Data model;
+    model.material_type = material_type;
+    model.shader_id = shader_id;
+    model.uniform_count = GetUniformCount();
+    model.hit_test_enabled = false;
+    model.vertex_count = 24;
+    model.index_count = 36;
 
-//     if (result != cgltf_result_success)
-//       return GLTFFailType(result);
+    // Create the memory block for the data
+    model.model_data = (ModelData*)malloc(sizeof(ModelData));
+    {
+        size_t indices_length  = model.index_count  * sizeof(uint32_t);
+        size_t position_length = model.vertex_count * sizeof(glm::vec3);
+        size_t normal_length   = model.vertex_count * sizeof(glm::vec3);
+        size_t color_length    = model.vertex_count * sizeof(glm::vec4);
+        size_t uv0_length      = model.vertex_count * sizeof(glm::vec2);
+        size_t uv1_length      = model.vertex_count * sizeof(glm::vec2);
+        size_t uv2_length      = model.vertex_count * sizeof(glm::vec2);
 
-//     // const size_t length = sizeof(default_model_location) + sizeof(data->buffers->uri) + 1;
-//     // char filebin[length] = {0};
-//     // snprintf(filebin, sizeof(filebin), "%s%s", default_model_location, data->buffers->uri);
+        model.model_data->memory_block_size = indices_length + position_length + normal_length + color_length + 
+                                  uv0_length + uv1_length + uv2_length;
 
-//     // Now read the bin file
-//     result = cgltf_load_buffers(&options, data, "resources/models/Cube/glTF/Cube.bin");
-//     if (result != cgltf_result_success)
-//       return GLTFFailType(result);
+        model.model_data->memory_block = (void*)malloc(model.model_data->memory_block_size);
+        
+        model.model_data->indices  = (uint32_t* )((char*)model.model_data->memory_block + 0); // indices are first
+        model.model_data->position = (glm::vec3*)((char*)model.model_data->memory_block + indices_length);
+        model.model_data->normal   = (glm::vec3*)((char*)model.model_data->memory_block + indices_length + position_length);
+        model.model_data->color    = (glm::vec4*)((char*)model.model_data->memory_block + indices_length + position_length + normal_length);
+        model.model_data->uv0      = (glm::vec2*)((char*)model.model_data->memory_block + indices_length + position_length + normal_length +
+                                                           color_length);
+        model.model_data->uv1      = (glm::vec2*)((char*)model.model_data->memory_block + indices_length + position_length + normal_length +
+                                                           color_length   + uv0_length);
+        model.model_data->uv2      = (glm::vec2*)((char*)model.model_data->memory_block + indices_length + position_length + normal_length +
+                                                           color_length   + uv0_length      + uv1_length);
+    }
 
-//     BufferDataInfo data_info;
+    // Load the index data
+    {
+        model.model_data->indices[0] = 0;
+        model.model_data->indices[1] = 3;
+        model.model_data->indices[2] = 2;
+        model.model_data->indices[3] = 0;
+        model.model_data->indices[4] = 2;
+        model.model_data->indices[5] = 1;
+        model.model_data->indices[6] = 4;
+        model.model_data->indices[7] = 7;
+        model.model_data->indices[8] = 6;
+        model.model_data->indices[9] = 4;
+        model.model_data->indices[10] = 6;
+        model.model_data->indices[11] = 5;
+        model.model_data->indices[12] = 8;
+        model.model_data->indices[13] = 11;
+        model.model_data->indices[14] = 10;
+        model.model_data->indices[15] = 8;
+        model.model_data->indices[16] = 10;
+        model.model_data->indices[17] = 9;
+        model.model_data->indices[18] = 12;
+        model.model_data->indices[19] = 15;
+        model.model_data->indices[20] = 14;
+        model.model_data->indices[21] = 12;
+        model.model_data->indices[22] = 14;
+        model.model_data->indices[23] = 13;
+        model.model_data->indices[24] = 16;
+        model.model_data->indices[25] = 19;
+        model.model_data->indices[26] = 18;
+        model.model_data->indices[27] = 16;
+        model.model_data->indices[28] = 18;
+        model.model_data->indices[29] = 17;
+        model.model_data->indices[30] = 20;
+        model.model_data->indices[31] = 23;
+        model.model_data->indices[32] = 22;
+        model.model_data->indices[33] = 20;
+        model.model_data->indices[34] = 22;
+        model.model_data->indices[35] = 21;
+    //}
 
-//     size_t num_attr = data->scenes[0].nodes[0]->mesh->primitives->attributes_count;
-//     size_t attr_size = 0;
+    // Load the position data
+    //{
+        model.model_data->position[ 0] = glm::vec3(0.0f, 0.0f, 0.0f);
+        model.model_data->position[ 1] = glm::vec3(0.0f, 0.0f, ext.z);
+        model.model_data->position[ 2] = glm::vec3(ext.x, 0.0f, ext.z);
+        model.model_data->position[ 3] = glm::vec3(ext.x, 0.0f, 0.0f);
+        model.model_data->position[ 4] = glm::vec3(ext.x, 0.0f, 0.0f);
+        model.model_data->position[ 5] = glm::vec3(ext.x, 0.0f, ext.z);
+        model.model_data->position[ 6] = glm::vec3(ext.x, ext.y, ext.z);
+        model.model_data->position[ 7] = glm::vec3(ext.x, ext.y, 0.0f);
+        model.model_data->position[ 8] = glm::vec3(ext.x, ext.y, 0.0f);
+        model.model_data->position[ 9] = glm::vec3(ext.x, ext.y, ext.z);
+        model.model_data->position[10] = glm::vec3(0.0f, ext.y, ext.z);
+        model.model_data->position[11] = glm::vec3(0.0f, ext.y, 0.0f);
+        model.model_data->position[12] = glm::vec3(0.0f, ext.y, 0.0f);
+        model.model_data->position[13] = glm::vec3(0.0f, ext.y, ext.z);
+        model.model_data->position[14] = glm::vec3(0.0f, 0.0f, ext.z);
+        model.model_data->position[15] = glm::vec3(0.0f, 0.0f, 0.0f);
+        model.model_data->position[16] = glm::vec3(0.0f, 0.0f, ext.z);
+        model.model_data->position[17] = glm::vec3(0.0f, ext.y, ext.z);
+        model.model_data->position[18] = glm::vec3(ext.x, ext.y, ext.z);
+        model.model_data->position[19] = glm::vec3(ext.x, 0.0f, ext.z);
+        model.model_data->position[20] = glm::vec3(0.0f, 0.0f, 0.0f);
+        model.model_data->position[21] = glm::vec3(ext.x, 0.0f, 0.0f);
+        model.model_data->position[22] = glm::vec3(ext.x, ext.y, 0.0f);
+        model.model_data->position[23] = glm::vec3(0.0f, ext.y, 0.0f);
+    }
 
-//     void *buffer_indices = nullptr;
-//     size_t indices_size = 0;
-//     float *buffer_pos = nullptr;
-//     // size_t pos_size = 0;
-//     float *buffer_normal = nullptr;
-//     // size_t normal_size = 0;
-//     float *buffer_tangent = nullptr;
-//     // size_t tangent_size = 0;
-//     float *buffer_color = nullptr;
-//     // size_t color_size = 0;
-//     float *buffer_uv0 = nullptr;
-//     // size_t uv0_size = 0;
-//     float *buffer_uv1 = nullptr;
-//     // size_t uv1_size = 0;
-//     float *buffer_uv2 = nullptr;
-//     // size_t uv2_size = 0;
+    // Load the normal data
+    {
+        model.model_data->normal[ 0] = glm::vec3(0.0f, -1.0f, 0.0f);
+        model.model_data->normal[ 1] = glm::vec3(0.0f, -1.0f, 0.0f);
+        model.model_data->normal[ 2] = glm::vec3(0.0f, -1.0f, 0.0f);
+        model.model_data->normal[ 3] = glm::vec3(0.0f, -1.0f, 0.0f);
+        model.model_data->normal[ 4] = glm::vec3(1.0f, 0.0f, 0.0f);
+        model.model_data->normal[ 5] = glm::vec3(1.0f, 0.0f, 0.0f);
+        model.model_data->normal[ 6] = glm::vec3(1.0f, 0.0f, 0.0f);
+        model.model_data->normal[ 7] = glm::vec3(1.0f, 0.0f, 0.0f);
+        model.model_data->normal[ 8] = glm::vec3(0.0f, 1.0f, 0.0f);
+        model.model_data->normal[ 9] = glm::vec3(0.0f, 1.0f, 0.0f);
+        model.model_data->normal[10] = glm::vec3(0.0f, 1.0f, 0.0f);
+        model.model_data->normal[11] = glm::vec3(0.0f, 1.0f, 0.0f);
+        model.model_data->normal[12] = glm::vec3(-1.0f, 0.0f, 0.0f);
+        model.model_data->normal[13] = glm::vec3(-1.0f, 0.0f, 0.0f);
+        model.model_data->normal[14] = glm::vec3(-1.0f, 0.0f, 0.0f);
+        model.model_data->normal[15] = glm::vec3(-1.0f, 0.0f, 0.0f);
+        model.model_data->normal[16] = glm::vec3(0.0f, 0.0f, 1.0f);
+        model.model_data->normal[17] = glm::vec3(0.0f, 0.0f, 1.0f);
+        model.model_data->normal[18] = glm::vec3(0.0f, 0.0f, 1.0f);
+        model.model_data->normal[19] = glm::vec3(0.0f, 0.0f, 1.0f);
+        model.model_data->normal[20] = glm::vec3(0.0f, 0.0f, -1.0f);
+        model.model_data->normal[21] = glm::vec3(0.0f, 0.0f, -1.0f);
+        model.model_data->normal[22] = glm::vec3(0.0f, 0.0f, -1.0f);
+        model.model_data->normal[23] = glm::vec3(0.0f, 0.0f, -1.0f);
+    }
 
-//     //---------------------------------------------------------------------------------------------------------------
-//     // Load Indices
-//     //---------------------------------------------------------------------------------------------------------------
-//     void *ind_temp_ptr = nullptr;
-//     model.index_count = data->scenes[0].nodes[0]->mesh->primitives->indices->count;
-//     indices_size = sizeof(uint32_t) * model.index_count;
+    // Load the color data
+    {
+        model.model_data->color[ 0] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 1] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 2] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 3] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 4] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 5] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 6] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 7] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 8] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[ 9] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[10] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[11] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[12] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[13] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[14] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[15] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[16] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[17] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[18] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[19] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[20] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[21] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[22] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        model.model_data->color[23] = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+    }
 
-//     // The offset into the data buffer is: (buffer view offset) + (accessor offset)
-//     buffer_indices = (void*)((char*)data->buffers[0].data + data->scenes[0].nodes[0]->mesh->primitives->indices->offset +
-//         data->scenes[0].nodes[0]->mesh->primitives->indices->buffer_view->offset);
+    // Load the uv0 data
+    {
+        model.model_data->uv0[ 0] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv0[ 1] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv0[ 2] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv0[ 3] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv0[ 4] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv0[ 5] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv0[ 6] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv0[ 7] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv0[ 8] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv0[ 9] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv0[10] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv0[11] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv0[12] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv0[13] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv0[14] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv0[15] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv0[16] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv0[17] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv0[18] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv0[19] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv0[20] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv0[21] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv0[22] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv0[23] = glm::vec2(0.0f, 0.0f);
+    }
 
-//     //---------------------------------------------------------------------------------------------------------------
-//     // Load Attributes
-//     //---------------------------------------------------------------------------------------------------------------
-//     int uv_count = 0;
-//     for (int i = 0; i < num_attr; ++i)
-//     {
-//         // default: cgltf_attribute_type_invalid,
-//         switch(data->scenes[0].nodes[0]->mesh->primitives->attributes[i].type)
-//         {
-//             case cgltf_attribute_type_position:
-//             {
-//                 int acc_idx = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].index;
-//                 buffer_pos = (float *)((char*)data->buffers[0].data + data->accessors[acc_idx].offset +
-//                     data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset);
-//                 model.vertex_count = data->accessors[acc_idx].count;
-//             } break;
-//             case cgltf_attribute_type_normal:
-//             {
-//                 int acc_idx = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].index;
-//                 buffer_normal = (float *)((char*)data->buffers[0].data + data->accessors[acc_idx].offset +
-//                     data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset);
-//             } break;
-//             case cgltf_attribute_type_tangent:
-//             {
-//                 int acc_idx = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].index;
-//                 buffer_tangent = (float *)((char*)data->buffers[0].data + data->accessors[acc_idx].offset +
-//                     data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset);
-//             } break;
-//             case cgltf_attribute_type_texcoord:
-//             {
-//                 if (uv_count == 0)
-//                 {
-//                     ++uv_count;
-//                     int acc_idx = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].index;
-//                     buffer_uv0 = (float *)((char*)data->buffers[0].data + data->accessors[acc_idx].offset +
-//                     data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset);
-//                 }
-//                 else if (uv_count == 1)
-//                 {
-//                     ++uv_count;
-//                     int acc_idx = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].index;
-//                     buffer_uv1 = (float *)((char*)data->buffers[0].data + data->accessors[acc_idx].offset +
-//                     data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset);
-//                 }
-//                 else if (uv_count == 2)
-//                 {
-//                     ++uv_count;
-//                     int acc_idx = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].index;
-//                     buffer_uv2 = (float *)((char*)data->buffers[0].data + data->accessors[acc_idx].offset +
-//                     data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset);
-//                 }
-//                 else
-//                 {
-//                     printf("MODEL LOADING: INVALID NUMBER OF UV ATTRIBUTES\n");
-//                 }
-//             } break;
-//             case cgltf_attribute_type_color:
-//             {
-//                 // found_attributes |= 0x0001000;
-//                 // data_info.color_0_offset = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset;
-//                 // //data_info.color_0_size = data->scene->nodes[0]->mesh->primitives->attributes[i].data->buffer_view->size;
-//                 // data_info.color_0_format = ConvertGLTFAttributeFormatToVulkanFormat(data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->type);
-//             } break;
-//             // case cgltf_attribute_type_joints:
-//             // {
-//             //     data_info.joints_0_offset = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset;
-//             //     attr_size += data->scene->nodes[0]->mesh->primitives->attributes[i].data->buffer_view->size;
-//             //     //data_info.joints_0_size = data->scene->nodes[0]->mesh->primitives->attributes[i].data->buffer_view->size;
-//             //     data_info.joints_0_format = ConvertGLTFAttributeFormatToVulkanFormat(data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->type);
-//             // } break;
-//             // case cgltf_attribute_type_weights:
-//             // {
-//             //     data_info.weights_0_offset = data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->offset;
-//             //     attr_size += data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->buffer_view->size;
-//             //     //data_info.weights_0_size = data->scene->nodes[0]->mesh->primitives->attributes[i].data->buffer_view->size;
-//             //     data_info.weights_0_format = ConvertGLTFAttributeFormatToVulkanFormat(data->scenes[0].nodes[0]->mesh->primitives->attributes[i].data->type);
-//             // } break;
-//             default: break;
-//         }
-//     }
+    // Load the uv1 data
+    {
+        model.model_data->uv1[ 0] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv1[ 1] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv1[ 2] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv1[ 3] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv1[ 4] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv1[ 5] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv1[ 6] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv1[ 7] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv1[ 8] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv1[ 9] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv1[10] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv1[11] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv1[12] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv1[13] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv1[14] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv1[15] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv1[16] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv1[17] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv1[18] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv1[19] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv1[20] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv1[21] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv1[22] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv1[23] = glm::vec2(0.0f, 0.0f);
+    }
 
-//     glm::vec3 box_pos = glm::vec3(-0.3f, -0.3f, -0.3f);
-//     glm::vec3 box_ext = glm::vec3(0.5f, 0.5f, 0.5f);
+    // Load the uv2 data
+    {
+        model.model_data->uv2[ 0] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv2[ 1] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv2[ 2] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv2[ 3] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv2[ 4] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv2[ 5] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv2[ 6] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv2[ 7] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv2[ 8] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv2[ 9] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv2[10] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv2[11] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv2[12] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv2[13] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv2[14] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv2[15] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv2[16] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv2[17] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv2[18] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv2[19] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv2[20] = glm::vec2(1.0f, 0.0f);
+        model.model_data->uv2[21] = glm::vec2(1.0f, 1.0f);
+        model.model_data->uv2[22] = glm::vec2(0.0f, 1.0f);
+        model.model_data->uv2[23] = glm::vec2(0.0f, 0.0f);
+        model.model_data->uv2[23] = glm::vec2(0.0f, 0.0f);
+    }
 
-//     model.pos = box_pos;
-//     model.rot = glm::vec3(0.0f);
-//     model.scl = glm::vec3(1.0f);
-//     model.bounds.min = glm::vec3(0.0f);
-//     model.bounds.max = box_ext;
-//     model.ubo.model = glm::translate(glm::mat4(1.0f), box_pos);
-//     model.ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
-//     model.ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-//     model.ubo.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
-//     model.ubo.projection[1][1] *= -1;
 
-//     model.model_data = (ModelData*)malloc(sizeof(ModelData));
+    model.pos = pos;
+    model.rot = glm::vec3(0.0f);
+    model.scl = glm::vec3(1.0f);
+    model.bounds.min = glm::vec3(0.0f);
+    model.bounds.max = ext;
+    model.ubo.model = glm::translate(glm::mat4(1.0f), pos);
+    model.ubo.view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
+    model.ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    model.ubo.projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
+    model.ubo.projection[1][1] *= -1;
 
-//     size_t position_length = model.vertex_count * sizeof(glm::vec3);
-//     size_t normal_length   = model.vertex_count * sizeof(glm::vec3);
-//     size_t tangent_length  = model.vertex_count * sizeof(glm::vec4);
-//     size_t color_length    = model.vertex_count * sizeof(glm::vec4);
-//     size_t uv0_length      = model.vertex_count * sizeof(glm::vec2);
-//     size_t uv1_length      = model.vertex_count * sizeof(glm::vec2);
-//     size_t uv2_length      = model.vertex_count * sizeof(glm::vec2);
-
-//     model.model_data->memory_block_size = indices_size + position_length + normal_length + tangent_length + color_length + uv0_length + uv1_length + uv2_length;
-//     model.model_data->memory_block = (void*)malloc(model.model_data->memory_block_size);
-
-//     model.model_data->indices = (uint32_t*)model.model_data->memory_block;
-//     switch (data->scenes[0].nodes[0]->mesh->primitives->indices->component_type)
-//     {
-//         case cgltf_component_type_r_8u:// unsigned byte
-//         {
-//             uint8_t *buff = static_cast<uint8_t*>(buffer_indices);
-//             for (int i = 0; i < model.index_count; ++i)
-//             {
-//                 model.model_data->indices[i] = buff[i];
-//             }
-//         } break;
-//         case cgltf_component_type_r_16u: // unsigned short
-//         {
-//             uint16_t *buff = static_cast<uint16_t*>(buffer_indices);
-//             for (int i = 0; i < model.index_count; ++i)
-//             {
-//                 model.model_data->indices[i] = buff[i];
-//             }
-//         } break;
-//         case cgltf_component_type_r_32u: // unsigned int
-//         {
-//             uint32_t *buff = static_cast<uint32_t*>(buffer_indices);
-//             for (int i = 0; i < model.index_count; ++i)
-//             {
-//                 model.model_data->indices[i] = buff[i];
-//             }
-//         } break;
-//         default:
-//         {
-//             printf("INVALID INDEX COMPONENT TYPE\n");
-//         }break;
-//     }
-
-//     // Positions
-//     assert(buffer_pos); // assert that this is not NULL
-//     model.model_data->position  = (glm::vec3*)((char*)model.model_data->memory_block + indices_size);
-//     for (int j = 0; j < model.vertex_count; ++j)
-//     {
-//         model.model_data->position[j] = glm::make_vec3(buffer_pos + (j * 3));
-//     }
-
-//     // Normals
-//     model.model_data->normal   = (glm::vec3*)((char*)model.model_data->memory_block + indices_size + position_length);
-//     for (int j = 0; j < model.vertex_count; ++j)
-//     {
-//         model.model_data->normal[j] = (buffer_normal) ? glm::make_vec3(buffer_normal + (j * 3)) : glm::vec3(0);
-//     }
-
-//     // Tangents
-//     model.model_data->tangent  = (glm::vec4*)((char*)model.model_data->memory_block + indices_size + position_length + normal_length);
-//     for (int j = 0; j < model.vertex_count; ++j)
-//     {
-//         model.model_data->tangent[j] = (buffer_tangent) ? glm::make_vec4(buffer_tangent + (j * 4)) : glm::vec4(0);
-//     }
-
-//     // Color
-//     model.model_data->color    = (glm::vec4*)((char*)model.model_data->memory_block + indices_size + position_length + normal_length +
-//                                     tangent_length);
-//     for (int j = 0; j < model.vertex_count; ++j)
-//     {
-//         model.model_data->color[j] = (buffer_color) ? glm::make_vec4(buffer_color + (j * 4)) : glm::vec4(0);
-//     }
-
-//     // UV0
-//     model.model_data->uv0      = (glm::vec2*)((char*)model.model_data->memory_block + indices_size + position_length + normal_length +
-//                                     tangent_length + color_length);
-//     for (int j = 0; j < model.vertex_count; ++j)
-//     {
-//         model.model_data->uv0[j] = (buffer_uv0) ? glm::make_vec2(buffer_uv0 + (j * 2)) : glm::vec2(0);
-//     }
-
-//     // UV1
-//     model.model_data->uv1      = (glm::vec2*)((char*)model.model_data->memory_block + indices_size + position_length + normal_length +
-//                                     tangent_length + color_length + uv0_length);
-//     for (int j = 0; j < model.vertex_count; ++j)
-//     {
-//          model.model_data->uv1[j] = (buffer_uv1) ? glm::make_vec2(buffer_uv1 + (j * 2)) : glm::vec2(0);
-//     }
-
-//     // UV2
-//     model.model_data->uv2      = (glm::vec2*)((char*)model.model_data->memory_block + indices_size + position_length + normal_length +
-//                                     tangent_length + color_length + uv0_length + uv1_length);
-//     for (int j = 0; j < model.vertex_count; ++j)
-//     {
-//          model.model_data->uv2[j] = (buffer_uv2) ? glm::make_vec2(buffer_uv2 + (j * 2)) : glm::vec2(0);
-//     }
-
-//      // These for-loops allow me to visualize the buffer contents when debugging is VS
-//     // for (int i = 0; i < model.index_count; ++i) {
-
-//     // }
-
-//     // for (int i = 0; i < model.vertex_count; ++i) {
-
-//     // }
-
-//     return MODEL_LOAD_RESULT_SUCCESS;
-// }
+    return model;
+}

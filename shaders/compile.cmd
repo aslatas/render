@@ -18,8 +18,7 @@ C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V -s ..\outline.frag -o outlin
 C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V -s ..\text.vert -o text_vert.spv
 C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V -s ..\text.frag -o text_frag.spv
 
-
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\fill_vcolor.vert -o fill_vcolor_vert.spv
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\fill_vcolor.frag -o fill_vcolor_frag.spv
+C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V -s ..\fill_vcolor.vert -o fill_vcolor_vert.spv
+C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V -s ..\fill_vcolor.frag -o fill_vcolor_frag.spv
 
 popd

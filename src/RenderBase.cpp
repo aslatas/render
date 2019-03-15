@@ -206,19 +206,10 @@ void RecordPrimaryCommand(uint32_t image_index)
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
                 // Model *model = &material->models[k];
                 Model_Separate_Data *model = &material->models[k];
-                size_t pOffset   = 0;
-                size_t nOffset   = pOffset + model->vertex_count * sizeof(glm::vec3);
-                size_t tOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
-                size_t cOffset   = tOffset + model->vertex_count * sizeof(glm::vec4);
-                size_t uv0Offset = cOffset + model->vertex_count * sizeof(glm::vec4);
-                size_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
-                size_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
-                // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
 
                 // Bind the vertex, index, and uniform buffers.
                 VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
-                VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
-                vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, offsets);
+                vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, model->model_data->attribute_offsets);
                 vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], model->index_buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_type->pipeline_layout, 0, 1, &model->descriptor_sets[image_index], 0, nullptr);
                 
@@ -244,19 +235,10 @@ void RecordPrimaryCommand(uint32_t image_index)
         for (uint32_t i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
             Model_Separate_Data* model = selected_models[i];
-            size_t pOffset   = 0;
-            size_t nOffset   = pOffset + model->vertex_count * sizeof(glm::vec3);
-            size_t tOffset   = nOffset + model->vertex_count * sizeof(glm::vec3);
-            size_t cOffset   = tOffset + model->vertex_count * sizeof(glm::vec4);
-            size_t uv0Offset = cOffset + model->vertex_count * sizeof(glm::vec4);
-            size_t uv1Offset = uv0Offset + model->vertex_count * sizeof(glm::vec2);
-            size_t uv2Offset = uv1Offset + model->vertex_count * sizeof(glm::vec2);
-            // assert((uv2Offset + model->vertex_count * sizeof(glm::vec2)) == model->model_data->memory_block_size);
 
             // Bind the vertex, index, and uniform buffers.
             VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
-            VkDeviceSize offsets[] = {pOffset, nOffset, tOffset, cOffset, uv0Offset, uv1Offset, uv2Offset};
-            vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, offsets);
+            vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, model->model_data->attribute_offsets);
             vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], selected_models[i]->index_buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &selected_models[i]->descriptor_sets[image_index], 0, nullptr);
             // Draw selected models.
@@ -360,10 +342,10 @@ void UpdateModels(double frame_delta)
                 model->rot.y = glm::radians(90.0f);
                 model->rot.z = 0;
                 model->rot.z = 0;
-                model->ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.f, -1.f, 0.f));
+                model->ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.f, -5.f, 0.f));
                 // model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
                 model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
-                model->ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f)) * model->ubo.model;
+                model->ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.1f)) * model->ubo.model;
                 model->pos = glm::vec3(model->ubo.model[3].x, model->ubo.model[3].y, model->ubo.model[3].z);
                 model->ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
                 model->ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
