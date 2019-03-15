@@ -494,15 +494,18 @@ static void CreateDescriptorPools(VulkanInfo *vulkan_info, const SwapchainInfo *
     uniform_size.descriptorCount = swapchain_info->image_count * box_count;
     
     VkDescriptorPoolSize sampler_size = {};
-    sampler_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    sampler_size.descriptorCount = swapchain_info->image_count * box_count;
+    sampler_size.type = VK_DESCRIPTOR_TYPE_SAMPLER;
+    sampler_size.descriptorCount = swapchain_info->image_count * box_count * MATERIAL_SAMPLER_COUNT;
     
-    VkDescriptorPoolSize pool_sizes[] = {uniform_size, sampler_size};
+    VkDescriptorPoolSize texture_size = {};
+    texture_size.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    texture_size.descriptorCount = swapchain_info->image_count * box_count * MAX_TEXTURES;
+    VkDescriptorPoolSize pool_sizes[] = {uniform_size, sampler_size, texture_size};
     
     // Create descriptor pool.
     VkDescriptorPoolCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    create_info.poolSizeCount = 2;
+    create_info.poolSizeCount = 3;
     create_info.pPoolSizes = pool_sizes;
     create_info.maxSets = swapchain_info->image_count * box_count;
     

@@ -47,7 +47,6 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
     vkDestroyBuffer(vulkan_info->logical_device, staging_buffer, nullptr);
     vkFreeMemory(vulkan_info->logical_device, staging_buffer_memory, nullptr);
     font.texture.image_view = CreateImageView(vulkan_info, font.texture.image, VK_FORMAT_R8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, font.texture.mip_count);
-    CreateTextureSampler(vulkan_info, &font.texture);
     free(bitmap);
     free(buffer);
     return font;
@@ -137,6 +136,5 @@ Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 pos)
 void DestroyFont(const VulkanInfo *vulkan_info, BitmapFont *font)
 {
     free(font->character_data);
-    DestroyTexture(vulkan_info, &font->texture);
     *font = {};
 }

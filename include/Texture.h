@@ -10,7 +10,6 @@ struct Texture
     VkImageView image_view; // Vulkan imageview object. Must be recreated
     // on swapchain resize.
     VkDeviceMemory device_memory; // Vulkan device memory.
-    VkSampler sampler; // Vulkan texture sampler.
     uint32_t channel_count; // Number of channels (R/G/B/A)
     uint32_t mip_count; // Number of mip levels, 1 indicates no mipmaps.
     uint32_t width; // Texture width.
@@ -20,9 +19,6 @@ struct Texture
 
 // Loads a texture from a PNG file. 
 Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, uint32_t channel_count, bool generate_mips);
-
-// Creates the sampler for a texture.
-void CreateTextureSampler(const VulkanInfo *vulkan_info, Texture *texture);
 
 // Destroys a texture, freeing device memory and Vulkan objects.
 // Only call while queue is idle.
