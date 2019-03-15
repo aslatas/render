@@ -9,6 +9,14 @@ struct DirectionalLight
     vec4 ambient;
 };
 
+layout(push_constant) uniform PushBlock
+{
+    uint draw_index;
+    int scalar_parameters[7];
+    uint texture_indices[8];
+    vec4 vector_parameters[4];
+} push_block;
+
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;

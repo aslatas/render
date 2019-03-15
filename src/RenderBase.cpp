@@ -14,8 +14,8 @@
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 BitmapFont font;
-Texture texture;
-MaterialLayout *material_types;
+Texture *textures = nullptr;
+MaterialLayout *material_types = nullptr;
 
 //static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
@@ -136,18 +136,6 @@ void CreateDescriptorSets(Model *model)
         descriptor_info.offset = 0;
         descriptor_info.range = sizeof(UniformBufferObject);
         
-        VkDescriptorImageInfo image_info = {};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        // TODO(Matt): Temporary hack to get a second texture sampler for text.
-        if (model->shader_id == font.shader_id && model->material_type == font.material_type) {
-            
-            image_info.imageView = font.texture.image_view;
-            image_info.sampler = font.texture.sampler;
-            
-        } else {
-            image_info.imageView = texture.image_view;
-            image_info.sampler = texture.sampler;
-        }
         VkWriteDescriptorSet uniform_write = {};
         uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uniform_write.dstSet = model->descriptor_sets[i];
@@ -156,17 +144,8 @@ void CreateDescriptorSets(Model *model)
         uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uniform_write.descriptorCount = 1;
         uniform_write.pBufferInfo = &descriptor_info;
-        
-        VkWriteDescriptorSet sampler_write = {};
-        sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        sampler_write.dstSet = model->descriptor_sets[i];
-        sampler_write.dstBinding = 1;
-        sampler_write.dstArrayElement = 0;
-        sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        sampler_write.descriptorCount = 1;
-        sampler_write.pImageInfo = &image_info;
-        VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, &uniform_write, 0, nullptr);
+        UpdateTextureDescriptors(model->descriptor_sets[i]);
     }
 }
 
@@ -444,6 +423,9 @@ void OnWindowResized()
 MaterialLayout CreateMaterialLayout()
 {
     MaterialLayout layout = {};
+    CreateSamplers(&layout);
+    
+    // Binding 0 is uniform buffer.
     VkDescriptorSetLayoutBinding uniform_binding = {};
     uniform_binding.binding = 0;
     uniform_binding.descriptorCount = 1;
@@ -451,37 +433,52 @@ MaterialLayout CreateMaterialLayout()
     uniform_binding.pImmutableSamplers = nullptr;
     uniform_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     
-    // Binding 1 is first sampler, for now.
+    // Binding 1 is the texture sampler, for now.
     VkDescriptorSetLayoutBinding sampler_binding = {};
     sampler_binding.binding = 1;
-    sampler_binding.descriptorCount = 1;
-    sampler_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    sampler_binding.pImmutableSamplers = nullptr;
+    sampler_binding.descriptorCount = MATERIAL_SAMPLER_COUNT;
+    sampler_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    sampler_binding.pImmutableSamplers = layout.samplers;
     sampler_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     
-    // Binding 2 is second sampler, for now.
-    VkDescriptorSetLayoutBinding bindings[] = {uniform_binding, sampler_binding};
+    //VkDescriptorImageInfo image_infos[MAX_TEXTURES];
+    //for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+    //for (uint32_t i = 0; i < MAX_TEXTURES; ++i) {
+    //image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //image_infos[i].imageView = textures[(i > arrlen(textures)) ? 0 : i].image_view;
+    //}
+    //}
+    
+    // Binding 2 is the texture library, for now.
+    VkDescriptorSetLayoutBinding texture_binding = {};
+    texture_binding.binding = 2;
+    // TODO(Matt): Hardcode.
+    texture_binding.descriptorCount = MAX_TEXTURES;
+    texture_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    texture_binding.pImmutableSamplers = nullptr;
+    texture_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    //texture_binding.pImageInfo = image_infos;
+    
+    VkDescriptorSetLayoutBinding bindings[] = {uniform_binding, sampler_binding, texture_binding};
     VkDescriptorSetLayoutCreateInfo descriptor_info = {};
     descriptor_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptor_info.bindingCount = 2;
+    descriptor_info.bindingCount = 3;
     descriptor_info.pBindings = bindings;
     
     // Create descriptor set layouts.
     VkDescriptorSetLayout descriptor_layout;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
-        VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
         arrput(layout.descriptor_layouts, descriptor_layout);
     }
-    // NOTE(Matt): Push block has 128 bytes (the maximum guaranteed size):
-    //   - 4  byte Draw Index (for indexing into the uniform buffer).
-    //   - 32 byte texture index array (for accessing up to 16 textures).
-    //   - 48 byte user data (3 vectors of 4 channels).
-    //   - 60 byte user data (7 scalars at 4 bytes each).
+    
+    // Setup push constant block.
     VkPushConstantRange push_block = {};
     push_block.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     push_block.offset = 0;
     push_block.size = sizeof(PushConstantBlock);
-    std::cout << "Push Block Size: " << sizeof(PushConstantBlock) << " bytes" << std::endl;
+    std::cout << "Push Block Size: " << sizeof(PushConstantBlock) << std::endl;
+    // Setup pipeline create info.
     VkPipelineLayoutCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_info.setLayoutCount = swapchain_info.image_count;
@@ -809,18 +806,7 @@ void CreateModelDescriptorSets(uint32_t uniform_count,
         descriptor_info.offset = 0;
         descriptor_info.range = sizeof(UniformBufferObject);
         
-        VkDescriptorImageInfo image_info = {};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        // TODO(Matt): Temporary hack to get a second texture sampler for text.
-        if (shader_id == 4) {
-            
-            image_info.imageView = font.texture.image_view;
-            image_info.sampler = font.texture.sampler;
-            
-        } else {
-            image_info.imageView = texture.image_view;
-            image_info.sampler = texture.sampler;
-        }
+        
         VkWriteDescriptorSet uniform_write = {};
         uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uniform_write.dstSet = descriptor_sets[i];
@@ -829,17 +815,8 @@ void CreateModelDescriptorSets(uint32_t uniform_count,
         uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uniform_write.descriptorCount = 1;
         uniform_write.pBufferInfo = &descriptor_info;
-        
-        VkWriteDescriptorSet sampler_write = {};
-        sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        sampler_write.dstSet = descriptor_sets[i];
-        sampler_write.dstBinding = 1;
-        sampler_write.dstArrayElement = 0;
-        sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        sampler_write.descriptorCount = 1;
-        sampler_write.pImageInfo = &image_info;
-        VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+        vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &uniform_write, 0, nullptr);
+        UpdateTextureDescriptors(descriptor_sets[i]);
     }
 }
 
@@ -847,8 +824,9 @@ void InitializeSceneResources()
 {
     // Load fonts and textures.
     // TODO(Matt): Move texture/font initialization somewhere else.
-    texture = LoadTexture(&vulkan_info, "resources/textures/proto.jpg", 4, true);
+    arrput(textures, LoadTexture(&vulkan_info, "resources/textures/proto.jpg", 4, true));
     font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
+    arrput(textures, font.texture);
 }
 void InitializeScene()
 {
@@ -879,8 +857,9 @@ void DestroyMaterials()
             vkDestroyPipeline(vulkan_info.logical_device, material_types[i].materials[j].pipeline, nullptr);
             // TODO(Matt): Put model destruction here once it's moved.
         }
-        for (uint32_t j = 0; j < swapchain_info.image_count; ++j) {
-            vkDestroyDescriptorSetLayout(vulkan_info.logical_device, material_types[i].descriptor_layouts[j], nullptr);
+        vkDestroyDescriptorSetLayout(vulkan_info.logical_device, material_types[i].descriptor_layouts[0], nullptr);
+        for (uint32_t j = 0; j < MATERIAL_SAMPLER_COUNT; ++j) {
+            vkDestroySampler(vulkan_info.logical_device, material_types[i].samplers[j], nullptr);
         }
         vkDestroyPipelineLayout(vulkan_info.logical_device, material_types[i].pipeline_layout, nullptr);
         arrfree(material_types[i].materials);
@@ -950,5 +929,54 @@ uint32_t GetUniformCount()
 void DestroySceneResources()
 {
     DestroyFont(&vulkan_info, &font);
-    DestroyTexture(&vulkan_info, &texture);
+    for (uint32_t i = 0; i < arrlen(textures); ++i) {
+        DestroyTexture(&vulkan_info, &textures[i]);
+    }
+    arrfree(textures);
+}
+
+void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
+{
+    VkDescriptorImageInfo image_infos[MAX_TEXTURES];
+    for (uint32_t i = 0; i < MAX_TEXTURES; ++i) {
+        image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_infos[i].imageView = textures[(i >= arrlen(textures)) ? 0 : i].image_view;
+    }
+    
+    VkWriteDescriptorSet sampler_write = {};
+    sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    sampler_write.dstSet = descriptor_set;
+    sampler_write.dstBinding = 2;
+    sampler_write.dstArrayElement = 0;
+    sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    sampler_write.descriptorCount = MAX_TEXTURES;
+    sampler_write.pImageInfo = image_infos;
+    vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &sampler_write, 0, nullptr);
+}
+
+void CreateSamplers(MaterialLayout *layout)
+{
+    VkSamplerCreateInfo sampler_create_info = {};
+    sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_create_info.magFilter = VK_FILTER_LINEAR;
+    sampler_create_info.minFilter = VK_FILTER_LINEAR;
+    sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_create_info.anisotropyEnable = VK_TRUE;
+    // TODO(Matt): Hardcode.
+    sampler_create_info.maxAnisotropy = 16;
+    sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    sampler_create_info.unnormalizedCoordinates = VK_FALSE;
+    sampler_create_info.compareEnable = VK_FALSE;
+    sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_create_info.mipLodBias = 0.0f;
+    sampler_create_info.minLod = 0.0f;
+    // TODO(Matt): Hardcode.
+    sampler_create_info.maxLod = MAX_SAMPLER_LOD;
+    
+    for (uint32_t i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
+        VK_CHECK_RESULT(vkCreateSampler(vulkan_info.logical_device, &sampler_create_info, nullptr, &layout->samplers[i]));
+    }
 }

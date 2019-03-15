@@ -44,31 +44,7 @@ Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, uint32_t ch
     vkDestroyBuffer(vulkan_info->logical_device, staging_buffer, nullptr);
     vkFreeMemory(vulkan_info->logical_device, staging_buffer_memory, nullptr);
     texture.image_view = CreateImageView(vulkan_info, texture.image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture.mip_count);
-    CreateTextureSampler(vulkan_info, &texture);
     return texture;
-}
-
-void CreateTextureSampler(const VulkanInfo *vulkan_info, Texture *texture)
-{
-    VkSamplerCreateInfo sampler_create_info = {};
-    sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    sampler_create_info.magFilter = VK_FILTER_LINEAR;
-    sampler_create_info.minFilter = VK_FILTER_LINEAR;
-    sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_create_info.anisotropyEnable = VK_TRUE;
-    sampler_create_info.maxAnisotropy = 16;
-    sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    sampler_create_info.unnormalizedCoordinates = VK_FALSE;
-    sampler_create_info.compareEnable = VK_FALSE;
-    sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
-    sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    sampler_create_info.mipLodBias = 0.0f;
-    sampler_create_info.minLod = 0.0;
-    sampler_create_info.maxLod = (texture->mip_count > 1) ? (float)texture->mip_count : 0.0f;
-    
-    VK_CHECK_RESULT(vkCreateSampler(vulkan_info->logical_device, &sampler_create_info, nullptr, &texture->sampler));
 }
 
 VkFormat GetFormatFromChannelCount(uint32_t channel_count)
@@ -87,7 +63,7 @@ VkFormat GetFormatFromChannelCount(uint32_t channel_count)
 
 void DestroyTexture(const VulkanInfo *vulkan_info, Texture *texture)
 {
-    vkDestroySampler(vulkan_info->logical_device, texture->sampler, nullptr);
+    
     vkDestroyImageView(vulkan_info->logical_device, texture->image_view, nullptr);
     vkDestroyImage(vulkan_info->logical_device, texture->image, nullptr);
     vkFreeMemory(vulkan_info->logical_device, texture->device_memory, nullptr);

@@ -1,6 +1,6 @@
 
 #version 450
-
+#extension GL_ARB_separate_shader_objects : enable
 struct DirectionalLight
 {
     vec4 direction;
@@ -8,7 +8,6 @@ struct DirectionalLight
     vec4 specular;
     vec4 ambient;
 };
-
 
 layout(push_constant) uniform PushBlock
 {
@@ -18,7 +17,7 @@ layout(push_constant) uniform PushBlock
     vec4 vector_parameters[4];
 } push_block;
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;

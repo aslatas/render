@@ -7,6 +7,17 @@
 // TODO(Matt): Whip up a heap alloc'd array, or grab stb stretchybuffer.
 // There's a lot of easy to leak heap memory in here.
 #define MAX_FRAMES_IN_FLIGHT 2
+// Number of samplers allowed by a material. Note that this 16 is the
+// guaranteed minimum, and the push constant block size assumes this as
+// well.
+#define MATERIAL_SAMPLER_COUNT 16
+
+// Maximum number of loaded textures.
+#define MAX_TEXTURES 8
+
+// Max LOD for texture samplers. 16 Levels allows for unreasonably large
+// textures.
+#define MAX_SAMPLER_LOD 16
 
 // Stores vulkan information that must be recreated with the swapchain.
 struct SwapchainInfo
@@ -80,11 +91,11 @@ struct PushConstantBlock
 {
     uint32_t draw_index;
     int32_t scalar_parameters[7];
-    union texture_indices
+    union 
     {
-        uint16_t thin[16];
-        uint32_t wide[8];
-    };
+        uint16_t thin[MATERIAL_SAMPLER_COUNT];
+        uint32_t wide[MATERIAL_SAMPLER_COUNT / 2];
+    } texture_indices;
     glm::vec4 vector_parameters[4];
 };
 
@@ -93,6 +104,8 @@ struct PushConstantBlock
 struct MaterialLayout
 {
     VkPipelineLayout pipeline_layout; // Pipeline layout.
+    // TODO(Matt): Hardcode.
+    VkSampler samplers[MATERIAL_SAMPLER_COUNT]; // Immutable texture samplers.
     
     // Heap allocated.
     VkDescriptorSetLayout *descriptor_layouts; // Descriptor layouts.
@@ -182,3 +195,9 @@ const SwapchainInfo *GetSwapchainInfo();
 uint32_t GetUniformCount();
 void InitializeSceneResources();
 void DestroySceneResources();
+
+// Updates a descriptor set with the texture bindings.
+void UpdateTextureDescriptors(VkDescriptorSet descriptor_set);
+
+// Create the immutable samplers for a material layout.
+void CreateSamplers(MaterialLayout *layout);

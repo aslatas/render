@@ -1,5 +1,6 @@
 
 #version 450
+#extension GL_ARB_separate_shader_objects : enable
 
 struct DirectionalLight
 {
@@ -17,7 +18,8 @@ layout(push_constant) uniform PushBlock
     vec4 vector_parameters[4];
 } push_block;
 
-layout(binding = 0) uniform UniformBufferObject {
+
+layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
@@ -25,7 +27,8 @@ layout(binding = 0) uniform UniformBufferObject {
     DirectionalLight sun;
 } ubo;
 
-layout(binding = 1) uniform sampler2D texture_sampler;
+layout(set = 0, binding = 1) uniform sampler samplers[16];
+layout(set = 0, binding = 2) uniform texture2D textures[8];
 
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
@@ -47,7 +50,7 @@ void main()
     vec3 specular = pow(max(dot(view_dir, reflect_dir), 0.0), 64.0f) * ubo.sun.specular.rgb;  
     
     vec3 result = ubo.sun.ambient.rgb + diffuse + specular;
-    out_color = vec4(result * texture(texture_sampler, in_uv0).rgb, 1.0f);
-    
+    vec3 base_color = texture(sampler2D(textures[push_block.texture_indices[0]], samplers[0]), in_uv0).rgb;
+    out_color = vec4(result * base_color, 1.0f);
 }
 
