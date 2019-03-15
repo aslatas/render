@@ -2,27 +2,18 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <vector>
 #include <string.h>
-#include <jsonhpp/json.hpp>
+#include <ctime>
 
-using json = nlohmann::json;
+#include <rapidjson/document.h>
+#include <rapidjson/filereadstream.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
 
-/*
-  "pi": 3.141,
-  "happy": true,
-  "name": "Niels",
-  "nothing": null,
-  "answer": {
-    "everything": 42
-  },
-  "list": [1, 0, 2],
-  "object": {
-    "currency": "USD",
-    "value": 42.99
-  }
-*/
+using namespace rapidjson;
 
+// A strucutre that matches a layout in a json file. When reading this type
+// of json, its values are loaded into an insteance of this struct.
 struct TestJSON {
   double pi;
   bool happy;
@@ -35,79 +26,110 @@ struct TestJSON {
   
   int* list;
   int size;
+
   struct Object {
     char* currency;
     double value;
   } object;
-
 };
 
+
 TestJSON* LoadTestJSON(char* filename)
-{
-  std::ifstream i(filename);
-  json j;
-  i >> j;
+{ 
+
+  // Read from the file
+  FILE *fp = fopen(filename, "r");
+  if (!fp)
+    return nullptr;
+
+  // Get the length of the file
+  fseek(fp, 0, SEEK_END);
+  const size_t size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+
+  char* buffer = (char*)malloc(size);
+  FileReadStream frs(fp, buffer, size);
+
+  fclose(fp);
+
+  // Load the JSON into the struct
+  Document j;
+  j.Parse(buffer);
 
   TestJSON *test = (TestJSON*)malloc(sizeof(TestJSON));
 
-  test->pi = j["pi"];
-  test->happy = j["happy"];
+  test->pi = j["pi"].GetDouble();
+  test->happy = j["happy"].GetBool();
 
-  // We are probably going to want to avoid using strings as much as possible with this
-  std::string name = j["name"];
-  size_t len = name.size();
-  test->name = (char*)malloc(len);
-  strncpy(test->name, name.data(), len);
+  // Note(Dustin): GetStringLength and strlen() can return different values, but I am not sure which one is more
+  // reliable quite yet
+  size_t name_len = j["name"].GetStringLength();
+  test->name = (char*)malloc(name_len + 1);
+  strncpy(test->name, j["name"].GetString(), name_len);
+  test->name[name_len] = '\0';
   
-  //test.nothing = j["nothing"];
-  test->answer.everything = j["answer"]["everything"];
+  test->answer.everything = j["answer"]["everything"].GetInt();
 
-  std::vector<int> list = j["list"];
-  test->size = (int)list.size();
+  test->size = j["list"].Size();
   test->list = (int*)malloc(sizeof(int) *  test->size);
   for (int i = 0; i <  test->size; ++i)
   {
-    test->list[i] = list[i];
+    test->list[i] = j["list"][i].GetInt();
   }
-  list.resize(0);
 
-  // We are probably going to want to avoid using strings as much as possible with this
-  std::string object_currency = j["object"]["currency"];
-  size_t oc_len = object_currency.size();
-  test->object.currency = (char*)malloc(oc_len);
-  strncpy(test->object.currency, object_currency.data(), oc_len);
+  size_t curr_len = j["object"]["currency"].GetStringLength();
+  test->object.currency = (char*)malloc(curr_len + 1);
+  strncpy(test->object.currency, j["object"]["currency"].GetString(), curr_len);
+  test->object.currency[curr_len] = '\0';
 
-  test->object.value = j["object"]["value"];
+  test->object.value = j["object"]["value"].GetDouble();
+
+  free(buffer);
 
   return test;
 }
 
 void SaveTestJSON(char* filename, TestJSON* test)
 {
+  // Write the struct to the json
+  Document j;
+  j.SetObject();
+  Document::AllocatorType& allocator = j.GetAllocator();
 
-  // Fill in the JSON data to write
-  json j;
-  j["pi"] = test->pi;
-  j["happy"] = test->happy;
-  j["name"] = std::string(test->name);
-  j["nothing"] = nullptr;
-  j["answer"]["everything"] = test->answer.everything;
+  j.AddMember("pi", Value().SetDouble(test->pi), allocator);
+  j.AddMember("happy", Value().SetBool(test->happy), allocator);
+  j.AddMember("name", StringRef(test->name), allocator);
 
-  // Another downside: it doesn't handle pointers too well: have to convert this list
-  // to a std::vector
-  //int size = sizeof(test->list) / sizeof(test->list[0]);
-  std::vector<int> list;
+  Value answer(kObjectType);
+  j.AddMember("answer", answer, allocator);
+  j["answer"].AddMember("everything", Value().SetInt(test->answer.everything), allocator);
+
+  Value list(kArrayType);
   for (int i = 0; i < test->size; ++i)
   {
-    list.push_back(test->list[i]);
+    list.PushBack(Value().SetInt(test->list[i]), allocator);
   }
-  j["list"] = list;
+  j.AddMember("list", list, allocator);
 
-  j["object"] = { {"currency", std::string(test->object.currency)}, {"value", test->object.value} };
 
-  // write to a json file with new json
-  std::ofstream o(filename);
-  o << std::setw(2) << j << std::endl;
+  Value object(kObjectType);
+  j.AddMember("object", object, allocator);
+  j["object"].AddMember("currency", StringRef(test->object.currency), allocator);
+  j["object"].AddMember("value", test->object.value, allocator);
+
+  
+  // Write to the specified file
+  StringBuffer buffer;
+  PrettyWriter<StringBuffer> writer(buffer);
+  j.Accept(writer);
+
+  FILE* fp = fopen(filename, "w+");
+  if (!fp)
+  {
+    printf("Failed to write to file %s!\n", filename);
+  }
+  fputs(buffer.GetString(), fp);
+  fclose(fp);
 }
 
 void FreeTestJSON(TestJSON* test)
@@ -121,20 +143,20 @@ void FreeTestJSON(TestJSON* test)
 int main(void)
 {
 
-  // read from a json file
+  clock_t a = clock();
   TestJSON* test = LoadTestJSON("../../json/test.json");
-  
+  clock_t b = clock();
+  std::cout << "Read time: " << b - a << std::endl;
 
   // Make some changes to the json data
 
 
 
   // Create new json and write new data to it
-
-
-
-  
-  SaveTestJSON("../../json/test_out.json", test);
+  a = clock();
+  SaveTestJSON("../../json/test.json", test);
+  b = clock();
+  std::cout << "Write time: " << b - a << std::endl;
 
   FreeTestJSON(test);
 
