@@ -14,8 +14,8 @@
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
 BitmapFont font;
-Texture texture;
-MaterialLayout *material_types;
+Texture *textures = nullptr;
+MaterialLayout *material_types = nullptr;
 
 //static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
@@ -136,18 +136,6 @@ void CreateDescriptorSets(Model *model)
         descriptor_info.offset = 0;
         descriptor_info.range = sizeof(UniformBufferObject);
         
-        VkDescriptorImageInfo image_info = {};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        // TODO(Matt): Temporary hack to get a second texture sampler for text.
-        if (model->shader_id == font.shader_id && model->material_type == font.material_type) {
-            
-            image_info.imageView = font.texture.image_view;
-            image_info.sampler = font.texture.sampler;
-            
-        } else {
-            image_info.imageView = texture.image_view;
-            image_info.sampler = texture.sampler;
-        }
         VkWriteDescriptorSet uniform_write = {};
         uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uniform_write.dstSet = model->descriptor_sets[i];
@@ -156,17 +144,8 @@ void CreateDescriptorSets(Model *model)
         uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uniform_write.descriptorCount = 1;
         uniform_write.pBufferInfo = &descriptor_info;
-        
-        VkWriteDescriptorSet sampler_write = {};
-        sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        sampler_write.dstSet = model->descriptor_sets[i];
-        sampler_write.dstBinding = 1;
-        sampler_write.dstArrayElement = 0;
-        sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        sampler_write.descriptorCount = 1;
-        sampler_write.pImageInfo = &image_info;
-        VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, &uniform_write, 0, nullptr);
+        UpdateTextureDescriptors(model->descriptor_sets[i]);
     }
 }
 
@@ -206,13 +185,21 @@ void RecordPrimaryCommand(uint32_t image_index)
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
                 // Model *model = &material->models[k];
                 Model_Separate_Data *model = &material->models[k];
-
+                
                 // Bind the vertex, index, and uniform buffers.
                 VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
                 vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, model->model_data->attribute_offsets);
                 vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], model->index_buffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_type->pipeline_layout, 0, 1, &model->descriptor_sets[image_index], 0, nullptr);
-                
+                PushConstantBlock push_block = {};
+                push_block.scalar_parameters[0] = 1;
+                push_block.scalar_parameters[1] = 2;
+                push_block.scalar_parameters[2] = 3;
+                push_block.scalar_parameters[3] = 4;
+                push_block.scalar_parameters[4] = 5;
+                push_block.scalar_parameters[5] = 6;
+                push_block.scalar_parameters[6] = 7;
+                vkCmdPushConstants(swapchain_info.primary_command_buffers[image_index], material_type->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantBlock), (void *)&push_block);
                 // Draw the model.
                 vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], model->index_count, 1, 0, 0, 0);
             }
@@ -235,7 +222,7 @@ void RecordPrimaryCommand(uint32_t image_index)
         for (uint32_t i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
             Model_Separate_Data* model = selected_models[i];
-
+            
             // Bind the vertex, index, and uniform buffers.
             VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
             vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, model->model_data->attribute_offsets);
@@ -423,6 +410,9 @@ void OnWindowResized()
 MaterialLayout CreateMaterialLayout()
 {
     MaterialLayout layout = {};
+    CreateSamplers(&layout);
+    
+    // Binding 0 is uniform buffer.
     VkDescriptorSetLayoutBinding uniform_binding = {};
     uniform_binding.binding = 0;
     uniform_binding.descriptorCount = 1;
@@ -430,32 +420,58 @@ MaterialLayout CreateMaterialLayout()
     uniform_binding.pImmutableSamplers = nullptr;
     uniform_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     
-    // Binding 1 is first sampler, for now.
+    // Binding 1 is the texture sampler, for now.
     VkDescriptorSetLayoutBinding sampler_binding = {};
     sampler_binding.binding = 1;
-    sampler_binding.descriptorCount = 1;
-    sampler_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    sampler_binding.pImmutableSamplers = nullptr;
+    sampler_binding.descriptorCount = MATERIAL_SAMPLER_COUNT;
+    sampler_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    sampler_binding.pImmutableSamplers = layout.samplers;
     sampler_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     
-    // Binding 2 is second sampler, for now.
-    VkDescriptorSetLayoutBinding bindings[] = {uniform_binding, sampler_binding};
+    //VkDescriptorImageInfo image_infos[MAX_TEXTURES];
+    //for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+    //for (uint32_t i = 0; i < MAX_TEXTURES; ++i) {
+    //image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //image_infos[i].imageView = textures[(i > arrlen(textures)) ? 0 : i].image_view;
+    //}
+    //}
+    
+    // Binding 2 is the texture library, for now.
+    VkDescriptorSetLayoutBinding texture_binding = {};
+    texture_binding.binding = 2;
+    // TODO(Matt): Hardcode.
+    texture_binding.descriptorCount = MAX_TEXTURES;
+    texture_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    texture_binding.pImmutableSamplers = nullptr;
+    texture_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    //texture_binding.pImageInfo = image_infos;
+    
+    VkDescriptorSetLayoutBinding bindings[] = {uniform_binding, sampler_binding, texture_binding};
     VkDescriptorSetLayoutCreateInfo descriptor_info = {};
     descriptor_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptor_info.bindingCount = 2;
+    descriptor_info.bindingCount = 3;
     descriptor_info.pBindings = bindings;
     
     // Create descriptor set layouts.
     VkDescriptorSetLayout descriptor_layout;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
-        VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
         arrput(layout.descriptor_layouts, descriptor_layout);
     }
+    
+    // Setup push constant block.
+    VkPushConstantRange push_block = {};
+    push_block.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    push_block.offset = 0;
+    push_block.size = sizeof(PushConstantBlock);
+    
+    // Setup pipeline create info.
     VkPipelineLayoutCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_info.setLayoutCount = swapchain_info.image_count;
     pipeline_info.pSetLayouts = layout.descriptor_layouts;
-    
+    pipeline_info.pushConstantRangeCount = 1;
+    pipeline_info.pPushConstantRanges = &push_block;
     VK_CHECK_RESULT(vkCreatePipelineLayout(vulkan_info.logical_device, &pipeline_info, nullptr, &layout.pipeline_layout));
     return layout;
 }
@@ -496,7 +512,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
         frag_create_info.pName = "main";
         result.shader_stages[1] = frag_create_info;
     }
-
+    
     // TODO(Dustin): Figure out offsets
     
     result.input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -508,75 +524,75 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.binding_description[0].binding = 0;
     result.binding_description[0].stride = sizeof(glm::vec3);
     result.binding_description[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     // Normal
     result.binding_description[1].binding = 1;
     result.binding_description[1].stride = sizeof(glm::vec3);
     result.binding_description[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     // Tangent
     result.binding_description[2].binding = 2;
     result.binding_description[2].stride = sizeof(glm::vec4);
     result.binding_description[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     /// Color
     result.binding_description[3].binding = 3;
     result.binding_description[3].stride = sizeof(glm::vec4);
     result.binding_description[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     // UV0
     result.binding_description[4].binding = 4;
     result.binding_description[4].stride = sizeof(glm::vec2);
     result.binding_description[4].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     // UV1
     result.binding_description[5].binding = 5;
     result.binding_description[5].stride = sizeof(glm::vec2);
     result.binding_description[5].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+    
     // UV2
     result.binding_description[6].binding = 6;
     result.binding_description[6].stride = sizeof(glm::vec2);
     result.binding_description[6].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-
+    
+    
     // Attribute Descriptions
     // Position
     result.attribute_descriptions[0].binding = result.binding_description[0].binding;
     result.attribute_descriptions[0].location = 0;
     result.attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     result.attribute_descriptions[0].offset = 0;
-
+    
     // Normal
     result.attribute_descriptions[1].binding = result.binding_description[1].binding;
     result.attribute_descriptions[1].location = 1;
     result.attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     result.attribute_descriptions[1].offset = 0;   
-
+    
     // Tangent
     result.attribute_descriptions[2].binding = result.binding_description[2].binding;
     result.attribute_descriptions[2].location = 2;
     result.attribute_descriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     result.attribute_descriptions[2].offset = 0;
-
+    
     // Color
     result.attribute_descriptions[3].binding = result.binding_description[3].binding;
     result.attribute_descriptions[3].location = 3;
     result.attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     result.attribute_descriptions[3].offset = 0;
-
+    
     // UV0
     result.attribute_descriptions[4].binding = result.binding_description[4].binding;
     result.attribute_descriptions[4].location = 4;
     result.attribute_descriptions[4].format = VK_FORMAT_R32G32_SFLOAT;
     result.attribute_descriptions[4].offset = 0;
-
+    
     // UV1
     result.attribute_descriptions[5].binding = result.binding_description[5].binding;
     result.attribute_descriptions[5].location = 5;
     result.attribute_descriptions[5].format = VK_FORMAT_R32G32_SFLOAT;
     result.attribute_descriptions[5].offset = 0;
-
+    
     // UV2
     result.attribute_descriptions[6].binding = result.binding_description[6].binding;
     result.attribute_descriptions[6].location = 6;
@@ -791,18 +807,6 @@ void CreateModelDescriptorSets(uint32_t uniform_count,
         descriptor_info.offset = 0;
         descriptor_info.range = sizeof(UniformBufferObject);
         
-        VkDescriptorImageInfo image_info = {};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        // TODO(Matt): Temporary hack to get a second texture sampler for text.
-        if (shader_id == font.shader_id && material_type == font.material_type) {
-            
-            image_info.imageView = font.texture.image_view;
-            image_info.sampler = font.texture.sampler;
-            
-        } else {
-            image_info.imageView = texture.image_view;
-            image_info.sampler = texture.sampler;
-        }
         VkWriteDescriptorSet uniform_write = {};
         uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uniform_write.dstSet = descriptor_sets[i];
@@ -811,17 +815,8 @@ void CreateModelDescriptorSets(uint32_t uniform_count,
         uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uniform_write.descriptorCount = 1;
         uniform_write.pBufferInfo = &descriptor_info;
-        
-        VkWriteDescriptorSet sampler_write = {};
-        sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        sampler_write.dstSet = descriptor_sets[i];
-        sampler_write.dstBinding = 1;
-        sampler_write.dstArrayElement = 0;
-        sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        sampler_write.descriptorCount = 1;
-        sampler_write.pImageInfo = &image_info;
-        VkWriteDescriptorSet descriptor_writes[] = {uniform_write, sampler_write};
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, descriptor_writes, 0, nullptr);
+        vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &uniform_write, 0, nullptr);
+        UpdateTextureDescriptors(descriptor_sets[i]);
     }
 }
 
@@ -829,8 +824,9 @@ void InitializeSceneResources()
 {
     // Load fonts and textures.
     // TODO(Matt): Move texture/font initialization somewhere else.
-    texture = LoadTexture(&vulkan_info, "resources/textures/proto.jpg", 4, true);
+    arrput(textures, LoadTexture(&vulkan_info, "resources/textures/proto.jpg", 4, true));
     font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
+    arrput(textures, font.texture);
 }
 void InitializeScene()
 {
@@ -843,7 +839,7 @@ void InitializeScene()
     else printf("FAILURE TO LOAD MODEL\n");
     // Model_Separate_Data model = CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0);
     // AddToScene(model);
-
+    
     // DestroyModelSeparateDataTest(&m, &vulkan_info);
     
     // Add screen-space elements.
@@ -861,8 +857,9 @@ void DestroyMaterials()
             vkDestroyPipeline(vulkan_info.logical_device, material_types[i].materials[j].pipeline, nullptr);
             // TODO(Matt): Put model destruction here once it's moved.
         }
-        for (uint32_t j = 0; j < swapchain_info.image_count; ++j) {
-            vkDestroyDescriptorSetLayout(vulkan_info.logical_device, material_types[i].descriptor_layouts[j], nullptr);
+        vkDestroyDescriptorSetLayout(vulkan_info.logical_device, material_types[i].descriptor_layouts[0], nullptr);
+        for (uint32_t j = 0; j < MATERIAL_SAMPLER_COUNT; ++j) {
+            vkDestroySampler(vulkan_info.logical_device, material_types[i].samplers[j], nullptr);
         }
         vkDestroyPipelineLayout(vulkan_info.logical_device, material_types[i].pipeline_layout, nullptr);
         arrfree(material_types[i].materials);
@@ -888,25 +885,25 @@ void AddToScene(Model_Separate_Data model)
     model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
     model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
     model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
-
+    
     VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(uint32_t) * model.index_count);
     // VkDeviceSize v_len = model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec4) +
     //                      model.vertex_count * sizeof(glm::vec4) + model.vertex_count * sizeof(glm::vec2) + model.vertex_count * sizeof(glm::vec2) + 
     //                      model.vertex_count * sizeof(glm::vec2);
-
-
+    
+    
     CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     CreateModelUniformBuffers(sizeof(UniformBufferObject), 
-                               model.uniform_buffers, 
-                               model.uniform_buffers_memory, 
-                               model.uniform_count);
+                              model.uniform_buffers, 
+                              model.uniform_buffers_memory, 
+                              model.uniform_count);
     CreateModelDescriptorSets(model.uniform_count, 
-                               model.material_type, 
-                               model.shader_id, 
-                               model.uniform_buffers, 
-                               model.descriptor_sets);
-
+                              model.material_type, 
+                              model.shader_id, 
+                              model.uniform_buffers, 
+                              model.descriptor_sets);
+    
     // CreateVertexBuffer(&model);
     // CreateIndexBuffer(&model);
     // CreateUniformBuffers(&model);
@@ -932,5 +929,54 @@ uint32_t GetUniformCount()
 void DestroySceneResources()
 {
     DestroyFont(&vulkan_info, &font);
-    DestroyTexture(&vulkan_info, &texture);
+    for (uint32_t i = 0; i < arrlen(textures); ++i) {
+        DestroyTexture(&vulkan_info, &textures[i]);
+    }
+    arrfree(textures);
+}
+
+void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
+{
+    VkDescriptorImageInfo image_infos[MAX_TEXTURES];
+    for (uint32_t i = 0; i < MAX_TEXTURES; ++i) {
+        image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_infos[i].imageView = textures[(i >= arrlen(textures)) ? 0 : i].image_view;
+    }
+    
+    VkWriteDescriptorSet sampler_write = {};
+    sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    sampler_write.dstSet = descriptor_set;
+    sampler_write.dstBinding = 2;
+    sampler_write.dstArrayElement = 0;
+    sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    sampler_write.descriptorCount = MAX_TEXTURES;
+    sampler_write.pImageInfo = image_infos;
+    vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &sampler_write, 0, nullptr);
+}
+
+void CreateSamplers(MaterialLayout *layout)
+{
+    VkSamplerCreateInfo sampler_create_info = {};
+    sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_create_info.magFilter = VK_FILTER_LINEAR;
+    sampler_create_info.minFilter = VK_FILTER_LINEAR;
+    sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_create_info.anisotropyEnable = VK_TRUE;
+    // TODO(Matt): Hardcode.
+    sampler_create_info.maxAnisotropy = 16;
+    sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    sampler_create_info.unnormalizedCoordinates = VK_FALSE;
+    sampler_create_info.compareEnable = VK_FALSE;
+    sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_create_info.mipLodBias = 0.0f;
+    sampler_create_info.minLod = 0.0f;
+    // TODO(Matt): Hardcode.
+    sampler_create_info.maxLod = MAX_SAMPLER_LOD;
+    
+    for (uint32_t i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
+        VK_CHECK_RESULT(vkCreateSampler(vulkan_info.logical_device, &sampler_create_info, nullptr, &layout->samplers[i]));
+    }
 }

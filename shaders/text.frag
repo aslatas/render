@@ -9,7 +9,15 @@ struct DirectionalLight
     vec4 ambient;
 };
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(push_constant) uniform PushBlock
+{
+    uint draw_index;
+    int scalar_parameters[7];
+    uint texture_indices[8];
+    vec4 vector_parameters[4];
+} push_block;
+
+layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
@@ -17,7 +25,8 @@ layout(binding = 0) uniform UniformBufferObject {
     DirectionalLight sun;
 } ubo;
 
-layout(binding = 1) uniform sampler2D texture_sampler;
+layout(set = 0, binding = 1) uniform sampler samplers[16];
+layout(set = 0, binding = 2) uniform texture2D textures[8];
 
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
@@ -29,6 +38,6 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     //if (texture(texture_sampler, in_uv0).r < 0.333) discard;
-    out_color = vec4(1.0f, 1.0f, 1.0f, texture(texture_sampler, in_uv0).r);
-    
+    float alpha = texture(sampler2D(textures[push_block.texture_indices[0]], samplers[0]), in_uv0).r;
+    out_color = vec4(1.0, 1.0, 1.0, alpha);    
 }

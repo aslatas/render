@@ -8,6 +8,13 @@ struct DirectionalLight
     vec4 specular;
     vec4 ambient;
 };
+layout(push_constant) uniform PushBlock
+{
+    uint draw_index;
+    int scalar_parameters[7];
+    uint texture_indices[8];
+    vec4 vector_parameters[4];
+} push_block;
 
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
@@ -29,6 +36,7 @@ layout(location = 0) out vec3 out_position;
 layout(location = 1) out vec3 out_normal;
 layout(location = 2) out vec3 out_color;
 void main() {
+    
     vec4 pos = ubo.model * vec4(in_position, 1.0f);
     out_position = pos.rgb;
     out_normal = mat3(transpose(inverse(ubo.model))) * in_normal;

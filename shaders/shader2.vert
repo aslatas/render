@@ -1,6 +1,6 @@
 
 #version 450
-
+#extension GL_ARB_separate_shader_objects : enable
 struct DirectionalLight
 {
     vec4 direction;
@@ -9,7 +9,15 @@ struct DirectionalLight
     vec4 ambient;
 };
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(push_constant) uniform PushBlock
+{
+    uint draw_index;
+    int scalar_parameters[7];
+    uint texture_indices[8];
+    vec4 vector_parameters[4];
+} push_block;
+
+layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
