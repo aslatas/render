@@ -6,15 +6,13 @@ typedef enum {
   DIRECTIONAL
 } ELightType;
 
-struct SceneSettings {
-  struct SceneModelData {
+struct SceneModelData {
     char* filepath;
-    long id;
+    int id;
     float model_matrix[16]; // mat4
-  } *model_data;
-  uint32_t num_models;
+};
 
-  struct SceneCameraData {
+struct SceneCameraData {
     float position[3];       // vec3
     float up_vector[3];      // vec3
     float look_at_vector[3]; // vec3
@@ -22,22 +20,32 @@ struct SceneSettings {
     float yaw;
     float roll;
     float zoom;
-  } *camera_data;
-  uint32_t num_cameras;
+};
 
-  struct SceneLightData {
-    ELightType light_type;
-    float position[3];   // vec3
-    struct Color {
+struct Color {
       float diffuse[3];  // vec3
       float specular[3]; // vec3
       float ambient[3];  // vec3
-    } color;
+}; 
+
+struct SceneLightData {
+    ELightType light_type;
+    float position[3];   // vec3
+    Color color;
     float direction[4];  // vec4
-  } *light_data;
+};
+
+struct SceneSettings {
+   SceneModelData *model_data;
+  uint32_t num_models;
+
+  SceneCameraData *camera_data;
+  uint32_t num_cameras;
+
+  SceneLightData *light_data;
   uint32_t num_lights;
 };
 
 SceneSettings* LoadSceneSettings(char* filename);
 void SaveSceneSettings(char* filename);
-void FreePScneeSettings(SceneSettings* scene_settings);
+void FreeSceneSettings(SceneSettings* scene_settings);

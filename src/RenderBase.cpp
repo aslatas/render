@@ -776,6 +776,9 @@ void InitializeScene()
     if (result == MODEL_LOAD_RESULT_SUCCESS)
         AddToScene(*model);
     else printf("FAILURE TO LOAD MODEL\n");
+
+
+    
     // Model_Separate_Data model = CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0);
     // AddToScene(model);
     
