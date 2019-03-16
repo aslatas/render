@@ -910,6 +910,6 @@ void CreateGlobalUniformBuffers()
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
         VkDeviceSize size = sizeof(UniformBufferObject) * MAX_OBJECTS;
         
-        CreateBuffer(&vulkan_info, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, uniform_buffers_new[i], uniform_buffers_memory_new[i]);
+        CreateBuffer(&vulkan_info, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers_new[i], uniform_buffers_memory_new[i]);
     }
 }
