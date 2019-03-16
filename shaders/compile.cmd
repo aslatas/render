@@ -4,21 +4,21 @@ if not exist spv mkdir spv
 
 pushd spv
 
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\shader.vert -o vert.spv
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\shader.frag -o frag.spv
+glslc ..\shader.vert -o vert.spv
+glslc ..\shader.frag -o frag.spv
 
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\shader2.vert -o vert2.spv
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\shader2.frag -o frag2.spv
+glslc ..\shader2.vert -o vert2.spv
+glslc ..\shader2.frag -o frag2.spv
 
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\stencil.vert -o stencil_vert.spv
+glslc ..\stencil.vert -o stencil_vert.spv
 
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\outline.vert -o outline_vert.spv
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\outline.frag -o outline_frag.spv
+glslc ..\outline.vert -o outline_vert.spv
+glslc ..\outline.frag -o outline_frag.spv
 
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\text.vert -o text_vert.spv
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V ..\text.frag -o text_frag.spv
+glslc ..\text.vert -o text_vert.spv
+glslc ..\text.frag -o text_frag.spv
 
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V -s ..\fill_vcolor.vert -o fill_vcolor_vert.spv
-C:\VulkanSDK\1.1.97.0\Bin32\glslangValidator.exe -V -s ..\fill_vcolor.frag -o fill_vcolor_frag.spv
+glslc ..\fill_vcolor.vert -o fill_vcolor_vert.spv
+glslc ..\fill_vcolor.frag -o fill_vcolor_frag.spv
 
 popd

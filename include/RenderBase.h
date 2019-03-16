@@ -153,7 +153,7 @@ void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate);
 // Records draw calls for the current frame.
 void RecordPrimaryCommand(uint32_t image_index);
 // Updates the models in the scene with a new time.
-void UpdateModels(double frame_delta);
+void UpdateScene(double frame_delta);
 
 // Sets up a pipeline create info with defaults. Pass nullptr for fragment
 // code if not needed.
@@ -194,3 +194,6 @@ void UpdateTextureDescriptors(VkDescriptorSet descriptor_set);
 void CreateSamplers(DescriptorLayout *layout);
 
 void CreateGlobalUniformBuffers();
+PerDrawUniformObject *GetPerDrawUniform(uint32_t object_index);
+PerFrameUniformObject *GetPerFrameUniform();
+PerPassUniformObject *GetPerPassUniform();

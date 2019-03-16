@@ -20,7 +20,8 @@ MaterialLayout *material_types = nullptr;
 DescriptorLayout descriptor_layout_new = {};
 VkBuffer *uniform_buffers_new = nullptr;
 VkDeviceMemory *uniform_buffers_memory_new = nullptr;
-UniformBufferObject *object_uniforms_new = nullptr;
+UniformBuffer uniforms = {};
+//UniformBufferObject *object_uniforms_new = nullptr;
 VkDescriptorSet *descriptor_sets_new = nullptr;
 
 //static Model *boxes;
@@ -137,7 +138,8 @@ void CreateDescriptorSets()
         uniform_write.dstSet = descriptor_sets_new[i];
         uniform_write.dstBinding = 0;
         uniform_write.dstArrayElement = 0;
-        uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+        // TODO(Matt): Hardcode. Should be num render passes.
         uniform_write.descriptorCount = 1;
         uniform_write.pBufferInfo = &descriptor_info;
         vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &uniform_write, 0, nullptr);
@@ -167,7 +169,9 @@ void RecordPrimaryCommand(uint32_t image_index)
     pass_begin_info.pClearValues = clear_colors;
     vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     
-    vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &descriptor_sets_new[image_index], 0, nullptr);
+    // TODO(Matt): Should contain offsets of each descriptor in the buffer.
+    uint32_t offsets[] = {0};
+    vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &descriptor_sets_new[image_index], 1, offsets);
     // For each material type.
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         MaterialLayout *material_type = &material_types[i];
@@ -266,7 +270,6 @@ void DrawFrame()
     // TODO(Matt): Probably only update dynamic object uniforms - static
     // geometry won't change.
     UpdateUniforms(image_index);
-    
     // Record draw calls and other work for this frame.
     RecordPrimaryCommand(image_index);
     
@@ -313,8 +316,19 @@ void DrawFrame()
 }
 
 // TODO(Matt): Move this out of the rendering component.
-void UpdateModels(double frame_delta)
+void UpdateScene(double frame_delta)
 {
+    PerFrameUniformObject *per_frame = GetPerFrameUniform();
+    per_frame->view_position          = glm::vec4(2.0f, 3.0f, 2.0f, 1.0f);
+    per_frame->view                   = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    per_frame->projection             = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
+    per_frame->projection[1][1] *= -1;
+    
+    PerPassUniformObject *per_pass = GetPerPassUniform();
+    per_pass->sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
+    per_pass->sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
+    per_pass->sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+    per_pass->sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
     // TODO(Matt): hack here until we're using better simulation rules.
     uint32_t current_index = 0;
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
@@ -323,7 +337,7 @@ void UpdateModels(double frame_delta)
             Material *material = &material_type->materials[j];
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
                 Model_Separate_Data *model = &material->models[k];
-                UniformBufferObject *ubo = &object_uniforms_new[model->uniform_index];
+                PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
                 model->rot.z += (float)frame_delta * glm::radians(25.0f);
                 ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
                 ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -337,14 +351,14 @@ void UpdateModels(double frame_delta)
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(uint32_t current_image)
+void UpdateUniforms(uint32_t image_index)
 {
     void *data;
-    size_t transfer_size = sizeof(UniformBufferObject) * arrlen(object_uniforms_new);
-    vkMapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[current_image], 0, transfer_size, 0, &data);
-    memcpy(data, object_uniforms_new, transfer_size);
-    vkUnmapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[current_image]);
+    vkMapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[image_index], 0, uniforms.buffer_size, 0, &data);
+    memcpy(data, uniforms.buffer, uniforms.buffer_size);
+    vkUnmapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[image_index]);
 }
+
 /*
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
 {
@@ -408,7 +422,7 @@ void CreateDescriptorLayout()
     VkDescriptorSetLayoutBinding uniform_binding = {};
     uniform_binding.binding = 0;
     uniform_binding.descriptorCount = 1;
-    uniform_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uniform_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     uniform_binding.pImmutableSamplers = nullptr;
     uniform_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     
@@ -688,52 +702,52 @@ void CreateMaterials()
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    //material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
+    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("resources/shaders/stencil_vert.spv", nullptr);
-    material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
-    material_info.depth_stencil.depthTestEnable = VK_FALSE;
-    material_info.depth_stencil.depthWriteEnable = VK_FALSE;
-    material_info.depth_stencil.stencilTestEnable = VK_TRUE;
-    material_info.depth_stencil.back = {};
-    material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
-    material_info.depth_stencil.back.failOp = VK_STENCIL_OP_REPLACE;
-    material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
-    material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
-    material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
-    material_info.depth_stencil.back.reference = 1;
-    material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    //material_info = CreateDefaultMaterialInfo("resources/shaders/stencil_vert.spv", nullptr);
+    //material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
+    //material_info.depth_stencil.depthTestEnable = VK_FALSE;
+    //material_info.depth_stencil.depthWriteEnable = VK_FALSE;
+    //material_info.depth_stencil.stencilTestEnable = VK_TRUE;
+    //material_info.depth_stencil.back = {};
+    //material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
+    //material_info.depth_stencil.back.failOp = VK_STENCIL_OP_REPLACE;
+    //material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
+    //material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
+    //material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
+    //material_info.depth_stencil.back.reference = 1;
+    //material_info.depth_stencil.front = material_info.depth_stencil.back;
+    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("resources/shaders/outline_vert.spv", "resources/shaders/outline_frag.spv");
-    material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
-    material_info.depth_stencil.depthTestEnable = VK_FALSE;
-    material_info.depth_stencil.depthWriteEnable = VK_FALSE;
-    material_info.depth_stencil.stencilTestEnable = VK_TRUE;
-    material_info.depth_stencil.back = {};
-    material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
-    material_info.depth_stencil.back.failOp = VK_STENCIL_OP_KEEP;
-    material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_KEEP;
-    material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
-    material_info.depth_stencil.back.compareMask = 0xff;
-    material_info.depth_stencil.back.writeMask = 0xff;
-    material_info.depth_stencil.back.reference = 1;
-    material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    //material_info = CreateDefaultMaterialInfo("resources/shaders/outline_vert.spv", "resources/shaders/outline_frag.spv");
+    //material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
+    //material_info.depth_stencil.depthTestEnable = VK_FALSE;
+    //material_info.depth_stencil.depthWriteEnable = VK_FALSE;
+    //material_info.depth_stencil.stencilTestEnable = VK_TRUE;
+    //material_info.depth_stencil.back = {};
+    //material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
+    //material_info.depth_stencil.back.failOp = VK_STENCIL_OP_KEEP;
+    //material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_KEEP;
+    //material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
+    //material_info.depth_stencil.back.compareMask = 0xff;
+    //material_info.depth_stencil.back.writeMask = 0xff;
+    //material_info.depth_stencil.back.reference = 1;
+    //material_info.depth_stencil.front = material_info.depth_stencil.back;
+    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("resources/shaders/text_vert.spv", "resources/shaders/text_frag.spv");
-    material_info.blend.blendEnable = VK_TRUE;
-    material_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    material_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    material_info.blend.colorBlendOp = VK_BLEND_OP_ADD;
-    material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    //material_info = CreateDefaultMaterialInfo("resources/shaders/text_vert.spv", "resources/shaders/text_frag.spv");
+    //material_info.blend.blendEnable = VK_TRUE;
+    //material_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    //material_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    //material_info.blend.colorBlendOp = VK_BLEND_OP_ADD;
+    //material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    //material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    //material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
+    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
-    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    //material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
+    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
 }
 
 // offset is the offset into buffer memory the VkBuffer will be written to
@@ -770,12 +784,14 @@ void InitializeScene()
     // Throw some boxes in the scene.
     //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
-    arrsetlen(object_uniforms_new, arrlenu(object_uniforms_new) + 1);
-    uint32_t object_index = (uint32_t)arrlen(object_uniforms_new) - 1;
-    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, &object_uniforms_new[object_index], 0, 0, object_index);
-    if (result == MODEL_LOAD_RESULT_SUCCESS)
+    //arrsetlen(object_uniforms_new, arrlenu(object_uniforms_new) + 1);
+    //uint32_t object_index = (uint32_t)arrlen(object_uniforms_new) - 1;
+    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, GetPerDrawUniform(uniforms.object_count), 0, 0, uniforms.object_count);
+    if (result == MODEL_LOAD_RESULT_SUCCESS) {
+        uniforms.object_count++;
         AddToScene(*model);
-    else printf("FAILURE TO LOAD MODEL\n");
+        
+    } else printf("FAILURE TO LOAD MODEL\n");
     // Model_Separate_Data model = CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0);
     // AddToScene(model);
     
@@ -903,13 +919,40 @@ void CreateSamplers(DescriptorLayout *layout)
     }
 }
 
+// TODO(Matt): This should put one descriptor per render pass into the same
+// buffer. Currently there's only one render pass.
 void CreateGlobalUniformBuffers()
 {
+    // NOTE(Matt): We don't yet need to worry about buffer alignment,
+    // because we're only using one render pass ATM.
+    //VkPhysicalDeviceProperties properties;
+    //vkGetPhysicalDeviceProperties(vulkan_info.physical_device, &properties);
+    //uint32_t alignment = (uint32_t)properties.limits.minUniformBufferOffsetAlignment;
+    
+    uniforms.per_pass_offset = sizeof(PerFrameUniformObject);
+    uniforms.per_draw_offset = sizeof(PerPassUniformObject) + uniforms.per_pass_offset;
+    uniforms.buffer_size = uniforms.per_draw_offset + sizeof(PerDrawUniformObject) * MAX_OBJECTS;
+    
     arrsetlen(uniform_buffers_new, swapchain_info.image_count);
     arrsetlen(uniform_buffers_memory_new, swapchain_info.image_count);
+    uniforms.buffer = (char *)malloc(uniforms.buffer_size);
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
-        VkDeviceSize size = sizeof(UniformBufferObject) * MAX_OBJECTS;
-        
-        CreateBuffer(&vulkan_info, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers_new[i], uniform_buffers_memory_new[i]);
+        CreateBuffer(&vulkan_info, uniforms.buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers_new[i], uniform_buffers_memory_new[i]);
     }
+}
+
+PerDrawUniformObject *GetPerDrawUniform(uint32_t object_index)
+{
+    char *object = uniforms.buffer + uniforms.per_draw_offset + object_index * sizeof(PerDrawUniformObject);
+    return (PerDrawUniformObject *)object;
+}
+
+PerFrameUniformObject *GetPerFrameUniform()
+{
+    return (PerFrameUniformObject *)uniforms.buffer;
+}
+
+PerPassUniformObject *GetPerPassUniform()
+{
+    return (PerPassUniformObject *)(uniforms.buffer + uniforms.per_pass_offset);
 }

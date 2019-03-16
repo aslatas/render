@@ -489,7 +489,7 @@ static void CreateDescriptorPools(VulkanInfo *vulkan_info, const SwapchainInfo *
 {
     // Setup descriptor sizes.
     VkDescriptorPoolSize uniform_size = {};
-    uniform_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uniform_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     uniform_size.descriptorCount = swapchain_info->image_count * MAX_OBJECTS;
     
     VkDescriptorPoolSize sampler_size = {};
