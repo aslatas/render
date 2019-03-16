@@ -23,7 +23,7 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
 // TODO(Matt): Handle newlines in the input.
 // Creates text on screen for a given font. Size is determined by the font.
 // Position is in screen space. Newline characters are ignored.
-Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 screen_postion);
+//Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 screen_postion);
 
 // Call only while queue is idle.
 void DestroyFont(const VulkanInfo *vulkan_info, BitmapFont *font);

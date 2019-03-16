@@ -8,6 +8,16 @@ struct DirectionalLight
     vec4 specular;
     vec4 ambient;
 };
+
+struct UniformBufferObject
+{
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    vec4 view_pos;
+    DirectionalLight sun;
+};
+
 layout(push_constant) uniform PushBlock
 {
     uint draw_index;
@@ -16,13 +26,9 @@ layout(push_constant) uniform PushBlock
     vec4 vector_parameters[4];
 } push_block;
 
-layout(binding = 0) uniform UniformBufferObject {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-    vec4 view_pos;
-    DirectionalLight sun;
-} ubo;
+layout(binding = 0) uniform UniformData {
+    UniformBufferObject uniforms[64];
+} uniform_data;
 
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
@@ -36,7 +42,7 @@ layout(location = 0) out vec3 out_position;
 layout(location = 1) out vec3 out_normal;
 layout(location = 2) out vec3 out_color;
 void main() {
-    
+    UniformBufferObject ubo = uniform_data.uniforms[push_block.draw_index];
     vec4 pos = ubo.model * vec4(in_position, 1.0f);
     out_position = pos.rgb;
     out_normal = mat3(transpose(inverse(ubo.model))) * in_normal;

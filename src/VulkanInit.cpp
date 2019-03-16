@@ -4,7 +4,6 @@
 
 // TODO(Matt): Switch these for dynamic arrays ASAP.
 #define material_count 8
-#define box_count 8
 
 // Debug callback relays messages from validation layers.
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data)
@@ -491,15 +490,15 @@ static void CreateDescriptorPools(VulkanInfo *vulkan_info, const SwapchainInfo *
     // Setup descriptor sizes.
     VkDescriptorPoolSize uniform_size = {};
     uniform_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uniform_size.descriptorCount = swapchain_info->image_count * box_count;
+    uniform_size.descriptorCount = swapchain_info->image_count * MAX_OBJECTS;
     
     VkDescriptorPoolSize sampler_size = {};
     sampler_size.type = VK_DESCRIPTOR_TYPE_SAMPLER;
-    sampler_size.descriptorCount = swapchain_info->image_count * box_count * MATERIAL_SAMPLER_COUNT;
+    sampler_size.descriptorCount = swapchain_info->image_count * MAX_OBJECTS * MATERIAL_SAMPLER_COUNT;
     
     VkDescriptorPoolSize texture_size = {};
     texture_size.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    texture_size.descriptorCount = swapchain_info->image_count * box_count * MAX_TEXTURES;
+    texture_size.descriptorCount = swapchain_info->image_count * MAX_OBJECTS * MAX_TEXTURES;
     VkDescriptorPoolSize pool_sizes[] = {uniform_size, sampler_size, texture_size};
     
     // Create descriptor pool.
@@ -507,7 +506,7 @@ static void CreateDescriptorPools(VulkanInfo *vulkan_info, const SwapchainInfo *
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     create_info.poolSizeCount = 3;
     create_info.pPoolSizes = pool_sizes;
-    create_info.maxSets = swapchain_info->image_count * box_count;
+    create_info.maxSets = swapchain_info->image_count;
     
     VK_CHECK_RESULT(vkCreateDescriptorPool(vulkan_info->logical_device, &create_info, nullptr, &vulkan_info->descriptor_pool));
 }
@@ -623,12 +622,12 @@ void InitializeVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     LoadVulkanDeviceExtensionFunctions(vulkan_info->logical_device);
     CreateSwapchain(vulkan_info, swapchain_info);
     CreateRenderpass(vulkan_info, swapchain_info);
-    CreateMaterials();
     CreateCommandPools(vulkan_info);
     CreateColorImage(vulkan_info, swapchain_info);
     CreateDepthImage(vulkan_info, swapchain_info);
     CreateFramebuffers(vulkan_info, swapchain_info);
     CreateDescriptorPools(vulkan_info, swapchain_info);
+    CreateMaterials();
     CreateCommandBuffers(vulkan_info, swapchain_info);
     CreateSyncPrimitives(vulkan_info);
 }
@@ -934,6 +933,7 @@ VkFormat FindSupportedFormat(const VulkanInfo *vulkan_info, VkFormat *acceptable
         if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features) return acceptable_formats[i];
         if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features) return acceptable_formats[i];
     }
+    
     // Otherwise, exit in error.
     ExitWithError("No acceptable format candidates found!");
     return acceptable_formats[0];

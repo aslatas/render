@@ -13,9 +13,15 @@
 
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
-BitmapFont font;
+BitmapFont font = {};
 Texture *textures = nullptr;
 MaterialLayout *material_types = nullptr;
+
+DescriptorLayout descriptor_layout_new = {};
+VkBuffer *uniform_buffers_new = nullptr;
+VkDeviceMemory *uniform_buffers_memory_new = nullptr;
+UniformBufferObject *object_uniforms_new = nullptr;
+VkDescriptorSet *descriptor_sets_new = nullptr;
 
 //static Model *boxes;
 glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
@@ -40,7 +46,9 @@ char *ReadShaderFile(const char *path, uint32_t *length)
 void InitializeRenderer()
 {
     InitializeVulkan(&vulkan_info, &swapchain_info);
+    CreateGlobalUniformBuffers();
     InitializeSceneResources();
+    CreateDescriptorSets();
     InitializeScene();
 }
 
@@ -66,7 +74,7 @@ static VkShaderModule CreateShaderModule(char *code, uint32_t length)
     
     return module;
 }
-
+/*
 void CreateVertexBuffer(Model *model)
 {
     VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
@@ -107,45 +115,33 @@ void CreateIndexBuffer(Model *model)
     vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
     vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
 }
-
-void CreateUniformBuffers(Model *model)
+*/
+void CreateDescriptorSets()
 {
-    VkDeviceSize buffer_size = sizeof(UniformBufferObject);
-    model->uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model->uniform_count);
-    model->uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model->uniform_count);
-    for (uint32_t i = 0; i < model->uniform_count; ++i)
-    {
-        CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, model->uniform_buffers[i], model->uniform_buffers_memory[i]);
-    }
-}
-
-void CreateDescriptorSets(Model *model)
-{
+    arrsetlen(descriptor_sets_new, swapchain_info.image_count);
     VkDescriptorSetAllocateInfo allocate_info = {};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocate_info.descriptorPool = vulkan_info.descriptor_pool;
     allocate_info.descriptorSetCount = swapchain_info.image_count;
-    allocate_info.pSetLayouts = material_types[model->material_type].descriptor_layouts;
-    model->descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model->uniform_count);
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, model->descriptor_sets));
+    allocate_info.pSetLayouts = descriptor_layout_new.descriptor_layouts;
+    //model->descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model->uniform_count);
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, descriptor_sets_new));
     
-    for (uint32_t i = 0; i < model->uniform_count; ++i)
-    {
+    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
         VkDescriptorBufferInfo descriptor_info = {};
-        descriptor_info.buffer = model->uniform_buffers[i];
+        descriptor_info.buffer = uniform_buffers_new[i];
         descriptor_info.offset = 0;
-        descriptor_info.range = sizeof(UniformBufferObject);
-        
+        descriptor_info.range = VK_WHOLE_SIZE;
         VkWriteDescriptorSet uniform_write = {};
         uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uniform_write.dstSet = model->descriptor_sets[i];
+        uniform_write.dstSet = descriptor_sets_new[i];
         uniform_write.dstBinding = 0;
         uniform_write.dstArrayElement = 0;
         uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uniform_write.descriptorCount = 1;
         uniform_write.pBufferInfo = &descriptor_info;
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 2, &uniform_write, 0, nullptr);
-        UpdateTextureDescriptors(model->descriptor_sets[i]);
+        vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &uniform_write, 0, nullptr);
+        UpdateTextureDescriptors(descriptor_sets_new[i]);
     }
 }
 
@@ -171,6 +167,7 @@ void RecordPrimaryCommand(uint32_t image_index)
     pass_begin_info.pClearValues = clear_colors;
     vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     
+    vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &descriptor_sets_new[image_index], 0, nullptr);
     // For each material type.
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         MaterialLayout *material_type = &material_types[i];
@@ -190,8 +187,8 @@ void RecordPrimaryCommand(uint32_t image_index)
                 VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
                 vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, model->model_data->attribute_offsets);
                 vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], model->index_buffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_type->pipeline_layout, 0, 1, &model->descriptor_sets[image_index], 0, nullptr);
                 PushConstantBlock push_block = {};
+                push_block.draw_index = model->uniform_index;
                 push_block.scalar_parameters[0] = 1;
                 push_block.scalar_parameters[1] = 2;
                 push_block.scalar_parameters[2] = 3;
@@ -227,7 +224,16 @@ void RecordPrimaryCommand(uint32_t image_index)
             VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
             vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, vertex_buffers, model->model_data->attribute_offsets);
             vkCmdBindIndexBuffer(swapchain_info.primary_command_buffers[image_index], selected_models[i]->index_buffer, 0, VK_INDEX_TYPE_UINT32);
-            vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &selected_models[i]->descriptor_sets[image_index], 0, nullptr);
+            PushConstantBlock push_block = {};
+            push_block.draw_index = model->uniform_index;
+            push_block.scalar_parameters[0] = 1;
+            push_block.scalar_parameters[1] = 2;
+            push_block.scalar_parameters[2] = 3;
+            push_block.scalar_parameters[3] = 4;
+            push_block.scalar_parameters[4] = 5;
+            push_block.scalar_parameters[5] = 6;
+            push_block.scalar_parameters[6] = 7;
+            vkCmdPushConstants(swapchain_info.primary_command_buffers[image_index], material_types[0].pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantBlock), (void *)&push_block);
             // Draw selected models.
             vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], selected_models[i]->index_count, 1, 0, 0, 0);
         }
@@ -259,15 +265,7 @@ void DrawFrame()
     // Update uniforms to reflect new state of all scene objects.
     // TODO(Matt): Probably only update dynamic object uniforms - static
     // geometry won't change.
-    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
-        MaterialLayout material_type = material_types[i];
-        for (uint32_t j = 0; j < arrlen(material_type.materials); ++j) {
-            Material material = material_type.materials[j];
-            for (uint32_t k = 0; k < arrlen(material.models); ++k) {
-                UpdateUniforms(image_index, &material.models[k]);
-            }
-        }
-    }
+    UpdateUniforms(image_index);
     
     // Record draw calls and other work for this frame.
     RecordPrimaryCommand(image_index);
@@ -325,19 +323,13 @@ void UpdateModels(double frame_delta)
             Material *material = &material_type->materials[j];
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
                 Model_Separate_Data *model = &material->models[k];
-                //model->rot.z += (float)frame_delta * glm::radians(25.0f);
-                model->rot.y = glm::radians(90.0f);
-                model->rot.z = 0;
-                model->rot.z = 0;
-                model->ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.f, -5.f, 0.f));
-                // model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
-                model->ubo.model = glm::yawPitchRoll(model->rot.x, model->rot.y, model->rot.z) * model->ubo.model;
-                model->ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.1f)) * model->ubo.model;
-                model->pos = glm::vec3(model->ubo.model[3].x, model->ubo.model[3].y, model->ubo.model[3].z);
-                model->ubo.sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
-                model->ubo.sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
-                model->ubo.sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
-                model->ubo.sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
+                UniformBufferObject *ubo = &object_uniforms_new[model->uniform_index];
+                model->rot.z += (float)frame_delta * glm::radians(25.0f);
+                ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
+                ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
+                ubo->model = glm::rotate(ubo->model, model->rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
+                ubo->model = glm::rotate(ubo->model, model->rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
+                ubo->model = glm::translate(ubo->model, model->pos);
                 current_index++;
             }
         }
@@ -345,12 +337,13 @@ void UpdateModels(double frame_delta)
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(uint32_t current_image, Model_Separate_Data *model)
+void UpdateUniforms(uint32_t current_image)
 {
     void *data;
-    vkMapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image], 0, sizeof(model->ubo), 0, &data);
-    memcpy(data, &model->ubo, sizeof(model->ubo));
-    vkUnmapMemory(vulkan_info.logical_device, model->uniform_buffers_memory[current_image]);
+    size_t transfer_size = sizeof(UniformBufferObject) * arrlen(object_uniforms_new);
+    vkMapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[current_image], 0, transfer_size, 0, &data);
+    memcpy(data, object_uniforms_new, transfer_size);
+    vkUnmapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[current_image]);
 }
 /*
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
@@ -407,10 +400,9 @@ void OnWindowResized()
     RecreateSwapchain(&vulkan_info, &swapchain_info);
 }
 
-MaterialLayout CreateMaterialLayout()
+void CreateDescriptorLayout()
 {
-    MaterialLayout layout = {};
-    CreateSamplers(&layout);
+    CreateSamplers(&descriptor_layout_new);
     
     // Binding 0 is uniform buffer.
     VkDescriptorSetLayoutBinding uniform_binding = {};
@@ -425,26 +417,16 @@ MaterialLayout CreateMaterialLayout()
     sampler_binding.binding = 1;
     sampler_binding.descriptorCount = MATERIAL_SAMPLER_COUNT;
     sampler_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    sampler_binding.pImmutableSamplers = layout.samplers;
+    sampler_binding.pImmutableSamplers = descriptor_layout_new.samplers;
     sampler_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    //VkDescriptorImageInfo image_infos[MAX_TEXTURES];
-    //for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
-    //for (uint32_t i = 0; i < MAX_TEXTURES; ++i) {
-    //image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    //image_infos[i].imageView = textures[(i > arrlen(textures)) ? 0 : i].image_view;
-    //}
-    //}
     
     // Binding 2 is the texture library, for now.
     VkDescriptorSetLayoutBinding texture_binding = {};
     texture_binding.binding = 2;
-    // TODO(Matt): Hardcode.
     texture_binding.descriptorCount = MAX_TEXTURES;
     texture_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     texture_binding.pImmutableSamplers = nullptr;
-    texture_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    //texture_binding.pImageInfo = image_infos;
+    texture_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     
     VkDescriptorSetLayoutBinding bindings[] = {uniform_binding, sampler_binding, texture_binding};
     VkDescriptorSetLayoutCreateInfo descriptor_info = {};
@@ -456,8 +438,13 @@ MaterialLayout CreateMaterialLayout()
     VkDescriptorSetLayout descriptor_layout;
     VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
     for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
-        arrput(layout.descriptor_layouts, descriptor_layout);
+        arrput(descriptor_layout_new.descriptor_layouts, descriptor_layout);
     }
+}
+
+MaterialLayout CreateMaterialLayout()
+{
+    MaterialLayout layout = {};
     
     // Setup push constant block.
     VkPushConstantRange push_block = {};
@@ -469,7 +456,7 @@ MaterialLayout CreateMaterialLayout()
     VkPipelineLayoutCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_info.setLayoutCount = swapchain_info.image_count;
-    pipeline_info.pSetLayouts = layout.descriptor_layouts;
+    pipeline_info.pSetLayouts = descriptor_layout_new.descriptor_layouts;
     pipeline_info.pushConstantRangeCount = 1;
     pipeline_info.pPushConstantRanges = &push_block;
     VK_CHECK_RESULT(vkCreatePipelineLayout(vulkan_info.logical_device, &pipeline_info, nullptr, &layout.pipeline_layout));
@@ -695,6 +682,7 @@ void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRe
 
 void CreateMaterials()
 {
+    CreateDescriptorLayout();
     MaterialCreateInfo material_info;
     arrput(material_types, CreateMaterialLayout());
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
@@ -752,16 +740,12 @@ void CreateMaterials()
 // flags will probably be either VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT
 void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory, VkBufferUsageFlagBits flags)
 {
-    //VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
-    //VkDeviceSize buffer_size = buffer_size;
-    
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
     CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
     
     void *data;
     vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    //memcpy(data, model->vertices, (size_t)buffer_size);
     memcpy(data, buffer_data, (size_t)buffer_size);
     vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
     
@@ -773,67 +757,22 @@ void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* bu
     vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
 }
 
-void CreateModelUniformBuffers(VkDeviceSize buffer_size, 
-                               VkBuffer* uniform_buffers, 
-                               VkDeviceMemory* uniform_buffers_memory, 
-                               uint32_t uniform_count)
-{
-    // VkDeviceSize buffer_size = sizeof(UniformBufferObject);
-    // uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * uniform_count);
-    // uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * uniform_count);
-    for (uint32_t i = 0; i < uniform_count; ++i)
-    {
-        CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers[i], uniform_buffers_memory[i]);
-    }
-}
-
-void CreateModelDescriptorSets(uint32_t uniform_count, 
-                               uint32_t material_type, 
-                               uint32_t shader_id, 
-                               VkBuffer* uniform_buffers, 
-                               VkDescriptorSet *descriptor_sets)
-{
-    VkDescriptorSetAllocateInfo allocate_info = {};
-    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = vulkan_info.descriptor_pool;
-    allocate_info.descriptorSetCount = swapchain_info.image_count;
-    allocate_info.pSetLayouts = material_types[material_type].descriptor_layouts;
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, descriptor_sets));
-    
-    for (uint32_t i = 0; i < uniform_count; ++i)
-    {
-        VkDescriptorBufferInfo descriptor_info = {};
-        descriptor_info.buffer = uniform_buffers[i];
-        descriptor_info.offset = 0;
-        descriptor_info.range = sizeof(UniformBufferObject);
-        
-        VkWriteDescriptorSet uniform_write = {};
-        uniform_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uniform_write.dstSet = descriptor_sets[i];
-        uniform_write.dstBinding = 0;
-        uniform_write.dstArrayElement = 0;
-        uniform_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uniform_write.descriptorCount = 1;
-        uniform_write.pBufferInfo = &descriptor_info;
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &uniform_write, 0, nullptr);
-        UpdateTextureDescriptors(descriptor_sets[i]);
-    }
-}
-
 void InitializeSceneResources()
 {
     // Load fonts and textures.
     // TODO(Matt): Move texture/font initialization somewhere else.
     arrput(textures, LoadTexture(&vulkan_info, "resources/textures/proto.jpg", 4, true));
-    font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
-    arrput(textures, font.texture);
+    //font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
+    //arrput(textures, font.texture);
 }
 void InitializeScene()
 {
     // Throw some boxes in the scene.
     //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
-    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, 0, 0, swapchain_info.image_count);
+    arrsetlen(object_uniforms_new, arrlenu(object_uniforms_new) + 1);
+    uint32_t object_index = (uint32_t)arrlen(object_uniforms_new) - 1;
+    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, &object_uniforms_new[object_index], 0, 0, object_index);
     if (result == MODEL_LOAD_RESULT_SUCCESS)
         AddToScene(*model);
     else printf("FAILURE TO LOAD MODEL\n");
@@ -855,59 +794,42 @@ void DestroyMaterials()
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
             vkDestroyPipeline(vulkan_info.logical_device, material_types[i].materials[j].pipeline, nullptr);
-            // TODO(Matt): Put model destruction here once it's moved.
         }
-        vkDestroyDescriptorSetLayout(vulkan_info.logical_device, material_types[i].descriptor_layouts[0], nullptr);
-        for (uint32_t j = 0; j < MATERIAL_SAMPLER_COUNT; ++j) {
-            vkDestroySampler(vulkan_info.logical_device, material_types[i].samplers[j], nullptr);
-        }
+        
         vkDestroyPipelineLayout(vulkan_info.logical_device, material_types[i].pipeline_layout, nullptr);
         arrfree(material_types[i].materials);
-        arrfree(material_types[i].descriptor_layouts);
     }
     arrfree(material_types);
+    vkDestroyDescriptorSetLayout(vulkan_info.logical_device, descriptor_layout_new.descriptor_layouts[0], nullptr);
+    for (uint32_t i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
+        vkDestroySampler(vulkan_info.logical_device, descriptor_layout_new.samplers[i], nullptr);
+    }
+    arrfree(descriptor_layout_new.descriptor_layouts);
 }
 
 void DestroyScene() {
     for (uint32_t i = 0; i < arrlen(material_types); ++i) {
         for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
             for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
-                // DestroyModel(&material_types[i].materials[j].models[k], &vulkan_info);
                 DestroyModelSeparateDataTest(&material_types[i].materials[j].models[k], &vulkan_info);
             }
             arrfree(material_types[i].materials[j].models);
         }
     }
+    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+        vkDestroyBuffer(vulkan_info.logical_device, uniform_buffers_new[i], nullptr);
+        vkFreeMemory(vulkan_info.logical_device, uniform_buffers_memory_new[i], nullptr);
+    }
+    arrfree(uniform_buffers_memory_new);
+    arrfree(uniform_buffers_new);
 }
 
 void AddToScene(Model_Separate_Data model)
 {
-    model.uniform_buffers = (VkBuffer *)malloc(sizeof(VkBuffer) * model.uniform_count);
-    model.uniform_buffers_memory = (VkDeviceMemory *)malloc(sizeof(VkDeviceMemory) * model.uniform_count);
-    model.descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model.uniform_count);
-    
     VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(uint32_t) * model.index_count);
-    // VkDeviceSize v_len = model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec3) + model.vertex_count * sizeof(glm::vec4) +
-    //                      model.vertex_count * sizeof(glm::vec4) + model.vertex_count * sizeof(glm::vec2) + model.vertex_count * sizeof(glm::vec2) + 
-    //                      model.vertex_count * sizeof(glm::vec2);
-    
     
     CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    CreateModelUniformBuffers(sizeof(UniformBufferObject), 
-                              model.uniform_buffers, 
-                              model.uniform_buffers_memory, 
-                              model.uniform_count);
-    CreateModelDescriptorSets(model.uniform_count, 
-                              model.material_type, 
-                              model.shader_id, 
-                              model.uniform_buffers, 
-                              model.descriptor_sets);
-    
-    // CreateVertexBuffer(&model);
-    // CreateIndexBuffer(&model);
-    // CreateUniformBuffers(&model);
-    // CreateDescriptorSets(&model);
     arrput(material_types[model.material_type].materials[model.shader_id].models, model);
 }
 
@@ -928,7 +850,7 @@ uint32_t GetUniformCount()
 
 void DestroySceneResources()
 {
-    DestroyFont(&vulkan_info, &font);
+    //DestroyFont(&vulkan_info, &font);
     for (uint32_t i = 0; i < arrlen(textures); ++i) {
         DestroyTexture(&vulkan_info, &textures[i]);
     }
@@ -954,7 +876,7 @@ void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
     vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &sampler_write, 0, nullptr);
 }
 
-void CreateSamplers(MaterialLayout *layout)
+void CreateSamplers(DescriptorLayout *layout)
 {
     VkSamplerCreateInfo sampler_create_info = {};
     sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -978,5 +900,16 @@ void CreateSamplers(MaterialLayout *layout)
     
     for (uint32_t i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
         VK_CHECK_RESULT(vkCreateSampler(vulkan_info.logical_device, &sampler_create_info, nullptr, &layout->samplers[i]));
+    }
+}
+
+void CreateGlobalUniformBuffers()
+{
+    arrsetlen(uniform_buffers_new, swapchain_info.image_count);
+    arrsetlen(uniform_buffers_memory_new, swapchain_info.image_count);
+    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+        VkDeviceSize size = sizeof(UniformBufferObject) * MAX_OBJECTS;
+        
+        CreateBuffer(&vulkan_info, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, uniform_buffers_new[i], uniform_buffers_memory_new[i]);
     }
 }

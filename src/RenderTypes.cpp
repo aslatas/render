@@ -4,7 +4,7 @@
 
 #define STB_DS_IMPLEMENTATION
 #include "stb/stb_ds.h"
-
+/*
 void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
 {
     free(model->vertices);
@@ -338,3 +338,4 @@ Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, ui
     
     return model;
 }
+*/

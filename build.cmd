@@ -8,7 +8,7 @@ set release_flags=/O2 /GL /analyze- /D "NDEBUG"
 set linker_flags=User32.lib Kernel32.lib Gdi32.lib /INCREMENTAL:no /NOLOGO
 set include_dir=/I..\..\include /I..\..\ext
 
-set source_files=..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp ..\..\src\RenderTypes.cpp ..\..\src\VulkanLoader.cpp ..\..\src\ModelLoader.cpp ..\..\src\Font.cpp ..\..\src\Texture.cpp ..\..\src\VulkanInit.cpp
+set source_files=..\..\src\Main.cpp ..\..\src\Win32PlatformLayer.cpp ..\..\src\RenderBase.cpp ..\..\src\VulkanFunctions.cpp ..\..\src\RenderTypes.cpp ..\..\src\VulkanLoader.cpp ..\..\src\ModelLoader.cpp ..\..\src\Texture.cpp ..\..\src\VulkanInit.cpp
 
 ::        Run the build tools, but only if they aren't set up already.        ::
 :: ---------------------------------------------------------------------------::
