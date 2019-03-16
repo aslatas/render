@@ -34,21 +34,6 @@ struct VulkanInfo
     VkSemaphore *render_finished_semaphores;
 };
 
-// TODO(Matt): Check out what other people are using here - maybe move up to
-// 128 bytes?
-// TODO(Matt): Extract vertex buffer, index buffer, and UBO into a generic
-// object. Maybe include some material properties (probably in the UBO).
-struct Vertex
-{
-    glm::vec3 position; // 12
-    glm::vec3 normal;   // 24
-    //glm::vec3 tangent;
-    glm::vec4 color; // 40
-    glm::vec2 uv0;   // 48
-    glm::vec2 uv1;   // 56
-    glm::vec2 uv2;   // 64
-};
-
 struct DirectionalLight
 {
     glm::vec4 direction;
@@ -85,16 +70,16 @@ struct Ray
 struct ModelData {
     void*    memory_block;
     size_t   memory_block_size;
-
+    
     uint32_t* indices;
-    glm::vec3* position;
+    glm::vec3* position; // 12
     glm::vec3* normal;   // 24
-    glm::vec4* tangent;
-    glm::vec4* color; // 40
-    glm::vec2* uv0;   // 48
-    glm::vec2* uv1;   // 56
-    glm::vec2* uv2;   // 64
-
+    glm::vec4* tangent;  // 40
+    glm::vec4* color;    // 56
+    glm::vec2* uv0;      // 64
+    glm::vec2* uv1;      // 72
+    glm::vec2* uv2;      // 80
+    
     size_t attribute_offsets[7];
 };
 
@@ -102,7 +87,7 @@ struct Model_Separate_Data
 {
     uint32_t vertex_count;
     uint32_t index_count;
-    UniformBufferObject ubo;
+    uint32_t uniform_index;
     AxisAlignedBoundingBox bounds;
     bool hit_test_enabled;
     
@@ -119,12 +104,9 @@ struct Model_Separate_Data
     
     // Heap allocated:
     ModelData* model_data; // separate data format 
-    VkBuffer *uniform_buffers;
-    VkDeviceMemory *uniform_buffers_memory;
-    VkDescriptorSet *descriptor_sets;
-    uint32_t uniform_count;
 };
 
+/*
 struct Model
 {
     uint32_t vertex_count;
@@ -190,3 +172,4 @@ Ray ScreenPositionToWorldRay(int32_t x, int32_t y, uint32_t screen_width, uint32
 // If filled, creates an index buffer for triangle drawing. Otherwise,
 // index buffer is for line drawing (outline bounds).
 Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, uint32_t shader_id, glm::vec4 color, bool filled);
+*/

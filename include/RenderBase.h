@@ -15,6 +15,7 @@
 // Maximum number of loaded textures.
 #define MAX_TEXTURES 8
 
+#define MAX_OBJECTS 64
 // Max LOD for texture samplers. 16 Levels allows for unreasonably large
 // textures.
 #define MAX_SAMPLER_LOD 16
@@ -99,16 +100,16 @@ struct PushConstantBlock
     glm::vec4 vector_parameters[4];
 };
 
+struct DescriptorLayout
+{
+    VkSampler samplers[MATERIAL_SAMPLER_COUNT];
+    VkDescriptorSetLayout *descriptor_layouts;
+};
 // Holds info about a material layout. Keeps a list of materials of its'
 // type.
 struct MaterialLayout
 {
     VkPipelineLayout pipeline_layout; // Pipeline layout.
-    // TODO(Matt): Hardcode.
-    VkSampler samplers[MATERIAL_SAMPLER_COUNT]; // Immutable texture samplers.
-    
-    // Heap allocated.
-    VkDescriptorSetLayout *descriptor_layouts; // Descriptor layouts.
     Material *materials;
 };
 
@@ -127,31 +128,20 @@ void ShutdownRenderer();
 void DrawFrame();
 
 // Creates the vertex buffer for a given model, from its vertex array.
-void CreateVertexBuffer(Model *model);
+//void CreateVertexBuffer(Model *model);
 // Creates the index buffer for a given model, from its index array.
-void CreateIndexBuffer(Model *model);
-// Creates uniform buffers for a given model, from its material type and
-// uniform info.
-void CreateUniformBuffers(Model *model);
+//void CreateIndexBuffer(Model *model);
+
 // Creates descriptor sets for a given model, from its material type and
 // uniform info.
-void CreateDescriptorSets(Model *model);
+void CreateDescriptorSets();
 
 void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory, VkBufferUsageFlagBits flags);
-void CreateModelUniformBuffers(VkDeviceSize buffer_size, 
-                               VkBuffer* uniform_buffers, 
-                               VkDeviceMemory* uniform_buffers_memory, 
-                               uint32_t uniform_count);
-void CreateModelDescriptorSets(uint32_t uniform_count, 
-                               uint32_t material_type, 
-                               uint32_t shader_id, 
-                               VkBuffer* uniform_buffers, 
-                               VkDescriptorSet *descriptor_sets);
 
 // Callback for window resize. Recreates the swapchain.
 void OnWindowResized();
 // Updates the uniform buffers for a model to reflect its current state.
-void UpdateUniforms(uint32_t image_index, Model_Separate_Data *model);
+void UpdateUniforms(uint32_t image_index);
 
 // Performs a raycast in world space from the mouse location, selecting the
 // first object intersected. If accumulate is true, objects are added to a
@@ -176,6 +166,7 @@ void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRe
 // Creates the material layout.
 // TODO(Matt): Parameterize this, so that multiple layouts are possible.
 MaterialLayout CreateMaterialLayout();
+void CreateDescriptorLayout();
 
 // Creates the materials used by the scene.
 void CreateMaterials();
@@ -200,4 +191,6 @@ void DestroySceneResources();
 void UpdateTextureDescriptors(VkDescriptorSet descriptor_set);
 
 // Create the immutable samplers for a material layout.
-void CreateSamplers(MaterialLayout *layout);
+void CreateSamplers(DescriptorLayout *layout);
+
+void CreateGlobalUniformBuffers();
