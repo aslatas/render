@@ -1,0 +1,37 @@
+{
+  "models" : [
+    {
+      "filepath" : "null",
+      "id": -1,
+      "model_matrix": [
+        0, 0, 0, 0, 
+        0, 0, 0, 0, 
+        0, 0, 0, 0,
+        0, 0, 0, 0
+      ]
+    }
+  ],
+  "cameras" : [
+    {
+      "position": [0, 0, 0],
+      "up_vector": [0, 0, 0],
+      "look_at_vector": [0, 0, 0],
+      "pitch": 0,
+      "yaw": 0,
+      "roll": 0,
+      "zoom": 0
+    }
+  ],
+  "lights": [
+    {
+      "type": "DIRECTIONAL",
+      "position": [0, 0, 0],
+      "color": {
+        "diffuse": [0, 0, 0],
+        "specular": [0, 0, 0],
+        "ambient": [0, 0, 0]
+      },
+      "direction": [0, 0, 0, 0]
+    }
+  ]
+}
