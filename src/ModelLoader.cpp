@@ -25,8 +25,6 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model,
     model.pos                   = pos;
     model.rot                   = glm::vec3(glm::radians(90.0f), 0.0f, 0.0f);
     model.scl                   = glm::vec3(0.1f);
-    model.bounds.min            = glm::vec3(0.0f);
-    model.bounds.max            = ext;
     ubo->model = glm::scale(glm::mat4(1.0f), model.scl);
     ubo->model = glm::rotate(ubo->model, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
     ubo->model = glm::rotate(ubo->model, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -234,7 +232,8 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model,
             index_offset  += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].indices].count;
         }
     }
-    
+    model.bounds.min = min;
+    model.bounds.max = max;
     return MODEL_LOAD_RESULT_SUCCESS;
 }
 

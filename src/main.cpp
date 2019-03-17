@@ -22,7 +22,7 @@ void MouseButtonCallback(uint32_t button, EButtonState state)
     if (button == 1 && state == PRESSED) {
         int32_t x, y;
         Win32GetMousePosition(&x, &y);
-        //SelectObject(x, y, is_ctrl_held);
+        SelectObject(x, y, is_ctrl_held);
     }
 }
 

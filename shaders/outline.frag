@@ -1,6 +1,5 @@
 #version 450
-
-layout (location = 0) out vec4 out_color;
+#include "FragmentLayout.glsl"
 
 void main() 
 {
