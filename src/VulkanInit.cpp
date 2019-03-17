@@ -646,7 +646,10 @@ void RecreateSwapchain(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     CreateRenderpass(vulkan_info, swapchain_info);
     CreateDescriptorPools(vulkan_info, swapchain_info);
     CreateMaterials();
+    
+    CreateGlobalUniformBuffers();
     InitializeSceneResources();
+    CreateDescriptorSets();
     InitializeScene();
     CreateColorImage(vulkan_info, swapchain_info);
     CreateDepthImage(vulkan_info, swapchain_info);

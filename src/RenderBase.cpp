@@ -836,6 +836,7 @@ void DestroyScene() {
     }
     arrfree(uniform_buffers_memory_new);
     arrfree(uniform_buffers_new);
+    uniforms.object_count = 0;
 }
 
 void AddToScene(Model_Separate_Data model)
