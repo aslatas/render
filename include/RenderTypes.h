@@ -42,16 +42,33 @@ struct DirectionalLight
     glm::vec4 ambient;
 };
 
-// TODO(Matt): Decide on a standard UBO for opaque objects, or choose a way to link objects with their UBOs.
-struct UniformBufferObject
+struct PerDrawUniformObject
 {
     glm::mat4 model;
+};
+
+struct PerFrameUniformObject
+{
+    glm::vec4 view_position;
     glm::mat4 view;
     glm::mat4 projection;
-    glm::vec4 view_position;
+};
+
+struct PerPassUniformObject
+{
+    // NOTE(Matt): This doesn't necessarily belong here, I just wanted to
+    // test per-pass uniform support.
     DirectionalLight sun;
 };
 
+struct UniformBuffer
+{
+    char *buffer;
+    uint32_t buffer_size;
+    uint32_t per_pass_offset;
+    uint32_t per_draw_offset;
+    uint32_t object_count;
+};
 
 struct AxisAlignedBoundingBox
 {

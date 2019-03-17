@@ -23,18 +23,19 @@ SceneSettings* LoadSceneSettings(char* filename)
   Document scene_document;
   scene_document.Parse(buffer);
 
+  // 
   SceneSettings* scene_settings = (SceneSettings*)malloc(sizeof(scene_settings));
 
-  size_t model_length   = scene_document["models"].GetArray().Size();
-  size_t cameras_length = scene_document["cameras"].GetArray().Size();
-  size_t lights_length  = scene_document["lights"].GetArray().Size();
+  scene_settings->num_models  = scene_document["models"].GetArray().Size();
+  scene_settings->num_cameras = scene_document["cameras"].GetArray().Size();
+  scene_settings->num_lights  = scene_document["lights"].GetArray().Size();
 
-  scene_settings->model_data  = (SceneModelData*)malloc(model_length * sizeof(SceneModelData));
-  scene_settings->camera_data = (SceneCameraData*)malloc(cameras_length * sizeof(SceneCameraData));
-  scene_settings->light_data  = (SceneLightData*)malloc(lights_length * sizeof(SceneLightData));
+  scene_settings->model_data  = (SceneModelData*)malloc(scene_settings->num_models * sizeof(SceneModelData));
+  scene_settings->camera_data = (SceneCameraData*)malloc(scene_settings->num_cameras * sizeof(SceneCameraData));
+  scene_settings->light_data  = (SceneLightData*)malloc(scene_settings->num_lights * sizeof(SceneLightData));
 
   Value model_array = scene_document["models"].GetArray();
-  for (int i = 0; i < model_length; ++i)
+  for (int i = 0; i < scene_settings->num_models; ++i)
   {
     // filename
     size_t name_len = model_array[i]["filepath"].GetStringLength();;
@@ -46,15 +47,15 @@ SceneSettings* LoadSceneSettings(char* filename)
     scene_settings->model_data[i].id = model_array[i]["id"].GetInt();
 
     // model matrix
-    Value model_matrix_array = model_array["model_matrix"].GetArray();
-    for (int j = 0; j < model_matrix_array.Size(); ++i)
+    Value model_matrix_array = model_array[i]["model_matrix"].GetArray();
+    for (int j = 0; j < model_matrix_array.Size(); ++j)
     {
       scene_settings->model_data[i].model_matrix[j] = model_matrix_array[j].GetFloat();
     }
   }
 
   Value camera_array = scene_document["cameras"].GetArray();
-  for (int i = 0; i < cameras_length; ++i)
+  for (int i = 0; i < scene_settings->num_cameras; ++i)
   {
     // position
     scene_settings->camera_data[i].position[0] = camera_array[i]["position"].GetArray()[0].GetFloat();
@@ -85,9 +86,9 @@ SceneSettings* LoadSceneSettings(char* filename)
   }
 
   Value light_array = scene_document["lights"].GetArray();
-  for (int i = 0; i < lights_length; ++i)
+  for (int i = 0; i < scene_settings->num_lights; ++i)
   {
-    if (strncpy("DIRECTIONAL", light_array[i]["type"].GetString(), light_array[i]["type"].GetStringLength()) == 0)
+    if (strncmp("DIRECTIONAL", light_array[i]["type"].GetString(), light_array[i]["type"].GetStringLength()) == 0)
     {
       scene_settings->light_data[i].light_type = DIRECTIONAL;
 

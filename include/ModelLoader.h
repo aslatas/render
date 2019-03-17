@@ -8,6 +8,7 @@
 #include <utils.h>
 #include <RenderTypes.h>
 #include "VulkanLoader.h"
+#include <config_parsers/SceneConfig.h>
 
 // Returned error cases for failed/successful loading
 typedef enum EModelLoadResult {
@@ -24,10 +25,10 @@ typedef enum EModelLoadResult {
 } EModelLoadResult;
 
 // Load a GLTF Model at the given filepath
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data& model, UniformBufferObject *ubo, uint32_t material_type, 
+EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data& model, PerDrawUniformObject *ubo, uint32_t material_type, 
                                uint32_t shader_id, uint32_t uniform_index);
 // Destroy loaded model
 void DestroyModelSeparateDataTest(Model_Separate_Data *model, const VulkanInfo *vulkan_info);
 
 // Creates a generic box. Used for initial testing 
-Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, UniformBufferObject *ubo, uint32_t material_type, uint32_t shader_id, uint32_t uniform_index);
+Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDrawUniformObject *ubo, uint32_t material_type, uint32_t shader_id, uint32_t uniform_index);

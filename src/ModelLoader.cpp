@@ -10,7 +10,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "RenderBase.h"
 
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model, UniformBufferObject *ubo, uint32_t material_type,
+EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data &model, PerDrawUniformObject *ubo, uint32_t material_type,
                                uint32_t shader_id, uint32_t uniform_index)
 {
     
@@ -21,35 +21,31 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model,
     
     glm::vec3 pos = glm::vec3(0.0f, -3.0f, 0.0f);
     glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
-    
+
+
+    // TODO(Dustin): get this from the model matrix 
     model.pos                   = pos;
     model.rot                   = glm::vec3(glm::radians(90.0f), 0.0f, 0.0f);
     model.scl                   = glm::vec3(0.1f);
     model.bounds.min            = glm::vec3(0.0f);
     model.bounds.max            = ext;
-    ubo->model = glm::scale(glm::mat4(1.0f), model.scl);
-    ubo->model = glm::rotate(ubo->model, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo->model = glm::rotate(ubo->model, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo->model = glm::rotate(ubo->model, model.rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
-    ubo->model = glm::translate(ubo->model, model.pos);
-    ubo->sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
-    ubo->sun.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
-    ubo->sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
-    ubo->sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
-    ubo->view_position          = glm::vec4(2.0f, 3.0f, 2.0f, 1.0f);
-    ubo->view                   = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo->projection             = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
-    ubo->projection[1][1] *= -1;
+    // ubo->model = glm::scale(glm::mat4(1.0f), model.scl);
+    // ubo->model = glm::rotate(ubo->model, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
+    // ubo->model = glm::rotate(ubo->model, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
+    // ubo->model = glm::rotate(ubo->model, model.rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
+    // ubo->model = glm::translate(ubo->model, model.pos);
+
+    ubo->model = glm::make_mat4x4(&scene_model.model_matrix[0]);
     
-    // char *file = "resources/models/BlenderCube.glb";
-    char *file = "resources/models/Lantern/glTF-Binary/Lantern.glb";
+    // char *file = scene_model.filepath;
+    //char *file = "resources/models/Lantern/glTF-Binary/Lantern.glb";
     
     tinygltf::Model gltf_model;
     tinygltf::TinyGLTF gltf_ctx;
     std::string err;
     std::string warn;
     
-    bool ret = gltf_ctx.LoadBinaryFromFile(&gltf_model, &err, &warn, file);
+    bool ret = gltf_ctx.LoadBinaryFromFile(&gltf_model, &err, &warn, scene_model.filepath);
     // bool ret = gltf_ctx.LoadASCIIFromFile(&model, &err, &warn, file);
     if (!ret)
         return MODEL_LOAD_RESULT_FILE_NOT_FOUND;
@@ -258,7 +254,7 @@ void DestroyModelSeparateDataTest(Model_Separate_Data *model, const VulkanInfo *
     model = nullptr;
 }
 
-Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, UniformBufferObject *ubo, uint32_t material_type, uint32_t shader_id, uint32_t uniform_index) 
+Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDrawUniformObject *ubo, uint32_t material_type, uint32_t shader_id, uint32_t uniform_index) 
 {
     
     Model_Separate_Data model;
@@ -512,10 +508,6 @@ Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, Unifor
     model.bounds.min = glm::vec3(0.0f);
     model.bounds.max = ext;
     ubo->model = glm::translate(glm::mat4(1.0f), pos);
-    ubo->view_position = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
-    ubo->view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo->projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
-    ubo->projection[1][1] *= -1;
     
     return model;
 }
