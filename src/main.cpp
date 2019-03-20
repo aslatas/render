@@ -34,6 +34,10 @@ void KeyCallback(KeyCode key, EButtonState state)
     if (key == KEY_A && state == RELEASED) is_a_held = false;
     if (key == KEY_D && state == PRESSED) is_d_held = true;
     if (key == KEY_D && state == RELEASED) is_d_held = false;
+    if (key == KEY_Q && state == PRESSED) is_q_held = true;
+    if (key == KEY_Q && state == RELEASED) is_q_held = false;
+    if (key == KEY_E && state == PRESSED) is_e_held = true;
+    if (key == KEY_E && state == RELEASED) is_e_held = false;
 }
 
 void MouseButtonCallback(uint32_t button, EButtonState state)
