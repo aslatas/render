@@ -1,6 +1,5 @@
 
 #include "Camera.h"
-#include <iostream>
 
 glm::mat4 Camera::GetViewTransform(Camera *cam)
 {
@@ -53,4 +52,16 @@ void Camera::MoveRight(Camera *cam, float distance)
 void Camera::MoveUp(Camera *cam, float distance)
 {
     cam->location += glm::vec3(0.0f, 0.0f, 1.0f) * distance;
+}
+
+void Camera::AddYaw(Camera *cam, float radians)
+{
+    cam->rotation.z += radians;
+}
+
+void Camera::AddPitch(Camera *cam, float radians)
+{
+    cam->rotation.y += radians;
+    if (cam->rotation.y >= glm::half_pi<float>()) cam->rotation.y = glm::half_pi<float>() - 0.01f;
+    if (cam->rotation.y <= -glm::half_pi<float>()) cam->rotation.y = -glm::half_pi<float>() + 0.01f;
 }

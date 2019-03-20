@@ -330,8 +330,8 @@ void UpdatePrePhysics(double delta)
         y_delta = (float)y;
         float yaw = x_delta * -0.25f * (float)delta;
         float pitch = y_delta * -0.25f * (float)delta;
-        camera.rotation.z += yaw;
-        camera.rotation.y += pitch;
+        Camera::AddYaw(&camera, yaw);
+        Camera::AddPitch(&camera, pitch);
     }
     
     PerFrameUniformObject *per_frame = GetPerFrameUniform();

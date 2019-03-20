@@ -2,7 +2,7 @@
 #pragma once
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/quaternion.hpp"
+#include "glm/gtc/constants.hpp"
 
 namespace Camera
 {
@@ -28,5 +28,7 @@ namespace Camera
     void MoveForward(Camera *cam, float distance);
     void MoveRight(Camera *cam, float distance);
     void MoveUp(Camera *cam, float distance);
+    void AddYaw(Camera *cam, float radians);
+    void AddPitch(Camera *cam, float radians);
 }
 
