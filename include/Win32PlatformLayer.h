@@ -34,14 +34,25 @@ enum EButtonState
     NONE, RELEASED, PRESSED, HELD
 };
 
+
+enum KeyCode
+{
+    KEY_CTRL = VK_CONTROL,
+    KEY_W = 0x57,
+    KEY_A = 0x41,
+    KEY_S = 0x53,
+    KEY_D = 0x44,
+    KEY_Q = 0x51,
+    KEY_E = 0x45
+};
+
 // TODO(Matt): These also probably don't need to be platform specific.
 typedef void (*Win32ResizeCallback)(uint32_t width, uint32_t height);
 // Button uses 1 as left, 2 as right, 3 as middle, 4 and 5 as thumbs.
 typedef void (*Win32MouseButtonCallback)(uint32_t button, EButtonState state);
 // Scroll amount is positive for away from the user, negative for towards.
 typedef void (*Win32MouseWheelCallback)(int32_t amount);
-// TODO(Matt): Key uses virtual key codes which are platform specific.
-typedef void (*Win32KeyCallback)(uint32_t key, EButtonState state);
+typedef void (*Win32KeyCallback)(KeyCode key, EButtonState state);
 // TODO(Matt): Callback for double click, and mouse capture handling.
 
 // Struct for window handle and state info.
@@ -60,6 +71,8 @@ struct Win32WindowInfo
     Win32KeyCallback key_callback;
     int32_t mouse_x;
     int32_t mouse_y;
+    int32_t mouse_x_delta;
+    int32_t mouse_y_delta;
 };
 
 // Creates and shows the window. Does not start the message loop.
@@ -90,7 +103,11 @@ double Win32GetTimerTotalSeconds();
 
 // Input handling.
 void Win32GetMousePosition(int32_t *x, int32_t *y);
+void Win32GetMouseDelta(int32_t *x, int32_t *y);
 void Win32RegisterResizeCallback(Win32ResizeCallback callback);
 void Win32RegisterMouseButtonCallback(Win32MouseButtonCallback callback);
 void Win32RegisterMouseWheelCallback(Win32MouseWheelCallback callback);
 void Win32RegisterKeyCallback(Win32KeyCallback callback);
+void Win32ProcessInput();
+void Win32CaptureMouse();
+void Win32ReleaseMouse();

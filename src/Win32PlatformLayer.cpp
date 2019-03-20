@@ -4,13 +4,14 @@
 // to avoid this include.
 #include "Main.h"
 
+RAWINPUTDEVICE input_devices[1];
 static Win32WindowInfo window_info = {};
 // TODO(Matt): This should maybe go in the window struct? Maybe not.
 static HMODULE vulkan_library = nullptr;
 static LARGE_INTEGER timer_frequency;
 static LARGE_INTEGER timer_start;
 static LARGE_INTEGER timer_last;
-
+static POINT mouse_pos_at_capture;
 
 void Win32CreateWindow()
 {
@@ -29,6 +30,12 @@ void Win32CreateWindow()
     HWND window = CreateWindowExW(WS_EX_OVERLAPPEDWINDOW, 
                                   WNDCLASS_NAME, WINDOW_TITLE,  WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
     window_info.window_handle = window;
+    
+    input_devices[0].usUsagePage = 1; // Generic usage page. 
+    input_devices[0].usUsage = 2; // Generic mouse usage.
+    input_devices[0].dwFlags = RIDEV_INPUTSINK;   
+    input_devices[0].hwndTarget = window_info.window_handle;
+    RegisterRawInputDevices(input_devices, 1, sizeof(input_devices[0]));
 }
 
 // TODO(Matt): I think swapchain is getting remade a bunch on startup,
@@ -52,7 +59,7 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
             
             if (Win32GetSurfaceSize(&window_info.surface_width, &window_info.surface_height)) {
                 window_info.is_minimized = false;
-                //window_info.resize_callback(window_info.surface_width, window_info.surface_height);
+                window_info.resize_callback(window_info.surface_width, window_info.surface_height);
             }
         }
         return 0;
@@ -66,7 +73,7 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
             if (window_info.is_initialized) {
                 window_info.is_resizing = false;
                 if (Win32GetSurfaceSize(&window_info.surface_width, &window_info.surface_height)) {
-                    //window_info.resize_callback(window_info.surface_width, window_info.surface_height);
+                    window_info.resize_callback(window_info.surface_width, window_info.surface_height);
                 } else {
                     window_info.is_minimized = true;
                 }
@@ -82,12 +89,12 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
         return 0;
         case WM_KEYDOWN: {
             if (window_info.key_callback) {
-                window_info.key_callback((uint32_t)wParam, (lParam & (1 << 30)) ? HELD : PRESSED);
+                window_info.key_callback((KeyCode)wParam, (lParam & (1 << 30)) ? HELD : PRESSED);
             }
         }
         return 0;
         case WM_KEYUP: {
-            if (window_info.key_callback) window_info.key_callback((uint32_t)wParam, RELEASED);
+            if (window_info.key_callback) window_info.key_callback((KeyCode)wParam, RELEASED);
             
         }
         return 0;
@@ -142,6 +149,23 @@ LRESULT CALLBACK Win32WindowProc(HWND window, UINT message, WPARAM wParam, LPARA
             window_info.mouse_y = (int32_t)GET_Y_LPARAM(lParam);
         }
         return 0;
+        case WM_INPUT: 
+        {
+            UINT dwSize = sizeof(RAWINPUT);
+            static BYTE lpb[sizeof(RAWINPUT)];
+            
+            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, 
+                            lpb, &dwSize, sizeof(RAWINPUTHEADER));
+            
+            RAWINPUT* raw = (RAWINPUT*)lpb;
+            
+            if (raw->header.dwType == RIM_TYPEMOUSE) 
+            {
+                window_info.mouse_x_delta += raw->data.mouse.lLastX;
+                window_info.mouse_y_delta += raw->data.mouse.lLastY;
+            } 
+        }
+        return 0;
         default:
         return DefWindowProc(window, message, wParam, lParam);
     }
@@ -156,6 +180,7 @@ bool Win32PeekEvents()
     }
     TranslateMessage(&message);
     DispatchMessage(&message);
+    
     return window_info.is_running;
 }
 
@@ -276,4 +301,39 @@ void Win32GetMousePosition(int32_t *x, int32_t *y)
 {
     *x = window_info.mouse_x;
     *y = window_info.mouse_y;
+}
+
+void Win32GetMouseDelta(int32_t *x, int32_t *y)
+{
+    *x = window_info.mouse_x_delta;
+    *y = window_info.mouse_y_delta;
+}
+
+void Win32ProcessInput()
+{
+    window_info.mouse_x_delta = 0;
+    window_info.mouse_y_delta = 0;
+    MSG message = {};
+    while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE | PM_QS_INPUT)) {
+        TranslateMessage(&message);
+        DispatchMessage(&message);
+    }
+}
+
+void Win32CaptureMouse()
+{
+    RECT client_rect;
+    GetClientRect(window_info.window_handle, &client_rect);
+    GetCursorPos(&mouse_pos_at_capture);
+    ClipCursor(&client_rect);
+    SetCapture(window_info.window_handle);
+    while (ShowCursor(false) > 0);
+}
+
+void Win32ReleaseMouse()
+{
+    SetCursorPos(mouse_pos_at_capture.x, mouse_pos_at_capture.y);
+    ShowCursor(true);
+    ClipCursor(nullptr);
+    ReleaseCapture();
 }

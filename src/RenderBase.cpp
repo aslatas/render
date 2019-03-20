@@ -7,7 +7,8 @@
 #include "VulkanInit.h"
 #include "Main.h"
 #include "Font.h"
-#include <ModelLoader.h>
+#include "ModelLoader.h"
+#include "Camera.h"
 
 #include <assert.h>
 
@@ -24,6 +25,8 @@ UniformBuffer uniforms = {};
 VkDescriptorSet *descriptor_sets_new = nullptr;
 
 Model_Separate_Data **selected_models = nullptr;
+// TODO(Matt): Refactor these.
+Camera::Camera camera = {};
 
 char *ReadShaderFile(const char *path, uint32_t *length)
 {
@@ -308,15 +311,33 @@ void DrawFrame()
     // Increment frame counter.
     swapchain_info.current_frame = (swapchain_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
-
 // TODO(Matt): Move this out of the rendering component.
-void UpdateScene(double frame_delta)
+void UpdatePrePhysics(double delta)
 {
+    if (GetEditorInputMode() == VIEWPORT) {
+        float forward_axis = GetForwardAxis();
+        if (fabs(forward_axis) > 0.01f) Camera::MoveForward(&camera, forward_axis * (float)delta);
+        float right_axis = GetRightAxis();
+        if (fabs(right_axis) > 0.01f) Camera::MoveRight(&camera, right_axis * (float)delta);
+        
+        float up_axis = GetUpAxis();
+        if (fabs(up_axis) > 0.01f) Camera::MoveUp(&camera, up_axis * (float)delta);
+        int32_t x, y;
+        float x_delta, y_delta;
+        // TODO(Matt): Platform specific.
+        Win32GetMouseDelta(&x, &y);
+        x_delta = (float)x;
+        y_delta = (float)y;
+        float yaw = x_delta * -0.25f * (float)delta;
+        float pitch = y_delta * -0.25f * (float)delta;
+        camera.rotation.z += yaw;
+        camera.rotation.y += pitch;
+    }
+    
     PerFrameUniformObject *per_frame = GetPerFrameUniform();
-    per_frame->view_position          = glm::vec4(2.0f, 3.0f, 2.0f, 1.0f);
-    per_frame->view                   = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    per_frame->projection             = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
-    per_frame->projection[1][1] *= -1;
+    per_frame->view_position = glm::vec4(camera.location, 1.0f);
+    per_frame->view = Camera::GetViewTransform(&camera);
+    per_frame->projection = Camera::GetProjectionTransform(&camera);
     
     PerPassUniformObject *per_pass = GetPerPassUniform();
     per_pass->sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
@@ -332,7 +353,7 @@ void UpdateScene(double frame_delta)
             for (uint32_t k = 0; k < arrlen(material->models); ++k) {
                 Model_Separate_Data *model = &material->models[k];
                 PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
-                model->rot.z += (float)frame_delta * glm::radians(25.0f);
+                //model->rot.z += (float)delta * glm::radians(25.0f);
                 ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
                 ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
                 ubo->model = glm::rotate(ubo->model, model->rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -342,6 +363,24 @@ void UpdateScene(double frame_delta)
             }
         }
     }
+}
+
+// TODO(Matt): Move this out of the rendering component.
+void UpdatePhysics(double frame_delta)
+{
+    
+}
+
+// TODO(Matt): Move this out of the rendering component.
+void UpdatePostPhysics(double delta)
+{
+    
+}
+
+// TODO(Matt): Move this out of the rendering component.
+void UpdatePostRender(double delta)
+{
+    
 }
 
 // TODO(Matt): Figure out uniforms in general.
@@ -780,6 +819,7 @@ void InitializeSceneResources()
 }
 void InitializeScene()
 {
+    camera.location = glm::vec3(-2.0f, 0.0f, 0.0f);
     // Throw some boxes in the scene.
     //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
