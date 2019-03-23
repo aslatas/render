@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "Utils.h"
 #include "RenderTypes.h"
 
 // TODO(Matt): Move most of these vars into an ini file or something.

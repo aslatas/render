@@ -5,8 +5,8 @@
 
 #include <string>
 
-#include <utils.h>
-#include <RenderTypes.h>
+#include "Utils.h"
+#include "RenderTypes.h"
 #include "VulkanLoader.h"
 
 // Returned error cases for failed/successful loading

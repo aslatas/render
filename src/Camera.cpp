@@ -3,20 +3,8 @@
 
 glm::mat4 Camera::GetViewTransform(Camera *cam)
 {
-    glm::mat4 rot = glm::mat4(1.0f);
-    glm::mat4 trans = glm::mat4(1.0f);
-    
-    rot = glm::rotate(rot, cam->rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
-    rot = glm::rotate(rot, cam->rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
-    rot = glm::rotate(rot, cam->rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
-    trans = glm::translate(trans, cam->location);
-    
     return glm::lookAt(cam->location, cam->location + GetForwardVector(cam), glm::vec3(0.0f, 0.0f, 1.0f));
-    return (cam->mode == FPS) ? rot * trans : trans * rot;
-    //return glm::translate(glm::mat4_cast(cam->rotation), -cam->location);
-    //return glm::lookAt(cam->location, cam->location + GetForwardVector(cam), GetUpVector(cam));
 }
-
 glm::mat4 Camera::GetProjectionTransform(const Camera *cam)
 {
     glm::mat4 transform = glm::perspective(cam->fov, cam->aspect_ratio, cam->near_dist, cam->far_dist);
