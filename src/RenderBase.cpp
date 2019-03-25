@@ -316,12 +316,13 @@ void UpdatePrePhysics(double delta)
 {
     if (GetEditorInputMode() == VIEWPORT) {
         float forward_axis = GetForwardAxis();
-        if (fabs(forward_axis) > 0.01f) Camera::MoveForward(&camera, forward_axis * (float)delta);
+        //if (fabs(forward_axis) > 0.01f) Camera::MoveForward(&camera, forward_axis * (float)delta);
         float right_axis = GetRightAxis();
-        if (fabs(right_axis) > 0.01f) Camera::MoveRight(&camera, right_axis * (float)delta);
+        //if (fabs(right_axis) > 0.01f) Camera::MoveRight(&camera, right_axis * (float)delta);
         
         float up_axis = GetUpAxis();
-        if (fabs(up_axis) > 0.01f) Camera::MoveUp(&camera, up_axis * (float)delta);
+        //if (fabs(up_axis) > 0.01f) Camera::MoveUp(&camera, up_axis * (float)delta);
+        Camera::Move(&camera, forward_axis, right_axis, up_axis, (float) delta);
         int32_t x, y;
         float x_delta, y_delta;
         // TODO(Matt): Platform specific.

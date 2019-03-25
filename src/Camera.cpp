@@ -53,3 +53,18 @@ void Camera::AddPitch(Camera *cam, float radians)
     if (cam->rotation.y >= glm::half_pi<float>()) cam->rotation.y = glm::half_pi<float>() - 0.01f;
     if (cam->rotation.y <= -glm::half_pi<float>()) cam->rotation.y = -glm::half_pi<float>() + 0.01f;
 }
+
+void Camera::Move(Camera *cam, float forward, float right, float up, float delta)
+{
+    cam->acceleration = glm::vec3(0.0f);
+    //if (fabs(forward) < 0.01f && fabs(right) < 0.01f && fabs(up) < 0.01f) {
+    //cam->acceleration = glm::normalize(-cam->velocity) * 0.01f;
+    //} else {
+    cam->acceleration += GetForwardVector(cam) * forward * 0.01f;
+    cam->acceleration += GetRightVector(cam) * right * 0.01f;
+    cam->acceleration += glm::vec3(0.0f, 0.0f, 1.0f) * up * 0.01f;
+    //}
+    
+    cam->velocity += cam->acceleration * delta;
+    cam->location += cam->velocity * delta;
+}
