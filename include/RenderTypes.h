@@ -157,7 +157,7 @@ void DestroyModel(Model *model, const VulkanInfo *vulkan_info);
 
 // Creates a box given a world space position, size, and material info.
 Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id);
-
+*/
 
 // Creates a ray with a given world origin, direction, and length.
 Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
@@ -166,7 +166,7 @@ Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
 // then performing an axis-aligned bounding box test. 
 // Returns true if there was an intersection, false otherwise.
 // Fills the intersection parameter with the intersection point if there was one.
-bool RaycastAgainstModelBounds(const Ray ray, const Model *model, glm::vec3 *intersection);
+bool RaycastAgainstModelBounds(const Ray ray, const Model_Separate_Data *model, glm::vec3 *intersection);
 
 // Tests a ray against an axis-aligned bounding box, assuming both are in the same coordinate space.
 // For each axis, tests the ray against both planes of the box. If the minimum distance in one axis exceeds the
@@ -183,6 +183,7 @@ bool RayIntersectAxisAlignedBox(const Ray *ray, const AxisAlignedBoundingBox *bo
 // Returns a Ray object.
 Ray ScreenPositionToWorldRay(int32_t x, int32_t y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
 
+/*
 // Creates a screen-space quad given a normalized (0-1 range where (0, 0) is
 // the upper left) position and extent. Takes material type and shader ID
 // to identify the material to use. Color is used by the debug material.

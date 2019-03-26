@@ -22,15 +22,10 @@ DescriptorLayout descriptor_layout_new = {};
 VkBuffer *uniform_buffers_new = nullptr;
 VkDeviceMemory *uniform_buffers_memory_new = nullptr;
 UniformBuffer uniforms = {};
-//UniformBufferObject *object_uniforms_new = nullptr;
 VkDescriptorSet *descriptor_sets_new = nullptr;
 
-//static Model *boxes;
-glm::vec3 initial_positions[3] = {{-0.3f, -0.3f, -0.3f},{0.3f, 0.3f, -0.3f}, {0.0f, 0.0f, 0.3f}}; 
-//uint32_t box_count = 3;
-//uint32_t selected_boxes[3] = {0, 0, 0};
-//uint32_t selected_count = 0;
 Model_Separate_Data **selected_models = nullptr;
+
 char *ReadShaderFile(const char *path, uint32_t *length)
 {
     FILE *file = fopen(path, "rb");
@@ -91,7 +86,6 @@ static VkShaderModule CreateShaderModule(char *code, uint32_t length)
 void CreateVertexBuffer(Model *model)
 {
     VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
-    
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
     CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
@@ -234,7 +228,7 @@ void RecordPrimaryCommand(uint32_t image_index)
         // For each selected model.
         for (uint32_t i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
-            Model_Separate_Data* model = selected_models[i];
+            Model_Separate_Data *model = selected_models[i];
             
             // Bind the vertex, index, and uniform buffers.
             VkBuffer vertex_buffers[] = {model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer, model->vertex_buffer};
@@ -371,56 +365,61 @@ void UpdateUniforms(uint32_t image_index)
     vkUnmapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[image_index]);
 }
 
-/*
 void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
 {
-    if (!accumulate) selected_count = 0;
+    // If we are not doing multi-select, reset selected count to zero.
+    if (!accumulate) arrfree(selected_models);
+    // Initialize the  minimum distance.
     float min_dist = INFINITY;
-    int32_t selection = -1;
-    for (uint32_t i = 0; i < box_count; ++i) {
-        if (!boxes[i].hit_test_enabled) continue;
-        float hit_dist;
-        Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, swapchain_info.extent.width, swapchain_info.extent.height, boxes[i].ubo.view, boxes[i].ubo.projection, 1000.0f);
-        glm::vec3 intersection;
-        if (RaycastAgainstModelBounds(ray, &boxes[i], &intersection)) {
-            hit_dist = glm::distance2(ray.origin, intersection);
-            if (hit_dist < min_dist) {
-                min_dist = hit_dist;
-                selection = i;
+    Model_Separate_Data *selection = nullptr;
+    // Iterate through all objects in the scene.
+    for (uint32_t i = 0; i < arrlenu(material_types); ++i) {
+        MaterialLayout *material_type = &material_types[i];
+        for (uint32_t j = 0; j < arrlenu(material_type->materials); ++j) {
+            Material *material = &material_type->materials[j];
+            for (uint32_t k = 0; k < arrlenu(material->models); ++k) {
+                Model_Separate_Data *model = &material->models[k];
+                // If the model has hit testing disabled, skip it.
+                if (!model->hit_test_enabled) continue;
+                
+                // Otherwise, perform a ray-box test with the object bounds.
+                float hit_dist;
+                PerFrameUniformObject *per_frame = GetPerFrameUniform();
+                Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, swapchain_info.extent.width, swapchain_info.extent.height, per_frame->view, per_frame->projection, 1000.0f);
+                glm::vec3 intersection;
+                if (RaycastAgainstModelBounds(ray, model, &intersection)) {
+                    hit_dist = glm::distance2(ray.origin, intersection);
+                    // If the raycast hits AND is closer than the previous hit
+                    // we can update the selection.
+                    if (hit_dist < min_dist) {
+                        min_dist = hit_dist;
+                        selection = model;
+                    }
+                }
             }
         }
     }
-    if (selection >= 0) {
-        // Dumb hacky section incoming (just to get multiple selct working)
+    
+    // If any object was hit
+    if (selection) {
         // Check if this box is already selected.
-        bool already_selected = false;
-        for (uint32_t j = 0; j < selected_count; ++j) {
-            if (selected_boxes[j] == selection) {
-                // If so, set the flag and quit checking.
-                already_selected = true;
+        int32_t existing_index = -1;
+        for (uint32_t i = 0; i < arrlenu(selected_models); ++i) {
+            if (selected_models[i] == selection) {
+                // If so, save the existing index and quit checking.
+                existing_index = i;
                 break;
             }
         }
         // If we are doing multi-select and this box was already selected, deselect it.
-        if (already_selected && accumulate) {
-            uint32_t new_index = 0;
-            // To deselect, iterate through all selected.
-            for (uint32_t j = 0; j < selected_count; ++j) {
-                // Add back all except the deselected box.
-                if (selected_boxes[j] == selection) continue;
-                selected_boxes[new_index] = selected_boxes[j];
-                new_index++;
-            }
-            // Decrement selected count.
-            selected_count--;
-            // End of dumb hacky section.
+        if (existing_index >= 0 && accumulate) {
+            arrdelswap(selected_models, existing_index);
         } else {
-            selected_boxes[selected_count] = selection;
-            selected_count++;
+            arrput(selected_models, selection);
         }
     }
 }
-*/
+
 void OnWindowResized()
 {
     RecreateSwapchain(&vulkan_info, &swapchain_info);
@@ -715,52 +714,52 @@ void CreateMaterials()
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
     AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    //material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
-    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    //material_info = CreateDefaultMaterialInfo("resources/shaders/stencil_vert.spv", nullptr);
-    //material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
-    //material_info.depth_stencil.depthTestEnable = VK_FALSE;
-    //material_info.depth_stencil.depthWriteEnable = VK_FALSE;
-    //material_info.depth_stencil.stencilTestEnable = VK_TRUE;
-    //material_info.depth_stencil.back = {};
-    //material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
-    //material_info.depth_stencil.back.failOp = VK_STENCIL_OP_REPLACE;
-    //material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
-    //material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
-    //material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
-    //material_info.depth_stencil.back.reference = 1;
-    //material_info.depth_stencil.front = material_info.depth_stencil.back;
-    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    material_info = CreateDefaultMaterialInfo("resources/shaders/stencil_vert.spv", nullptr);
+    material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
+    material_info.depth_stencil.depthTestEnable = VK_FALSE;
+    material_info.depth_stencil.depthWriteEnable = VK_FALSE;
+    material_info.depth_stencil.stencilTestEnable = VK_TRUE;
+    material_info.depth_stencil.back = {};
+    material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
+    material_info.depth_stencil.back.failOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
+    material_info.depth_stencil.back.reference = 1;
+    material_info.depth_stencil.front = material_info.depth_stencil.back;
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    //material_info = CreateDefaultMaterialInfo("resources/shaders/outline_vert.spv", "resources/shaders/outline_frag.spv");
-    //material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
-    //material_info.depth_stencil.depthTestEnable = VK_FALSE;
-    //material_info.depth_stencil.depthWriteEnable = VK_FALSE;
-    //material_info.depth_stencil.stencilTestEnable = VK_TRUE;
-    //material_info.depth_stencil.back = {};
-    //material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
-    //material_info.depth_stencil.back.failOp = VK_STENCIL_OP_KEEP;
-    //material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_KEEP;
-    //material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
-    //material_info.depth_stencil.back.compareMask = 0xff;
-    //material_info.depth_stencil.back.writeMask = 0xff;
-    //material_info.depth_stencil.back.reference = 1;
-    //material_info.depth_stencil.front = material_info.depth_stencil.back;
-    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    material_info = CreateDefaultMaterialInfo("resources/shaders/outline_vert.spv", "resources/shaders/outline_frag.spv");
+    material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
+    material_info.depth_stencil.depthTestEnable = VK_FALSE;
+    material_info.depth_stencil.depthWriteEnable = VK_FALSE;
+    material_info.depth_stencil.stencilTestEnable = VK_TRUE;
+    material_info.depth_stencil.back = {};
+    material_info.depth_stencil.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
+    material_info.depth_stencil.back.failOp = VK_STENCIL_OP_KEEP;
+    material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_KEEP;
+    material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
+    material_info.depth_stencil.back.compareMask = 0xff;
+    material_info.depth_stencil.back.writeMask = 0xff;
+    material_info.depth_stencil.back.reference = 1;
+    material_info.depth_stencil.front = material_info.depth_stencil.back;
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    //material_info = CreateDefaultMaterialInfo("resources/shaders/text_vert.spv", "resources/shaders/text_frag.spv");
-    //material_info.blend.blendEnable = VK_TRUE;
-    //material_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    //material_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    //material_info.blend.colorBlendOp = VK_BLEND_OP_ADD;
-    //material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    //material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    //material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
-    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    material_info = CreateDefaultMaterialInfo("resources/shaders/text_vert.spv", "resources/shaders/text_frag.spv");
+    material_info.blend.blendEnable = VK_TRUE;
+    material_info.blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    material_info.blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    material_info.blend.colorBlendOp = VK_BLEND_OP_ADD;
+    material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
     
-    //material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
-    //AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
+    material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
+    AddMaterial(&material_info, 0, swapchain_info.renderpass, 0);
 }
 
 // offset is the offset into buffer memory the VkBuffer will be written to

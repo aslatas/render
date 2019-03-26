@@ -235,7 +235,7 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t s
     
     return model;
 }
-
+*/
 bool RayIntersectAxisAlignedBox(Ray ray, AxisAlignedBoundingBox box, glm::vec3 *intersection)
 {
     // general method from https://tavianator.com/fast-branchless-raybounding-box-intersections-part-2-nans
@@ -253,12 +253,13 @@ bool RayIntersectAxisAlignedBox(Ray ray, AxisAlignedBoundingBox box, glm::vec3 *
 }
 
 // TODO(Matt): Refactor - this is a prototype.
-bool RaycastAgainstModelBounds(Ray ray, const Model *model, glm::vec3 *intersection)
+bool RaycastAgainstModelBounds(Ray ray, const Model_Separate_Data *model, glm::vec3 *intersection)
 {
-    glm::mat4 inverse = glm::inverse(model->ubo.model);
+    PerDrawUniformObject *ubo = GetPerDrawUniform(model->uniform_index);
+    glm::mat4 inverse = glm::inverse(ubo->model);
     Ray local_ray = CreateRay(inverse * glm::vec4(ray.origin, 1.0f), inverse * glm::vec4(ray.direction, 0.0f), ray.length);
     bool intersect = RayIntersectAxisAlignedBox(local_ray, model->bounds, intersection);
-    *intersection = model->ubo.model * glm::vec4(*intersection, 1.0f);
+    *intersection = ubo->model * glm::vec4(*intersection, 1.0f);
     return intersect;
 }
 
@@ -289,7 +290,7 @@ Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length)
     ray.length = length;
     return ray;
 }
-
+/*
 Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, uint32_t shader_id, glm::vec4 color, bool filled)
 {
     Model model = {};

@@ -1,11 +1,8 @@
 
 #version 450
-
-layout(location = 2) in vec3 in_color;
-
-layout(location = 0) out vec4 out_color;
+#include "FragmentLayout.glsl"
 
 void main()
 {
-    out_color = vec4(in_color, 1.0f);
+    out_color = vec4(in_color.rgb, 1.0f);
 }

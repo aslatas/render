@@ -238,7 +238,8 @@ EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data 
             index_offset  += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].indices].count;
         }
     }
-    
+    model.bounds.min = min;
+    model.bounds.max = max;
     return MODEL_LOAD_RESULT_SUCCESS;
 }
 
