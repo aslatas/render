@@ -1,33 +1,88 @@
-// TODO(Matt): Create vulkan surface.
 // TODO(Matt): Fullscreen support.
 // TODO(Matt): Support minimze, maximize, restore via function call.
 // TODO(Matt): Add functions for screen-space and NDC cursor location.
+
+#define UNICODE
+#define _CRT_SECURE_NO_WARNINGS
+
+// Standard library dependencies.
 #include <stdint.h>
 #include <cstring>
 #include <cstdio>
 #include <iostream>
 #include <cstdlib>
+#include <assert.h>
+
+// External libraries.
+#define VK_NO_PROTOTYPES
+#define VK_USE_PLATFORM_WIN32_KHR
+#include "vulkan/vulkan.h"
+
+#define GLM_FORCE_RADIANS
+#define GLM_ENABLE_EXPERIMENTAL
+#pragma warning(push, 0)
+#include "glm/gtc/type_ptr.hpp"
+#include "glm/gtc/constants.hpp"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/euler_angles.hpp"
+#include "glm/gtx/norm.hpp"
+#pragma warning(pop)
+
+#define STBI_ONLY_PNG
+#define STBI_ONLY_JPEG
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STB_DS_IMPLEMENTATION
+#include "stb/stb_truetype.h"
+#include "stb/stb_ds.h"
+
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NOEXCEPTION
+#define JSON_NOEXCEPTION
+#include "tinygltf/tiny_gltf.h"
 
 // NOTE(Matt): The "static" keyword has several uses in C/C++. We define a
-// keyword for each primary use, to improve clarity/searchability.
+// keyword for each primary use, for clarity/searchability.
 #define global static
 #define internal static
 #define persistent static
 
-#include "Platform.h"
-#include "Main.h"
+// Component headers.
 #include "Utils.h"
-
-#define VK_NO_PROTOTYPES
-#define VK_USE_PLATFORM_WIN32_KHR
-#include "vulkan/vulkan.h"
 #include "VulkanFunctions.h"
+#include "VulkanLoader.h"
+#include "Common.h"
+#include "Platform.h"
+#include "RenderTypes.h"
+#include "RenderBase.h"
+#include "Texture.h"
+#include "Font.h"
+#include "Camera.h"
+#include "Main.h"
+#include "VulkanInit.h"
+#include "ModelLoader.h"
 
+// Platform specific headers.
+#include "Win32PlatformLayer.h"
+
+// Component source files (unity build).
+#include "VulkanFunctions.cpp"
+#include "VulkanLoader.cpp"
+#include "RenderTypes.cpp"
+#include "RenderBase.cpp"
+#include "Texture.cpp"
+#include "Font.cpp"
+#include "Camera.cpp"
+#include "Main.cpp"
+#include "VulkanInit.cpp"
+#include "ModelLoader.cpp"
+
+// Platform specific libraries (windows headers).
 #define NOMINMAX
 #define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN
-#define UNICODE
-#define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
 #include <windowsx.h>
 
@@ -35,47 +90,15 @@
 #define WINDOW_TITLE L"Rendering Prototype"
 #define VULKAN_LIB_PATH L"vulkan-1.dll"
 
-// Platform specific window information.
-struct PlatformWindow
-{
-    // NOTE(Matt): Window handle packs a pointer to an instance of this
-    // struct as its userdata. Access with GetWindowLongPtr().
-    HWND handle; // Window handle.
-    RAWINPUTDEVICE input_devices[1]; // Mouse device for raw input.
-    
-    s32 mouse_x; // Current mouse x, in window coords (pixels). Can be < 0.
-    s32 mouse_y; // Current mouse y, in window coords (pixels). Can be < 0.
-    s32 mouse_x_delta; // Raw mouse x delta since last frame. DPI dependent.
-    s32 mouse_y_delta; // Raw mouse y delta since last frame. DPI dependent.
-    
-    bool is_minimized; // True if the window is minimized, false otherwise.
-    bool is_resizing; // True if being resized, false otherwise.
-    // TODO(Matt): Should this be false while minimized? If so, parts of
-    // WM_SIZE need to change.
-    bool is_visible; // True if currently being shown, false otherwise.
-    bool has_been_shown; // True if ever shown, false otherwise.
-    
-    // NOTE(Matt): Callbacks are valid per-window, to support many windows.
-    PlatformResizeCallback resize_callback; // Called when a resize ends.
-    PlatformMouseButtonCallback mouse_button_callback; // Button callback.
-    PlatformMouseWheelCallback mouse_wheel_callback; // Wheel callback.
-    PlatformKeyCallback key_callback; // Keyboard key callback.
-};
-
-// Platform specific timer info.
-struct PlatformGlobalTimer
-{
-    LARGE_INTEGER frequency; // Frequency of the timer, in counts / second.
-    LARGE_INTEGER start; // Start time for the timer.
-    LARGE_INTEGER last; // Last time measured by GetGlobalTimerDelta().
-};
-
-// Timer used for frame and global timing.
-global Win32GlobalTimer global_timer = {};
 // Dynamically loaded vulkan library.
 global HMODULE vulkan_library = nullptr;
+
+// Raw cursor movement.
+s32 cursor_delta_x;
+s32 cursor_delta_y;
+
 // Screen (not window) location of the cursor at the last capture. 
-global POINT cursor_location_at_capture = {};
+global POINT cursor_capture_location = {};
 
 void PlatformCreateWindow(PlatformWindow *window)
 {
@@ -98,10 +121,10 @@ void PlatformCreateWindow(PlatformWindow *window)
                                      WNDCLASS_NAME, WINDOW_TITLE,  WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
     
     // Pack the window pointer with the new window handle.
-    SetWindowLongPtrW(window->handle, GWLP_USERDATA, window);
+    SetWindowLongPtrW(window->handle, GWLP_USERDATA, (LONG_PTR)window);
 }
 
-void PlatformSetupInputDevices(const PlatformWindow *window)
+void PlatformSetupInputDevices(PlatformWindow *window)
 {
     // Configure RAWINPUT struct for the mouse.
     // TODO(Matt): Is RIDEV_INPUTSINK still going to be feeding input when
@@ -116,7 +139,7 @@ void PlatformSetupInputDevices(const PlatformWindow *window)
 }
 
 // Translates a VK keycode into a platform-independent code.
-EKeyCode Win32TranslateKeycode(WPARAM virtual_code)
+internal EKeyCode Win32TranslateKeycode(WPARAM virtual_code)
 {
     switch (virtual_code) {
         case 0x41: return KEY_A;
@@ -129,7 +152,7 @@ EKeyCode Win32TranslateKeycode(WPARAM virtual_code)
     }
     // TODO(Matt): Maybe log when this case happens (once we feel like we're
     // handling all keys).
-    return KEY_UNKOWN;
+    return KEY_UNKNOWN;
 }
 
 // TODO(Matt): I think swapchain is getting remade a bunch on startup,
@@ -168,7 +191,7 @@ LRESULT CALLBACK Win32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                     u32 width, height;
                     if (PlatformGetWindowSize(window, &width, &height)) {
                         window->is_minimized = false;
-                        window->resize_callback(width, height);
+                        window->resize_callback(window, width, height);
                     }
                 }
             }
@@ -191,7 +214,7 @@ LRESULT CALLBACK Win32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                 if (window->resize_callback) {
                     u32 width, height;
                     if (PlatformGetWindowSize(window, &width, &height)) {
-                        window->resize_callback(width, height);
+                        window->resize_callback(window, width, height);
                         // If width or height is zero, mark as minimized.
                     } else {
                         window->is_minimized = true;
@@ -212,65 +235,67 @@ LRESULT CALLBACK Win32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
         // be processed all at once. Maybe refactor to reduce duplication.
         case WM_KEYDOWN: {
             if (window->key_callback) {
-                window->key_callback(Win32TranslateKeyCode(wParam), (lParam & (1 << 30)) ? HELD : PRESSED);
+                window->key_callback(window, Win32TranslateKeycode(wParam), (lParam & (1 << 30)) ? HELD : PRESSED);
             }
         }
         return 0;
         case WM_KEYUP: {
-            if (window->key_callback) window->key_callback(Win32TranslateKeyCode(wParam), RELEASED);
+            if (window->key_callback) {
+                window->key_callback(window, Win32TranslateKeycode(wParam), RELEASED);
+            }
             
         }
         return 0;
         case WM_LBUTTONDOWN: {
-            if (window->mouse_button_callback) window->mouse_button_callback(1, PRESSED);
+            if (window->mouse_button_callback) window->mouse_button_callback(window, 1, PRESSED);
         }
         return 0;
         case WM_LBUTTONUP: {
-            if (window->mouse_button_callback) window->mouse_button_callback(1, RELEASED);
+            if (window->mouse_button_callback) window->mouse_button_callback(window, 1, RELEASED);
         }
         return 0;
         case WM_RBUTTONDOWN: {
-            if (window->mouse_button_callback) window->mouse_button_callback(2, PRESSED);
+            if (window->mouse_button_callback) window->mouse_button_callback(window, 2, PRESSED);
         }
         return 0;
         case WM_RBUTTONUP: {
-            if (window->mouse_button_callback) window->mouse_button_callback(2, RELEASED);
+            if (window->mouse_button_callback) window->mouse_button_callback(window, 2, RELEASED);
         }
         return 0;
         case WM_MBUTTONDOWN: {
-            if (window->mouse_button_callback) window->mouse_button_callback(3, PRESSED);
+            if (window->mouse_button_callback) window->mouse_button_callback(window, 3, PRESSED);
         }
         return 0;
         case WM_MBUTTONUP: {
-            if (window->mouse_button_callback) window->mouse_button_callback(3, RELEASED);
+            if (window->mouse_button_callback) window->mouse_button_callback(window, 3, RELEASED);
         }
         return 0;
         case WM_XBUTTONDOWN: {
             if (window->mouse_button_callback) {
-                uint32_t button = 0;
+                u32 button = 0;
                 if (GET_XBUTTON_WPARAM(wParam) == XBUTTON1) button = 4;
                 if (GET_XBUTTON_WPARAM(wParam) == XBUTTON2) button = 5;
-                window->mouse_button_callback(button, PRESSED);
+                window->mouse_button_callback(window, button, PRESSED);
             }
         }
         return 0;
         case WM_XBUTTONUP: {
             if (window->mouse_button_callback) {
-                uint32_t button = 0;
+                u32 button = 0;
                 if (GET_XBUTTON_WPARAM(wParam) == XBUTTON1) button = 4;
                 if (GET_XBUTTON_WPARAM(wParam) == XBUTTON2) button = 5;
-                window->mouse_button_callback(button, RELEASED);
+                window->mouse_button_callback(window, button, RELEASED);
             }
         }
         return 0;
         case WM_MOUSEWHEEL: {
-            if (window->mouse_wheel_callback) window->mouse_wheel_callback(GET_WHEEL_DELTA_WPARAM(wParam));
+            if (window->mouse_wheel_callback) window->mouse_wheel_callback(window, GET_WHEEL_DELTA_WPARAM(wParam));
         }
         return 0;
         // Handles mouse movement in window space.
         case WM_MOUSEMOVE: {
-            window->mouse_x = (int32_t)GET_X_LPARAM(lParam);
-            window->mouse_y = (int32_t)GET_Y_LPARAM(lParam);
+            window->mouse_x = (s32)GET_X_LPARAM(lParam);
+            window->mouse_y = (s32)GET_Y_LPARAM(lParam);
         }
         return 0;
         // Handles raw input (mouse delta).
@@ -290,8 +315,8 @@ LRESULT CALLBACK Win32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
             
             if (raw->header.dwType == RIM_TYPEMOUSE) 
             {
-                window->mouse_x_delta += raw->data.mouse.lLastX;
-                window->mouse_y_delta += raw->data.mouse.lLastY;
+                cursor_delta_x += raw->data.mouse.lLastX;
+                cursor_delta_y += raw->data.mouse.lLastY;
             } 
         }
         return 0;
@@ -329,14 +354,14 @@ s32 PlatformPollEvents()
     return 1;
 }
 
-bool PlatformGetWindowSize(const PlatformWindow *window, uint32_t *width, uint32_t *height)
+bool PlatformGetWindowSize(const PlatformWindow *window, u32 *width, u32 *height)
 {
     RECT rect;
     GetClientRect(window->handle, &rect);
     if (rect.right < 0) rect.right = 0;
     if (rect.bottom < 0) rect.bottom = 0;
-    *width = (uint32_t)rect.right;
-    *height = (uint32_t)rect.bottom;
+    *width = (u32)rect.right;
+    *height = (u32)rect.bottom;
     return (*width > 0 && *height > 0);
 }
 
@@ -448,7 +473,7 @@ void PlatformRegisterMouseWheelCallback(PlatformWindow *window, PlatformMouseWhe
     window->mouse_wheel_callback = callback;
 }
 
-void PlatformGetCursorLocation(PlatformWindow *window, s32 *x, s32 *y)
+void PlatformGetCursorLocation(const PlatformWindow *window, s32 *x, s32 *y)
 {
     *x = window->mouse_x;
     *y = window->mouse_y;
@@ -469,14 +494,17 @@ void PlatformGetCursorLocationNormalized(PlatformWindow *window, float *x, float
 
 void PlatformGetCursorDelta(s32 *x, s32 *y)
 {
-    *x = window->mouse_x_delta;
-    *y = window->mouse_y_delta;
+    *x = cursor_delta_x;
+    *y = cursor_delta_y;
 }
 
+// TODO(Matt): This calculates cursor delta per window, but processes events
+// for ALL windows!
 s32 PlatformPeekInputEvents()
 {
-    window_info->mouse_x_delta = 0;
-    window_info->mouse_y_delta = 0;
+    cursor_delta_x = 0;
+    cursor_delta_y = 0;
+    
     MSG message = {};
     s32 message_count = 0;
     // Process only input events (key, mouse, rawinput).
@@ -530,6 +558,17 @@ void PlatformHideCursor()
 void PlatformSetCursor(ECursor cursor)
 {
     std::cerr << "PlatformSetCursor() doesn't do anything yet. Sorry." << std::endl;
+}
+
+VkSurfaceKHR PlatformCreateSurface(const PlatformWindow *window, VkInstance instance)
+{
+    VkSurfaceKHR surface;
+    VkWin32SurfaceCreateInfoKHR create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    create_info.hwnd = window->handle;
+    create_info.hinstance = GetModuleHandle(nullptr);
+    VK_CHECK_RESULT(vkCreateWin32SurfaceKHR(instance, &create_info, nullptr, &surface));
+    return surface;
 }
 
 #undef global

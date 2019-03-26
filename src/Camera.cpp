@@ -1,10 +1,13 @@
 
 #include "Camera.h"
 
+#define CAMERA_ANGLE_LIMIT 0.01f
+
 glm::mat4 Camera::GetViewTransform(Camera *cam)
 {
     return glm::lookAt(cam->location, cam->location + GetForwardVector(cam), glm::vec3(0.0f, 0.0f, 1.0f));
 }
+
 glm::mat4 Camera::GetProjectionTransform(const Camera *cam)
 {
     glm::mat4 transform = glm::perspective(cam->fov, cam->aspect_ratio, cam->near_dist, cam->far_dist);
@@ -50,21 +53,6 @@ void Camera::AddYaw(Camera *cam, float radians)
 void Camera::AddPitch(Camera *cam, float radians)
 {
     cam->rotation.y += radians;
-    if (cam->rotation.y >= glm::half_pi<float>()) cam->rotation.y = glm::half_pi<float>() - 0.01f;
-    if (cam->rotation.y <= -glm::half_pi<float>()) cam->rotation.y = -glm::half_pi<float>() + 0.01f;
-}
-
-void Camera::Move(Camera *cam, float forward, float right, float up, float delta)
-{
-    cam->acceleration = glm::vec3(0.0f);
-    //if (fabs(forward) < 0.01f && fabs(right) < 0.01f && fabs(up) < 0.01f) {
-    //cam->acceleration = glm::normalize(-cam->velocity) * 0.01f;
-    //} else {
-    cam->acceleration += GetForwardVector(cam) * forward * 0.01f;
-    cam->acceleration += GetRightVector(cam) * right * 0.01f;
-    cam->acceleration += glm::vec3(0.0f, 0.0f, 1.0f) * up * 0.01f;
-    //}
-    
-    cam->velocity += cam->acceleration * delta;
-    cam->location += cam->velocity * delta;
+    if (cam->rotation.y >= glm::half_pi<float>()) cam->rotation.y = glm::half_pi<float>() - CAMERA_ANGLE_LIMIT;
+    if (cam->rotation.y <= -glm::half_pi<float>()) cam->rotation.y = -glm::half_pi<float>() + CAMERA_ANGLE_LIMIT;
 }

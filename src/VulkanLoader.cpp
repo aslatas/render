@@ -1,11 +1,12 @@
 
 #include "VulkanLoader.h"
 
-bool CheckValidationLayerSupport(VkLayerProperties available[], uint32_t available_count)
+bool CheckValidationLayerSupport(VkLayerProperties available[], u32 available_count)
 {
-    for (uint32_t i = 0; i < validation_layer_count; ++i) {
+    u32 validation_layer_count = sizeof(validation_layers) / sizeof(validation_layers[0]);
+    for (u32 i = 0; i < validation_layer_count; ++i) {
         bool found = false;
-        for (uint32_t j = 0; j < available_count; ++j) {
+        for (u32 j = 0; j < available_count; ++j) {
             if (strcmp(validation_layers[i], available[j].layerName) == 0) {
                 found = true;
                 break;
@@ -16,11 +17,12 @@ bool CheckValidationLayerSupport(VkLayerProperties available[], uint32_t availab
     return true;
 }
 
-bool CheckInstanceExtensionSupport(VkExtensionProperties available[], uint32_t available_count)
+bool CheckInstanceExtensionSupport(VkExtensionProperties available[], u32 available_count)
 {
-    for (uint32_t i = 0; i < instance_extension_count; ++i) {
+    u32 instance_extension_count = sizeof(instance_extensions) / sizeof(instance_extensions[0]);
+    for (u32 i = 0; i < instance_extension_count; ++i) {
         bool found = false;
-        for (uint32_t j = 0; j < available_count; ++j) {
+        for (u32 j = 0; j < available_count; ++j) {
             if (strcmp(instance_extensions[i], available[j].extensionName) == 0) {
                 found = true;
                 break;
@@ -31,11 +33,12 @@ bool CheckInstanceExtensionSupport(VkExtensionProperties available[], uint32_t a
     return true;
 }
 
-bool CheckDeviceExtensionSupport(VkExtensionProperties available[], uint32_t available_count)
+bool CheckDeviceExtensionSupport(VkExtensionProperties available[], u32 available_count)
 {
-    for (uint32_t i = 0; i < device_extension_count; ++i) {
+    u32 device_extension_count = sizeof(device_extensions) / sizeof(device_extensions[0]);
+    for (u32 i = 0; i < device_extension_count; ++i) {
         bool found = false;
-        for (uint32_t j = 0; j < available_count; ++j) {
+        for (u32 j = 0; j < available_count; ++j) {
             if (strcmp(device_extensions[i], available[j].extensionName) == 0) {
                 found = true;
                 break;

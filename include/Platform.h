@@ -1,9 +1,5 @@
 #ifndef PLATFORM_H
 
-#include "Utils.h" // integer types
-#include "Main.h" // enum types
-
-
 // Platform specific window info.
 struct PlatformWindow;
 // Platform specific timer info.
@@ -11,19 +7,19 @@ struct PlatformGlobalTimer;
 
 // Called when the OS window is resized, including minimize/maximize.
 // Parameters are the new width and height of the client area, in pixels.
-typedef void (*PlatformResizeCallback)(u32 width, u32 height);
+typedef void (*PlatformResizeCallback)(const PlatformWindow *window, u32 width, u32 height);
 
 // Called when a mouse button is pressed. Button parameter is 1 for left,
 // 2 for right, 3 for middle, and 4 and 5 for thumb buttons.
-typedef void (*PlatformMouseButtonCallback)(u32 button, EButtonState state);
+typedef void (*PlatformMouseButtonCallback)(const PlatformWindow *window, u32 button, EButtonState state);
 
 // Called when the mouse wheel is scrolled. Amount parameter is positive
 // if scrolled away from the user, and negative if towards.
-typedef void (*PlatformMouseWheelCallback)(s32 amount);
+typedef void (*PlatformMouseWheelCallback)(const PlatformWindow *window, s32 scroll_amount);
 
 // Called when a keyboard key is pressed, released, or is being held.
 // Parameters are the code of the modified key, and the new state.
-typedef void (*PlatformKeyCallback)(EKeyCode key, EButtonState state);
+typedef void (*PlatformKeyCallback)(const PlatformWindow *window, EKeyCode key, EButtonState state);
 
 // TODO(Matt): Callback for double click, and mouse capture handling.
 
@@ -58,7 +54,7 @@ s32 PlatformPollEvents();
 s32 PlatformPeekInputEvents();
 
 // Sets up platform code for mouse/keyboard devices.
-void PlatformSetupInputDevices();
+void PlatformSetupInputDevices(PlatformWindow *window);
 
 // Gets the client area of the window. Returns false if either measure is zero (usually implies that the window is minimized).
 bool PlatformGetWindowSize(const PlatformWindow *window, u32 *width, u32 *height);
@@ -136,7 +132,7 @@ void PlatformHideCursor();
 
 // Creates the vulkan window surface, using the vulkan library calls for the
 // platform.
-void PlatformCreateSurface(PlatformWindow *window, VulkanInfo *vulkan_info);
+VkSurfaceKHR PlatformCreateSurface(const PlatformWindow *window, VkInstance instance);
 
 // Sets the mouse cursor to a specified type.
 void PlatformSetCursor(ECursor cursor);

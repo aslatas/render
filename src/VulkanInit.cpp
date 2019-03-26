@@ -1,6 +1,5 @@
 
 #include "VulkanInit.h"
-#include "Main.h"
 
 // TODO(Matt): Switch these for dynamic arrays ASAP.
 #define material_count 8
@@ -18,7 +17,7 @@ static void ChooseSurfaceFormat(const VulkanInfo *vulkan_info, SwapchainInfo *sw
 {
     // Check the available surface formats.
     VkSurfaceFormatKHR *available;
-    uint32_t available_count;
+    u32 available_count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan_info->physical_device, vulkan_info->surface, &available_count, nullptr);
     available = (VkSurfaceFormatKHR *)malloc(sizeof(VkSurfaceFormatKHR) * available_count);
     vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan_info->physical_device, vulkan_info->surface, &available_count, available);
@@ -29,7 +28,7 @@ static void ChooseSurfaceFormat(const VulkanInfo *vulkan_info, SwapchainInfo *sw
         return;
     }
     // If our desired format is available, use that.
-    for (uint32_t i = 0; i < available_count; ++i) {
+    for (u32 i = 0; i < available_count; ++i) {
         if (available[i].format == VK_FORMAT_B8G8R8A8_UNORM && available[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             swapchain_info->format = available[i];
             free(available);
@@ -46,11 +45,11 @@ static void ChoosePresentMode(const VulkanInfo *vulkan_info, SwapchainInfo *swap
 {
     // Check the available present modes.
     VkPresentModeKHR *available;
-    uint32_t available_count;
+    u32 available_count;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan_info->physical_device, vulkan_info->surface, &available_count, nullptr);
     available = (VkPresentModeKHR *)malloc(sizeof(VkPresentModeKHR) * available_count);
     vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan_info->physical_device, vulkan_info->surface, &available_count, available);
-    for (uint32_t i = 0; i < available_count; ++i) {
+    for (u32 i = 0; i < available_count; ++i) {
         // Prefer mailbox, if available.
         if (available[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
             swapchain_info->present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
@@ -79,8 +78,8 @@ static void ChooseSwapchainExtent(const VulkanInfo *vulkan_info, SwapchainInfo *
         swapchain_info->extent = capabilities.currentExtent;
     } else {
         // TODO(Matt): Platform specific.
-        uint32_t width, height;
-        Win32GetSurfaceSize(&width, &height);
+        u32 width, height;
+        PlatformGetWindowSize(&global_window, &width, &height);
         swapchain_info->extent = {width, height};
     }
     // Clamp swapchain size between the min and max allowed.
@@ -105,7 +104,7 @@ static void CreateInstance(VulkanInfo *vulkan_info)
     if (enable_validation)
     {
         // Check available layers.
-        uint32_t available_count;
+        u32 available_count;
         VkLayerProperties *available;
         vkEnumerateInstanceLayerProperties(&available_count, nullptr);
         available = (VkLayerProperties *)malloc(sizeof(VkLayerProperties) * available_count);
@@ -129,10 +128,10 @@ static void CreateInstance(VulkanInfo *vulkan_info)
     VkInstanceCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
-    create_info.enabledExtensionCount = instance_extension_count;
+    create_info.enabledExtensionCount = sizeof(instance_extensions) / sizeof(instance_extensions[0]);
     create_info.ppEnabledExtensionNames = instance_extensions;
     if (enable_validation) {
-        create_info.enabledLayerCount = validation_layer_count;
+        create_info.enabledLayerCount = sizeof(validation_layers) / sizeof(validation_layers[0]);
         create_info.ppEnabledLayerNames = validation_layers;
     } else {
         create_info.enabledLayerCount = 0;
@@ -155,23 +154,17 @@ static void CreateDebugMessenger(VulkanInfo *vulkan_info)
 
 static void CreateSurface(VulkanInfo *vulkan_info)
 {
-    // Create the window surface, given the OS window handle.
-    // TODO(Matt): Platform specific.
-    VkWin32SurfaceCreateInfoKHR create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    create_info.hwnd = Win32GetWindowHandle();
-    create_info.hinstance = GetModuleHandle(nullptr);
-    VK_CHECK_RESULT(vkCreateWin32SurfaceKHR(vulkan_info->instance, &create_info, nullptr, &vulkan_info->surface));
+    vulkan_info->surface = PlatformCreateSurface(&global_window, vulkan_info->instance);
 }
 
 static void ChoosePhysicalDevice(VulkanInfo *vulkan_info)
 {
-    uint32_t graphics_index;
-    uint32_t present_index;
+    u32 graphics_index;
+    u32 present_index;
     bool use_shared_queue;
     
     // First, query available devices.
-    uint32_t available_count = 0;
+    u32 available_count = 0;
     VkPhysicalDevice *available_devices;
     vkEnumeratePhysicalDevices(vulkan_info->instance, &available_count, nullptr);
     if (available_count == 0) ExitWithError("No Vulkan-supported devices found!");
@@ -179,7 +172,7 @@ static void ChoosePhysicalDevice(VulkanInfo *vulkan_info)
     vkEnumeratePhysicalDevices(vulkan_info->instance, &available_count, available_devices);
     
     // Scan the list for suitable devices.
-    for (uint32_t i = 0; i < available_count; ++i) {
+    for (u32 i = 0; i < available_count; ++i) {
         VkPhysicalDevice device = available_devices[i];
         bool queues_supported = false;
         bool extensions_supported = false;
@@ -187,13 +180,13 @@ static void ChoosePhysicalDevice(VulkanInfo *vulkan_info)
         
         // Check if graphics and presentation to the current surface are supported by the device queues.
         VkQueueFamilyProperties *queue_families;
-        uint32_t family_count = 0;
+        u32 family_count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, nullptr);
         queue_families = (VkQueueFamilyProperties *)malloc(sizeof(VkQueueFamilyProperties) * family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, queue_families);
         bool graphics_found = false;
         bool present_found = false;
-        for (uint32_t i = 0; i < family_count; ++i) {
+        for (u32 i = 0; i < family_count; ++i) {
             if (queue_families[i].queueCount > 0 && queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 graphics_index = i;
                 graphics_found = true;
@@ -216,7 +209,7 @@ static void ChoosePhysicalDevice(VulkanInfo *vulkan_info)
         }
         
         // Check if the required device extensions are supported.
-        uint32_t available_extension_count;
+        u32 available_extension_count;
         VkExtensionProperties *available_extensions;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &available_extension_count, nullptr);
         available_extensions = (VkExtensionProperties *)malloc(sizeof(VkExtensionProperties) * available_extension_count);
@@ -230,8 +223,8 @@ static void ChoosePhysicalDevice(VulkanInfo *vulkan_info)
         VkSurfaceCapabilitiesKHR capabilities;
         VkSurfaceFormatKHR *formats;
         VkPresentModeKHR *present_modes;
-        uint32_t format_count;
-        uint32_t present_mode_count;
+        u32 format_count;
+        u32 present_mode_count;
         
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, vulkan_info->surface, &capabilities);
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, vulkan_info->surface, &format_count, nullptr);
@@ -254,7 +247,7 @@ static void ChoosePhysicalDevice(VulkanInfo *vulkan_info)
             // Query for the max MSAA sample count.
             VkPhysicalDeviceProperties properties;
             vkGetPhysicalDeviceProperties(device, &properties);
-            VkSampleCountFlags counts = (uint32_t)fmin((float)properties.limits.framebufferColorSampleCounts,(float) properties.limits.framebufferDepthSampleCounts);
+            VkSampleCountFlags counts = (u32)fmin((float)properties.limits.framebufferColorSampleCounts,(float) properties.limits.framebufferDepthSampleCounts);
             VkSampleCountFlagBits samples;
             if (counts & VK_SAMPLE_COUNT_64_BIT) {
                 samples = VK_SAMPLE_COUNT_64_BIT;
@@ -292,9 +285,9 @@ static void CreateLogicalDevice(VulkanInfo *vulkan_info)
     // Setup queue create info. 
     float queue_priority = 1.0f;
     VkDeviceQueueCreateInfo *create_infos;
-    uint32_t family_count = (vulkan_info->use_shared_queue) ? 1 : 2;
+    u32 family_count = (vulkan_info->use_shared_queue) ? 1 : 2;
     create_infos = (VkDeviceQueueCreateInfo *)malloc(sizeof(VkDeviceQueueCreateInfo) * family_count);
-    for (uint32_t i = 0; i < family_count; ++i) {
+    for (u32 i = 0; i < family_count; ++i) {
         create_infos[i] = {};
         create_infos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         create_infos[i].queueFamilyIndex = (i == 0) ? vulkan_info->graphics_index : vulkan_info->present_index;
@@ -311,10 +304,10 @@ static void CreateLogicalDevice(VulkanInfo *vulkan_info)
     create_info.queueCreateInfoCount = family_count;
     create_info.pQueueCreateInfos = create_infos;
     create_info.pEnabledFeatures = &features;
-    create_info.enabledExtensionCount = device_extension_count;
+    create_info.enabledExtensionCount = sizeof(device_extensions) / sizeof(device_extensions[0]);
     create_info.ppEnabledExtensionNames = device_extensions;
     if (enable_validation) {
-        create_info.enabledLayerCount = validation_layer_count;
+        create_info.enabledLayerCount = sizeof(validation_layers) / sizeof(validation_layers[0]);
         create_info.ppEnabledLayerNames = validation_layers;
     }
     else {
@@ -353,7 +346,7 @@ static void CreateSwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapch
     if (vulkan_info->use_shared_queue) {
         create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     } else {
-        uint32_t queue_indices[] = {vulkan_info->graphics_index, vulkan_info->present_index};
+        u32 queue_indices[] = {vulkan_info->graphics_index, vulkan_info->present_index};
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
         create_info.pQueueFamilyIndices = queue_indices;
@@ -370,7 +363,7 @@ static void CreateSwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapch
     vkGetSwapchainImagesKHR(vulkan_info->logical_device, swapchain_info->swapchain, &swapchain_info->image_count, swapchain_info->images);
     swapchain_info->imageviews = (VkImageView *)malloc(sizeof(VkImageView) * swapchain_info->image_count);
     
-    for (uint32_t i = 0; i < swapchain_info->image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info->image_count; ++i) {
         swapchain_info->imageviews[i] = CreateImageView(vulkan_info, swapchain_info->images[i], swapchain_info->format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 }
@@ -461,7 +454,7 @@ static void CreateFramebuffers(const VulkanInfo *vulkan_info, SwapchainInfo *swa
     swapchain_info->framebuffers = (VkFramebuffer *)malloc(sizeof(VkFramebuffer) * swapchain_info->image_count);
     
     // Create framebuffers with color and depth/stencil attachments.
-    for (uint32_t i = 0; i < swapchain_info->image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info->image_count; ++i) {
         VkImageView attachments[] = {
             swapchain_info->color_image_view, swapchain_info->depth_image_view, swapchain_info->imageviews[i]};
         VkFramebufferCreateInfo create_info = {};
@@ -536,7 +529,7 @@ static void CreateSyncPrimitives(VulkanInfo *vulkan_info)
     fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         VK_CHECK_RESULT(vkCreateSemaphore(vulkan_info->logical_device, &sem_create_info, nullptr, &vulkan_info->image_available_semaphores[i]));
         VK_CHECK_RESULT(vkCreateSemaphore(vulkan_info->logical_device, &sem_create_info, nullptr, &vulkan_info->render_finished_semaphores[i]));
         VK_CHECK_RESULT(vkCreateFence(vulkan_info->logical_device, &fence_create_info, nullptr, &vulkan_info->in_flight_fences[i]));
@@ -556,7 +549,7 @@ void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_in
     vkFreeMemory(vulkan_info->logical_device, swapchain_info->depth_image_memory, nullptr);
     
     // Destroy framebuffers.
-    for (uint32_t i = 0; i < swapchain_info->image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info->image_count; ++i) {
         vkDestroyFramebuffer(vulkan_info->logical_device, swapchain_info->framebuffers[i], nullptr);
     }
     free(swapchain_info->framebuffers);
@@ -576,7 +569,7 @@ void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_in
     vkDestroyRenderPass(vulkan_info->logical_device, swapchain_info->renderpass, nullptr);
     
     // Destroy swapchain images.
-    for (uint32_t i = 0; i < swapchain_info->image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info->image_count; ++i) {
         vkDestroyImageView(vulkan_info->logical_device, swapchain_info->imageviews[i], nullptr);
     }
     free(swapchain_info->imageviews);
@@ -609,7 +602,7 @@ static void CreateColorImage(const VulkanInfo *vulkan_info, SwapchainInfo *swapc
 void InitializeVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
 {
     // TODO(Matt): Platform specific.
-    Win32LoadVulkanLibrary();
+    PlatformLoadVulkanLibrary();
     LoadVulkanGlobalFunctions();
     CreateInstance(vulkan_info);
     LoadVulkanInstanceFunctions(vulkan_info->instance);
@@ -639,7 +632,7 @@ void RecreateSwapchain(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     ChooseSwapchainExtent(vulkan_info, swapchain_info);
     // TODO(Matt): Platform specific.
     while (swapchain_info->extent.width == 0 || swapchain_info->extent.height == 0) {
-        if (!Win32PollEvents()) ShutdownVulkan(vulkan_info, swapchain_info);
+        if (!PlatformPollEvents()) ShutdownVulkan(vulkan_info, swapchain_info);
         ChooseSwapchainExtent(vulkan_info, swapchain_info);
     }
     CreateSwapchain(vulkan_info, swapchain_info);
@@ -663,7 +656,7 @@ void ShutdownVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     vkDeviceWaitIdle(vulkan_info->logical_device);
     
     // Destroy sync objects.
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
         vkDestroySemaphore(vulkan_info->logical_device, vulkan_info->render_finished_semaphores[i], nullptr);
         vkDestroySemaphore(vulkan_info->logical_device, vulkan_info->image_available_semaphores[i], nullptr);
@@ -695,7 +688,7 @@ void ShutdownVulkan(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     
     // Unload the Vulkan library.
     // TODO(Matt): Platform specific.
-    Win32FreeVulkanLibrary();
+    PlatformFreeVulkanLibrary();
     exit(EXIT_SUCCESS);
 }
 
@@ -739,13 +732,13 @@ void CopyBuffer(const VulkanInfo *vulkan_info, VkBuffer source, VkBuffer destina
     EndOneTimeCommand(vulkan_info, command_buffer);
 }
 
-uint32_t FindMemoryType(const VulkanInfo *vulkan_info, uint32_t type, VkMemoryPropertyFlags properties)
+u32 FindMemoryType(const VulkanInfo *vulkan_info, u32 type, VkMemoryPropertyFlags properties)
 {
     // Check the available memory types.
     VkPhysicalDeviceMemoryProperties available_properties;
     vkGetPhysicalDeviceMemoryProperties(vulkan_info->physical_device, &available_properties);
     
-    for (uint32_t i = 0; i < available_properties.memoryTypeCount; ++i)
+    for (u32 i = 0; i < available_properties.memoryTypeCount; ++i)
     {
         // If one exists which satisfies the requirements, use it.
         if ((type & (1 << i)) && (available_properties.memoryTypes[i].propertyFlags & properties) == properties)
@@ -797,7 +790,7 @@ void EndOneTimeCommand(const VulkanInfo *vulkan_info, VkCommandBuffer command_bu
 }
 
 
-void CopyBufferToImage(const VulkanInfo *vulkan_info, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+void CopyBufferToImage(const VulkanInfo *vulkan_info, VkBuffer buffer, VkImage image, u32 width, u32 height)
 {
     // Start recording the copy command.
     VkCommandBuffer command_buffer = BeginOneTimeCommand(vulkan_info);
@@ -817,7 +810,7 @@ void CopyBufferToImage(const VulkanInfo *vulkan_info, VkBuffer buffer, VkImage i
     EndOneTimeCommand(vulkan_info, command_buffer);
 }
 
-void TransitionImageLayout(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_count)
+void TransitionImageLayout(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, u32 mip_count)
 {
     VkCommandBuffer command_buffer = BeginOneTimeCommand(vulkan_info);
     VkImageMemoryBarrier barrier = {};
@@ -873,7 +866,7 @@ void TransitionImageLayout(const VulkanInfo *vulkan_info, VkImage image, VkForma
     EndOneTimeCommand(vulkan_info, command_buffer);
 }
 
-void CreateImage(const VulkanInfo *vulkan_info, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mip_count, VkSampleCountFlagBits samples)
+void CreateImage(const VulkanInfo *vulkan_info, u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, u32 mip_count, VkSampleCountFlagBits samples)
 {
     // Create the image object.
     VkImageCreateInfo create_info = {};
@@ -908,7 +901,7 @@ void CreateImage(const VulkanInfo *vulkan_info, uint32_t width, uint32_t height,
     vkBindImageMemory(vulkan_info->logical_device, *image, *image_memory, 0);
 }
 
-VkImageView CreateImageView(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, uint32_t mip_count)
+VkImageView CreateImageView(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, u32 mip_count)
 {
     VkImageViewCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -926,11 +919,11 @@ VkImageView CreateImageView(const VulkanInfo *vulkan_info, VkImage image, VkForm
     return image_view;
 }
 
-VkFormat FindSupportedFormat(const VulkanInfo *vulkan_info, VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features)
+VkFormat FindSupportedFormat(const VulkanInfo *vulkan_info, VkFormat *acceptable_formats, u32 acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features)
 {
     // Check the available image formats.
     VkFormatProperties properties;
-    for (uint32_t i = 0; i < acceptable_count; ++i) {
+    for (u32 i = 0; i < acceptable_count; ++i) {
         vkGetPhysicalDeviceFormatProperties(vulkan_info->physical_device, acceptable_formats[i], &properties);
         // Use linear as first choice, optimal as second.
         if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features) return acceptable_formats[i];

@@ -1,8 +1,5 @@
 
-#pragma once
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/constants.hpp"
+#ifndef CAMERA_H
 
 namespace Camera
 {
@@ -10,6 +7,7 @@ namespace Camera
     {
         FPS, TARGET
     };
+    
     struct Camera
     {
         float fov = 45.0f;
@@ -18,8 +16,6 @@ namespace Camera
         float far_dist = 1000.0f;
         glm::vec3 location = glm::vec3(0.0f);
         glm::vec3 rotation = glm::vec3(0.0f);
-        glm::vec3 velocity = glm::vec3(0.0f);
-        glm::vec3 acceleration = glm::vec3(0.0f);
         CameraMode mode = FPS;
     };
     glm::mat4 GetViewTransform(Camera *cam);
@@ -32,6 +28,7 @@ namespace Camera
     void MoveUp(Camera *cam, float distance);
     void AddYaw(Camera *cam, float radians);
     void AddPitch(Camera *cam, float radians);
-    void Move(Camera *cam, float forward, float right, float up, float delta);
 }
 
+#define CAMERA_H
+#endif

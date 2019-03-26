@@ -1,21 +1,17 @@
 
 #include "Texture.h"
-#define STBI_ONLY_PNG
-#define STBI_ONLY_JPEG
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
 
 // Loads a texture from a PNG file. 
-Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, uint32_t channel_count, bool generate_mips)
+Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, u32 channel_count, bool generate_mips)
 {
     Texture texture = {};
     int width, height, channels;
     stbi_uc *buffer = stbi_load(path, &width, &height, &channels, channel_count);
-    texture.width = (uint32_t)width;
-    texture.height = (uint32_t)height;
-    texture.channel_count = (uint32_t)channel_count;
+    texture.width = (u32)width;
+    texture.height = (u32)height;
+    texture.channel_count = (u32)channel_count;
     VkDeviceSize image_size = texture.width * texture.height * texture.channel_count;
-    texture.mip_count = (generate_mips) ? 1 + (uint32_t)log2(fmax(texture.width, texture.height)) : 1;
+    texture.mip_count = (generate_mips) ? 1 + (u32)log2(fmax(texture.width, texture.height)) : 1;
     if (!buffer)
     {
         std::cerr << "Unable to load texture! (" << path << ")" << std::endl;
@@ -47,7 +43,7 @@ Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, uint32_t ch
     return texture;
 }
 
-VkFormat GetFormatFromChannelCount(uint32_t channel_count)
+VkFormat GetFormatFromChannelCount(u32 channel_count)
 {
     switch (channel_count) {
         case 1: return VK_FORMAT_R8_UNORM;
@@ -90,10 +86,10 @@ void CreateMipmaps(const VulkanInfo *vulkan_info, Texture *texture)
     barrier.subresourceRange.layerCount = 1;
     barrier.subresourceRange.levelCount = 1;
     
-    uint32_t mip_width = texture->width;
-    uint32_t mip_height = texture->height;
+    u32 mip_width = texture->width;
+    u32 mip_height = texture->height;
     
-    for (uint32_t i = 1; i < texture->mip_count; ++i) {
+    for (u32 i = 1; i < texture->mip_count; ++i) {
         barrier.subresourceRange.baseMipLevel = i - 1;
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -102,13 +98,13 @@ void CreateMipmaps(const VulkanInfo *vulkan_info, Texture *texture)
         vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
         VkImageBlit blit = {};
         blit.srcOffsets[0] = { 0, 0, 0 };
-        blit.srcOffsets[1] = { (int32_t)mip_width, (int32_t)mip_height, 1 };
+        blit.srcOffsets[1] = { (s32)mip_width, (s32)mip_height, 1 };
         blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         blit.srcSubresource.mipLevel = i - 1;
         blit.srcSubresource.baseArrayLayer = 0;
         blit.srcSubresource.layerCount = 1;
         blit.dstOffsets[0] = { 0, 0, 0 };
-        blit.dstOffsets[1] = { (mip_width > 1) ? (int32_t)mip_width / 2 : 1, (mip_height > 1) ? (int32_t)mip_height / 2 : 1, 1 };
+        blit.dstOffsets[1] = { (mip_width > 1) ? (s32)mip_width / 2 : 1, (mip_height > 1) ? (s32)mip_height / 2 : 1, 1 };
         blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         blit.dstSubresource.mipLevel = i;
         blit.dstSubresource.baseArrayLayer = 0;

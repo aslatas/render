@@ -1,10 +1,7 @@
 
 #include "Font.h"
-#include "VulkanInit.h"
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb/stb_truetype.h"
 
-BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint32_t material_type, uint32_t shader_id, uint32_t first_character, uint32_t character_count, uint32_t resolution, float character_size, bool generate_mips)
+BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, u32 material_type, u32 shader_id, u32 first_character, u32 character_count, u32 resolution, float character_size, bool generate_mips)
 {
     BitmapFont font = {};
     FILE *file = fopen(path, "rb");
@@ -13,7 +10,7 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
         return font;
     }
     fseek(file, 0, SEEK_END);
-    uint32_t length = ftell(file);
+    u32 length = ftell(file);
     fseek(file, 0, SEEK_SET);
     unsigned char *buffer = (unsigned char *)malloc(sizeof(unsigned char) * length);
     fread(buffer, 1, length, file);
@@ -29,7 +26,7 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
     unsigned char *bitmap = (unsigned char *)malloc(sizeof(unsigned char) * resolution * resolution);
     font.character_data = (stbtt_bakedchar *)malloc(sizeof(stbtt_bakedchar) * character_count);
     stbtt_BakeFontBitmap(buffer, 0, character_size, bitmap, resolution, resolution, first_character, character_count, font.character_data);
-    font.texture.mip_count = (generate_mips) ?  1 + (uint32_t)log2(resolution) : 1;
+    font.texture.mip_count = (generate_mips) ?  1 + (u32)log2(resolution) : 1;
     VkDeviceSize image_size = resolution * resolution;
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -51,7 +48,7 @@ BitmapFont LoadBitmapFont(const VulkanInfo *vulkan_info, const char *path, uint3
     free(buffer);
     return font;
 }
-
+/*
 // TODO(Matt): Font sizing via stb_truetype font attributes.
 Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 pos)
 {
@@ -59,18 +56,18 @@ Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 pos)
     model.material_type = font->material_type;
     model.shader_id = font->shader_id;
     model.uniform_count = GetUniformCount();
-    uint32_t length = (uint32_t)strlen(text);
+    u32 length = (u32)strlen(text);
     model.vertex_count = length * 4;
     model.index_count = length * 6;
     model.vertices = (Vertex *)malloc(sizeof(Vertex) * model.vertex_count);
-    model.indices = (uint32_t *)malloc(sizeof(uint32_t) * model.index_count);
+    model.indices = (u32 *)malloc(sizeof(u32) * model.index_count);
     const SwapchainInfo *swapchain_info = GetSwapchainInfo();
     float half_width = (float)swapchain_info->extent.width;
     float half_height = (float)swapchain_info->extent.height;
     pos.x = pos.x * half_width * 2.0f;
     pos.y = pos.y * half_height * 2.0f;
     
-    for (uint32_t i = 0; i < length; ++i) {
+    for (u32 i = 0; i < length; ++i) {
         if (text[i] >= font->first_character && text[i] < font->first_character + font->character_count) {
             stbtt_aligned_quad quad;
             stbtt_GetBakedQuad(font->character_data, font->texture.width,font->texture.height, text[i] - font->first_character, &pos.x, &pos.y, &quad, 1);
@@ -116,6 +113,7 @@ Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 pos)
             model.indices[(i * 6) + 5] = (i * 4) + 3;
         }
     }
+    
     // TODO(Matt): Remove all this transform business once UI objects
     // are separate from models.
     model.shader_id = font->shader_id;
@@ -132,7 +130,7 @@ Model CreateText(const char *text, const BitmapFont *font,  glm::vec2 pos)
     
     return model;
 }
-
+*/
 void DestroyFont(const VulkanInfo *vulkan_info, BitmapFont *font)
 {
     free(font->character_data);

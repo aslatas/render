@@ -4,13 +4,6 @@
 // TODO(Matt): Re-handle the way that uniforms are updated. It's hacky.
 
 #include "RenderBase.h"
-#include "VulkanInit.h"
-#include "Main.h"
-#include "Font.h"
-#include "ModelLoader.h"
-#include "Camera.h"
-
-#include <assert.h>
 
 static VulkanInfo vulkan_info = {};
 static SwapchainInfo swapchain_info = {};
@@ -28,7 +21,7 @@ Model_Separate_Data **selected_models = nullptr;
 // TODO(Matt): Refactor these.
 Camera::Camera camera = {};
 
-char *ReadShaderFile(const char *path, uint32_t *length)
+char *ReadShaderFile(const char *path, u32 *length)
 {
     FILE *file = fopen(path, "rb");
     if (!file)
@@ -57,12 +50,12 @@ void ShutdownRenderer()
     ShutdownVulkan(&vulkan_info, &swapchain_info);
 }
 
-static VkShaderModule CreateShaderModule(char *code, uint32_t length)
+static VkShaderModule CreateShaderModule(char *code, u32 length)
 {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     create_info.codeSize = length;
-    create_info.pCode = reinterpret_cast<uint32_t *>(code);
+    create_info.pCode = reinterpret_cast<u32 *>(code);
     
     VkShaderModule module;
     if (vkCreateShaderModule(vulkan_info.logical_device, &create_info, nullptr, &module) != VK_SUCCESS)
@@ -96,7 +89,7 @@ void CreateVertexBuffer(Model *model)
 
 void CreateIndexBuffer(Model *model)
 {
-    VkDeviceSize buffer_size = sizeof(uint32_t) * model->index_count;
+    VkDeviceSize buffer_size = sizeof(u32) * model->index_count;
     
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -125,7 +118,7 @@ void CreateDescriptorSets()
     //model->descriptor_sets = (VkDescriptorSet *)malloc(sizeof(VkDescriptorSet) * model->uniform_count);
     VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, descriptor_sets_new));
     
-    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info.image_count; ++i) {
         VkDescriptorBufferInfo descriptor_info = {};
         descriptor_info.buffer = uniform_buffers_new[i];
         descriptor_info.offset = 0;
@@ -144,7 +137,7 @@ void CreateDescriptorSets()
     }
 }
 
-void RecordPrimaryCommand(uint32_t image_index)
+void RecordPrimaryCommand(u32 image_index)
 {
     // Begin the command buffer.
     VkCommandBufferBeginInfo buffer_begin_info = {};
@@ -167,20 +160,20 @@ void RecordPrimaryCommand(uint32_t image_index)
     vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     
     // TODO(Matt): Should contain offsets of each descriptor in the buffer.
-    uint32_t offsets[] = {0};
+    u32 offsets[] = {0};
     vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &descriptor_sets_new[image_index], 1, offsets);
     // For each material type.
-    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
+    for (u32 i = 0; i < arrlen(material_types); ++i) {
         MaterialLayout *material_type = &material_types[i];
         // For each material of a given type.
-        for (uint32_t j = 0; j < arrlen(material_type->materials); ++j) {
+        for (u32 j = 0; j < arrlen(material_type->materials); ++j) {
             Material *material = &material_type->materials[j];
             
             // Bind the material pipeline.
             vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline);
             
             // For each model of a given material.
-            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
+            for (u32 k = 0; k < arrlen(material->models); ++k) {
                 // Model *model = &material->models[k];
                 Model_Separate_Data *model = &material->models[k];
                 
@@ -207,7 +200,7 @@ void RecordPrimaryCommand(uint32_t image_index)
     // Do post process for outlines.
     // NOTE(Matt): Outlines are done in two passes - one to draw selected
     // into stencil buffer, and one to read stencil buffer for outlines.
-    for (uint32_t outline_stage = 2; outline_stage <= 3; ++outline_stage) {
+    for (u32 outline_stage = 2; outline_stage <= 3; ++outline_stage) {
         if (arrlen(selected_models) == 0) {
             break;
         }
@@ -217,7 +210,7 @@ void RecordPrimaryCommand(uint32_t image_index)
         // Bind the stenciling pipeline.
         vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].materials[outline_stage].pipeline);
         // For each selected model.
-        for (uint32_t i = 0; i < arrlen(selected_models); ++i) {
+        for (u32 i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
             Model_Separate_Data *model = selected_models[i];
             
@@ -251,7 +244,7 @@ void DrawFrame()
     vkWaitForFences(vulkan_info.logical_device, 1, &vulkan_info.in_flight_fences[swapchain_info.current_frame], VK_TRUE, 0xffffffffffffffff);
     
     // Get the next available image.
-    uint32_t image_index;
+    u32 image_index;
     VkResult result = vkAcquireNextImageKHR(vulkan_info.logical_device, swapchain_info.swapchain, 0xffffffffffffffff, vulkan_info.image_available_semaphores[swapchain_info.current_frame], VK_NULL_HANDLE, &image_index);
     
     // If out of date, recreate swapchain. Will likely cause a frame hitch.
@@ -314,19 +307,19 @@ void DrawFrame()
 // TODO(Matt): Move this out of the rendering component.
 void UpdatePrePhysics(double delta)
 {
-    if (GetEditorInputMode() == VIEWPORT) {
+    if (GetInputMode() == VIEWPORT) {
         float forward_axis = GetForwardAxis();
-        //if (fabs(forward_axis) > 0.01f) Camera::MoveForward(&camera, forward_axis * (float)delta);
+        if (fabs(forward_axis) > 0.01f) Camera::MoveForward(&camera, forward_axis * (float)delta);
         float right_axis = GetRightAxis();
-        //if (fabs(right_axis) > 0.01f) Camera::MoveRight(&camera, right_axis * (float)delta);
+        if (fabs(right_axis) > 0.01f) Camera::MoveRight(&camera, right_axis * (float)delta);
         
         float up_axis = GetUpAxis();
-        //if (fabs(up_axis) > 0.01f) Camera::MoveUp(&camera, up_axis * (float)delta);
-        Camera::Move(&camera, forward_axis, right_axis, up_axis, (float) delta);
-        int32_t x, y;
+        if (fabs(up_axis) > 0.01f) Camera::MoveUp(&camera, up_axis * (float)delta);
+        //Camera::Move(&camera, forward_axis, right_axis, up_axis, (float) delta);
+        s32 x, y;
         float x_delta, y_delta;
-        // TODO(Matt): Platform specific.
-        Win32GetMouseDelta(&x, &y);
+        PlatformGetCursorDelta(&x, &y);
+        
         x_delta = (float)x;
         y_delta = (float)y;
         float yaw = x_delta * -0.25f * (float)delta;
@@ -346,12 +339,12 @@ void UpdatePrePhysics(double delta)
     per_pass->sun.specular = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
     per_pass->sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
     // TODO(Matt): hack here until we're using better simulation rules.
-    uint32_t current_index = 0;
-    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
+    u32 current_index = 0;
+    for (u32 i = 0; i < arrlen(material_types); ++i) {
         MaterialLayout *material_type = &material_types[i];
-        for (uint32_t j = 0; j < arrlen(material_type->materials); ++j) {
+        for (u32 j = 0; j < arrlen(material_type->materials); ++j) {
             Material *material = &material_type->materials[j];
-            for (uint32_t k = 0; k < arrlen(material->models); ++k) {
+            for (u32 k = 0; k < arrlen(material->models); ++k) {
                 Model_Separate_Data *model = &material->models[k];
                 PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
                 //model->rot.z += (float)delta * glm::radians(25.0f);
@@ -385,7 +378,7 @@ void UpdatePostRender(double delta)
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(uint32_t image_index)
+void UpdateUniforms(u32 image_index)
 {
     void *data;
     vkMapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[image_index], 0, uniforms.buffer_size, 0, &data);
@@ -393,7 +386,7 @@ void UpdateUniforms(uint32_t image_index)
     vkUnmapMemory(vulkan_info.logical_device, uniform_buffers_memory_new[image_index]);
 }
 
-void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
+void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
 {
     // If we are not doing multi-select, reset selected count to zero.
     if (!accumulate) arrfree(selected_models);
@@ -401,11 +394,11 @@ void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
     float min_dist = INFINITY;
     Model_Separate_Data *selection = nullptr;
     // Iterate through all objects in the scene.
-    for (uint32_t i = 0; i < arrlenu(material_types); ++i) {
+    for (u32 i = 0; i < arrlenu(material_types); ++i) {
         MaterialLayout *material_type = &material_types[i];
-        for (uint32_t j = 0; j < arrlenu(material_type->materials); ++j) {
+        for (u32 j = 0; j < arrlenu(material_type->materials); ++j) {
             Material *material = &material_type->materials[j];
-            for (uint32_t k = 0; k < arrlenu(material->models); ++k) {
+            for (u32 k = 0; k < arrlenu(material->models); ++k) {
                 Model_Separate_Data *model = &material->models[k];
                 // If the model has hit testing disabled, skip it.
                 if (!model->hit_test_enabled) continue;
@@ -431,8 +424,8 @@ void SelectObject(int32_t mouse_x, int32_t mouse_y, bool accumulate)
     // If any object was hit
     if (selection) {
         // Check if this box is already selected.
-        int32_t existing_index = -1;
-        for (uint32_t i = 0; i < arrlenu(selected_models); ++i) {
+        s32 existing_index = -1;
+        for (u32 i = 0; i < arrlenu(selected_models); ++i) {
             if (selected_models[i] == selection) {
                 // If so, save the existing index and quit checking.
                 existing_index = i;
@@ -490,7 +483,7 @@ void CreateDescriptorLayout()
     // Create descriptor set layouts.
     VkDescriptorSetLayout descriptor_layout;
     VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
-    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info.image_count; ++i) {
         arrput(descriptor_layout_new.descriptor_layouts, descriptor_layout);
     }
 }
@@ -523,7 +516,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.stage_count = (frag_file) ? 2 : 1;
     result.shader_stages = (VkPipelineShaderStageCreateInfo *)malloc(sizeof(VkPipelineShaderStageCreateInfo) * result.stage_count);
     result.shader_modules = (VkShaderModule *)malloc(sizeof(VkShaderModule) * result.stage_count);
-    uint32_t vert_length = 0;
+    u32 vert_length = 0;
     char *vert_code = ReadShaderFile(vert_file, &vert_length);
     if (!vert_code) {
         std::cerr << "Failed to read shader file: \"" << vert_file << "\"" << std::endl;
@@ -538,7 +531,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     vert_create_info.pName = "main";
     result.shader_stages[0] = vert_create_info;
     if (frag_file) {
-        uint32_t frag_length = 0;
+        u32 frag_length = 0;
         char *frag_code = ReadShaderFile(frag_file, &frag_length);
         if (!frag_code) {
             std::cerr << "Failed to read shader file: \"" << frag_file << "\"" << std::endl;
@@ -697,7 +690,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     return result;
 }
 
-void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRenderPass render_pass, uint32_t sub_pass)
+void AddMaterial(MaterialCreateInfo *material_info, u32 material_type, VkRenderPass render_pass, u32 sub_pass)
 {
     material_info->input_info.pVertexBindingDescriptions = material_info->binding_description;
     material_info->input_info.pVertexAttributeDescriptions = material_info->attribute_descriptions;
@@ -724,7 +717,7 @@ void AddMaterial(MaterialCreateInfo *material_info, uint32_t material_type, VkRe
     Material material = {};
     material.type = material_type;
     VK_CHECK_RESULT(vkCreateGraphicsPipelines(vulkan_info.logical_device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &material.pipeline));
-    for (uint32_t i = 0; i < material_info->stage_count; ++i) {
+    for (u32 i = 0; i < material_info->stage_count; ++i) {
         vkDestroyShaderModule(vulkan_info.logical_device, material_info->shader_modules[i], nullptr);
     }
     
@@ -825,7 +818,7 @@ void InitializeScene()
     //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
     //arrsetlen(object_uniforms_new, arrlenu(object_uniforms_new) + 1);
-    //uint32_t object_index = (uint32_t)arrlen(object_uniforms_new) - 1;
+    //u32 object_index = (u32)arrlen(object_uniforms_new) - 1;
     EModelLoadResult result = LoadGTLFModel(std::string(""), *model, GetPerDrawUniform(uniforms.object_count), 0, 0, uniforms.object_count);
     if (result == MODEL_LOAD_RESULT_SUCCESS) {
         uniforms.object_count++;
@@ -846,8 +839,8 @@ void InitializeScene()
 
 void DestroyMaterials()
 {
-    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
-        for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
+    for (u32 i = 0; i < arrlen(material_types); ++i) {
+        for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
             vkDestroyPipeline(vulkan_info.logical_device, material_types[i].materials[j].pipeline, nullptr);
         }
         
@@ -856,22 +849,22 @@ void DestroyMaterials()
     }
     arrfree(material_types);
     vkDestroyDescriptorSetLayout(vulkan_info.logical_device, descriptor_layout_new.descriptor_layouts[0], nullptr);
-    for (uint32_t i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
+    for (u32 i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
         vkDestroySampler(vulkan_info.logical_device, descriptor_layout_new.samplers[i], nullptr);
     }
     arrfree(descriptor_layout_new.descriptor_layouts);
 }
 
 void DestroyScene() {
-    for (uint32_t i = 0; i < arrlen(material_types); ++i) {
-        for (uint32_t j = 0; j < arrlen(material_types[i].materials); ++j) {
-            for (uint32_t k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
+    for (u32 i = 0; i < arrlen(material_types); ++i) {
+        for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
+            for (u32 k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
                 DestroyModelSeparateDataTest(&material_types[i].materials[j].models[k], &vulkan_info);
             }
             arrfree(material_types[i].materials[j].models);
         }
     }
-    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info.image_count; ++i) {
         vkDestroyBuffer(vulkan_info.logical_device, uniform_buffers_new[i], nullptr);
         vkFreeMemory(vulkan_info.logical_device, uniform_buffers_memory_new[i], nullptr);
     }
@@ -882,10 +875,10 @@ void DestroyScene() {
 
 void AddToScene(Model_Separate_Data model)
 {
-    VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(uint32_t) * model.index_count);
+    VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(u32) * model.index_count);
     
     CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    CreateModelBuffer(sizeof(uint32_t) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    CreateModelBuffer(sizeof(u32) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     arrput(material_types[model.material_type].materials[model.shader_id].models, model);
 }
 
@@ -899,7 +892,7 @@ const SwapchainInfo *GetSwapchainInfo()
     return &swapchain_info;
 }
 
-uint32_t GetUniformCount()
+u32 GetUniformCount()
 {
     return swapchain_info.image_count;
 }
@@ -907,7 +900,7 @@ uint32_t GetUniformCount()
 void DestroySceneResources()
 {
     //DestroyFont(&vulkan_info, &font);
-    for (uint32_t i = 0; i < arrlen(textures); ++i) {
+    for (u32 i = 0; i < arrlen(textures); ++i) {
         DestroyTexture(&vulkan_info, &textures[i]);
     }
     arrfree(textures);
@@ -916,7 +909,7 @@ void DestroySceneResources()
 void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
 {
     VkDescriptorImageInfo image_infos[MAX_TEXTURES];
-    for (uint32_t i = 0; i < MAX_TEXTURES; ++i) {
+    for (u32 i = 0; i < MAX_TEXTURES; ++i) {
         image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         image_infos[i].imageView = textures[(i >= arrlen(textures)) ? 0 : i].image_view;
     }
@@ -954,7 +947,7 @@ void CreateSamplers(DescriptorLayout *layout)
     // TODO(Matt): Hardcode.
     sampler_create_info.maxLod = MAX_SAMPLER_LOD;
     
-    for (uint32_t i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
+    for (u32 i = 0; i < MATERIAL_SAMPLER_COUNT; ++i) {
         VK_CHECK_RESULT(vkCreateSampler(vulkan_info.logical_device, &sampler_create_info, nullptr, &layout->samplers[i]));
     }
 }
@@ -967,7 +960,7 @@ void CreateGlobalUniformBuffers()
     // because we're only using one render pass ATM.
     //VkPhysicalDeviceProperties properties;
     //vkGetPhysicalDeviceProperties(vulkan_info.physical_device, &properties);
-    //uint32_t alignment = (uint32_t)properties.limits.minUniformBufferOffsetAlignment;
+    //u32 alignment = (u32)properties.limits.minUniformBufferOffsetAlignment;
     
     uniforms.per_pass_offset = sizeof(PerFrameUniformObject);
     uniforms.per_draw_offset = sizeof(PerPassUniformObject) + uniforms.per_pass_offset;
@@ -976,12 +969,12 @@ void CreateGlobalUniformBuffers()
     arrsetlen(uniform_buffers_new, swapchain_info.image_count);
     arrsetlen(uniform_buffers_memory_new, swapchain_info.image_count);
     uniforms.buffer = (char *)malloc(uniforms.buffer_size);
-    for (uint32_t i = 0; i < swapchain_info.image_count; ++i) {
+    for (u32 i = 0; i < swapchain_info.image_count; ++i) {
         CreateBuffer(&vulkan_info, uniforms.buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers_new[i], uniform_buffers_memory_new[i]);
     }
 }
 
-PerDrawUniformObject *GetPerDrawUniform(uint32_t object_index)
+PerDrawUniformObject *GetPerDrawUniform(u32 object_index)
 {
     char *object = uniforms.buffer + uniforms.per_draw_offset + object_index * sizeof(PerDrawUniformObject);
     return (PerDrawUniformObject *)object;

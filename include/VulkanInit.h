@@ -1,7 +1,5 @@
 
-#pragma once
-
-#include "RenderBase.h"
+#ifndef VULKANINIT_H
 
 #define APPLICATION_NAME "NYCEngine Prototype"
 #define ENGINE_NAME "NYCE"
@@ -39,7 +37,7 @@ void CreateBuffer(const VulkanInfo *vulkan_info, VkDeviceSize size, VkBufferUsag
 void CopyBuffer(const VulkanInfo *vulkan_info, VkBuffer source, VkBuffer destination, VkDeviceSize size);
 
 // Finds a valid device memory type for the given properties.
-uint32_t FindMemoryType(const VulkanInfo *vulkan_info, uint32_t type, VkMemoryPropertyFlags properties);
+u32 FindMemoryType(const VulkanInfo *vulkan_info, u32 type, VkMemoryPropertyFlags properties);
 
 // Allocates and starts a transient command buffer.
 VkCommandBuffer BeginOneTimeCommand(const VulkanInfo *vulkan_info);
@@ -48,20 +46,23 @@ VkCommandBuffer BeginOneTimeCommand(const VulkanInfo *vulkan_info);
 void EndOneTimeCommand(const VulkanInfo *vulkan_info, VkCommandBuffer command_buffer);
 
 // Copies the contents of a buffer into an image.
-void CopyBufferToImage(const VulkanInfo *vulkan_info, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+void CopyBufferToImage(const VulkanInfo *vulkan_info, VkBuffer buffer, VkImage image, u32 width, u32 height);
 
 // Transitions an image from one layout to another.
-void TransitionImageLayout(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_count);
+void TransitionImageLayout(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, u32 mip_count);
 
 // Creates a Vulkan image, given its properties. Used for textures and
 // also swapchain attachments.
-void CreateImage(const VulkanInfo *vulkan_info, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, uint32_t mips, VkSampleCountFlagBits samples);
+void CreateImage(const VulkanInfo *vulkan_info, u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *image_memory, u32 mips, VkSampleCountFlagBits samples);
 
 // Creates a Vulkan imageview, given an image and format.
-VkImageView CreateImageView(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, uint32_t mip_count);
+VkImageView CreateImageView(const VulkanInfo *vulkan_info, VkImage image, VkFormat format, VkImageAspectFlags aspect_mask, u32 mip_count);
 
 // Finds a supported image format, given a preferential list of candidates.
-VkFormat FindSupportedFormat(const VulkanInfo *vulkan_info, VkFormat *acceptable_formats, uint32_t acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features);
+VkFormat FindSupportedFormat(const VulkanInfo *vulkan_info, VkFormat *acceptable_formats, u32 acceptable_count, VkImageTiling tiling, VkFormatFeatureFlags features);
 
 // Destroys the swapchain. Should be called before shutting down the rest of the renderer.
 void DestroySwapchain(const VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info);
+
+#define VULKANINIT_H
+#endif
