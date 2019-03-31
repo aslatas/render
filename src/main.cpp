@@ -89,6 +89,11 @@ void RunMainLoop()
         DrawFrame();
         // Post-render update.
         UpdatePostRender(frame_delta);
+        // TODO(Matt): Why does this fix the mouse sensitivity on my Desktop? What?
+        // Do we need to modulate mouse delta by the frame delta? I would think that
+        // mouse polling rate would be independent though, and a slower frame just
+        // accumulates more mouse events?
+        //Sleep(10);
     }
 }
 

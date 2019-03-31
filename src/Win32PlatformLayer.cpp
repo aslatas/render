@@ -517,6 +517,7 @@ s32 PlatformPeekInputEvents()
             return -message_count;
         }
     }
+    printf("Cursor delta: %d\n", cursor_delta_x);
     return message_count;
 }
 
