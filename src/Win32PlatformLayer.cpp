@@ -340,7 +340,6 @@ s32 PlatformPeekEvents()
     s32 message_count = 0;
     // Process any outstanding events.
     while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {
-        printf("Message Count: %d\n", message_count);
         TranslateMessage(&message);
         DispatchMessage(&message);
         message_count++;

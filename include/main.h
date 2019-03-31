@@ -1,5 +1,6 @@
 
 #ifndef MAIN_H
+#define MAIN_H
 
 s32 Main();
 void Shutdown();
@@ -10,6 +11,5 @@ EInputMode GetInputMode();
 float GetForwardAxis();
 float GetRightAxis();
 float GetUpAxis();
-
-#define MAIN_H
+float GetSpeedMultiplier();
 #endif

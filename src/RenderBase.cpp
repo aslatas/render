@@ -20,7 +20,7 @@ VkDescriptorSet *descriptor_sets_new = nullptr;
 Model_Separate_Data **selected_models = nullptr;
 // TODO(Matt): Refactor these.
 Camera::Camera camera = {};
-
+Camera::Controller controller = {16.0f, 16.0f, 2.0f, 0.25f, glm::vec3(0.0f), glm::vec3(0.0f)};
 char *ReadShaderFile(const char *path, u32 *length)
 {
     FILE *file = fopen(path, "rb");
@@ -69,42 +69,42 @@ static VkShaderModule CreateShaderModule(char *code, u32 length)
 /*
 void CreateVertexBuffer(Model *model)
 {
-    VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
-    
-    void *data;
-    vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, model->vertices, (size_t)buffer_size);
-    vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
-    
-    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, model->vertex_buffer, model->vertex_buffer_memory);
-    
-    CopyBuffer(&vulkan_info, staging_buffer, model->vertex_buffer, buffer_size);
-    
-    vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
+VkDeviceSize buffer_size = sizeof(Vertex) * model->vertex_count;
+VkBuffer staging_buffer;
+VkDeviceMemory staging_buffer_memory;
+CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+void *data;
+vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
+memcpy(data, model->vertices, (size_t)buffer_size);
+vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
+
+CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, model->vertex_buffer, model->vertex_buffer_memory);
+
+CopyBuffer(&vulkan_info, staging_buffer, model->vertex_buffer, buffer_size);
+
+vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
+vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
 }
 
 void CreateIndexBuffer(Model *model)
 {
-    VkDeviceSize buffer_size = sizeof(u32) * model->index_count;
-    
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
-    
-    void *data;
-    vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, model->indices, (size_t)buffer_size);
-    vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
-    CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, model->index_buffer, model->index_buffer_memory);
-    
-    CopyBuffer(&vulkan_info, staging_buffer, model->index_buffer, buffer_size);
-    
-    vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
+VkDeviceSize buffer_size = sizeof(u32) * model->index_count;
+
+VkBuffer staging_buffer;
+VkDeviceMemory staging_buffer_memory;
+CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+void *data;
+vkMapMemory(vulkan_info.logical_device, staging_buffer_memory, 0, buffer_size, 0, &data);
+memcpy(data, model->indices, (size_t)buffer_size);
+vkUnmapMemory(vulkan_info.logical_device, staging_buffer_memory);
+CreateBuffer(&vulkan_info, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, model->index_buffer, model->index_buffer_memory);
+
+CopyBuffer(&vulkan_info, staging_buffer, model->index_buffer, buffer_size);
+
+vkDestroyBuffer(vulkan_info.logical_device, staging_buffer, nullptr);
+vkFreeMemory(vulkan_info.logical_device, staging_buffer_memory, nullptr);
 }
 */
 void CreateDescriptorSets()
@@ -310,18 +310,19 @@ void UpdatePrePhysics(double delta)
 {
     if (GetInputMode() == VIEWPORT) {
         float forward_axis = GetForwardAxis();
-        if (fabs(forward_axis) > 0.01f) {
-            Camera::MoveForward(&camera, forward_axis * (float)delta);
-        }
+        //if (fabs(forward_axis) > 0.01f) {
+        //Camera::MoveForward(&camera, forward_axis * (float)delta);
+        //}
         float right_axis = GetRightAxis();
-        if (fabs(right_axis) > 0.01f) {
-            Camera::MoveRight(&camera, right_axis * (float)delta);
-        }
+        //if (fabs(right_axis) > 0.01f) {
+        //Camera::MoveRight(&camera, right_axis * (float)delta);
+        //}
         
         float up_axis = GetUpAxis();
-        if (fabs(up_axis) > 0.01f) {
-            Camera::MoveUp(&camera, up_axis * (float)delta);
-        }
+        //if (fabs(up_axis) > 0.01f) {
+        //Camera::MoveUp(&camera, up_axis * (float)delta);
+        //}
+        Camera::ApplyInput((float)delta, &controller, &camera, glm::vec3(forward_axis, right_axis, up_axis));
         s32 x, y;
         float x_delta, y_delta;
         PlatformGetCursorDelta(&x, &y);
@@ -332,6 +333,8 @@ void UpdatePrePhysics(double delta)
         float pitch = y_delta * -0.005f;
         Camera::AddYaw(&camera, yaw);
         Camera::AddPitch(&camera, pitch);
+    } else {
+        Camera::ApplyInput((float)delta, &controller, &camera, glm::vec3(0.0f));
     }
     
     PerFrameUniformObject *per_frame = GetPerFrameUniform();

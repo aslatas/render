@@ -52,7 +52,30 @@ void Camera::AddYaw(Camera *cam, float radians)
 
 void Camera::AddPitch(Camera *cam, float radians)
 {
+    float half_pi = glm::half_pi<float>();
     cam->rotation.y += radians;
-    if (cam->rotation.y >= glm::half_pi<float>() - CAMERA_ANGLE_LIMIT) cam->rotation.y = glm::half_pi<float>() - CAMERA_ANGLE_LIMIT;
-    if (cam->rotation.y <= -glm::half_pi<float>() + CAMERA_ANGLE_LIMIT) cam->rotation.y = -glm::half_pi<float>() + CAMERA_ANGLE_LIMIT;
+    if (cam->rotation.y >= half_pi - CAMERA_ANGLE_LIMIT) cam->rotation.y = half_pi - CAMERA_ANGLE_LIMIT;
+    if (cam->rotation.y <= -half_pi + CAMERA_ANGLE_LIMIT) cam->rotation.y = -half_pi + CAMERA_ANGLE_LIMIT;
+}
+
+void Camera::ApplyInput(float delta, Controller *controller, Camera *cam, glm::vec3 axis_input)
+{
+    if (glm::length(axis_input) > 0.0f) {
+        controller->acceleration = glm::vec3(0.0f);
+        controller->acceleration += GetForwardVector(cam) * axis_input.x;
+        controller->acceleration += GetRightVector(cam) * axis_input.y;
+        controller->acceleration += glm::vec3(0.0f, 0.0f, axis_input.z);
+        if (glm::length(controller->acceleration) > 1.0f) controller->acceleration = glm::normalize(controller->acceleration);
+        controller->acceleration*= controller->max_acceleration;
+    } else if (glm::length(controller->velocity) > 0.0f) {
+        controller->acceleration = -glm::normalize(controller->velocity) * controller->brake_deceleration;
+    } else {
+        controller->acceleration = glm::vec3(0.0f);
+        controller->velocity = glm::vec3(0.0f);
+    }
+    controller->velocity *= 1.0f - controller->friction * delta;
+    controller->velocity += controller->acceleration * delta;
+    float speed_multiplier = GetSpeedMultiplier();
+    if (glm::length(controller->velocity) > controller->max_speed * speed_multiplier) controller->velocity = glm::normalize(controller->velocity) * controller->max_speed * speed_multiplier;
+    cam->location += controller->velocity * delta;
 }

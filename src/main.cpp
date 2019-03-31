@@ -14,6 +14,7 @@ global bool is_a_held = false;
 global bool is_d_held = false;
 global bool is_q_held = false;
 global bool is_e_held = false;
+global float speed_multiplier = 1.0f;
 global EInputMode editor_input_mode = UI;
 
 global PlatformWindow global_window;
@@ -65,7 +66,8 @@ internal void MouseButtonCallback(const PlatformWindow *window, u32 button, EBut
 
 internal void MouseWheelCallback(const PlatformWindow *window, s32 amount)
 {
-    
+    speed_multiplier *= 1 + ((float)amount / 720.0f);
+    if (speed_multiplier < 0.125f) speed_multiplier = 0.125f;
 }
 
 void RunMainLoop()
@@ -150,10 +152,15 @@ float GetRightAxis()
 float GetUpAxis()
 {
     if (is_q_held && !is_e_held) {
-        return 1.0f;
-    } else if (is_e_held && !is_q_held) {
         return -1.0f;
+    } else if (is_e_held && !is_q_held) {
+        return 1.0f;
     } else {
         return 0.0f;
     }
+}
+
+float GetSpeedMultiplier()
+{
+    return speed_multiplier;
 }

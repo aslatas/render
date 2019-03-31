@@ -11,13 +11,13 @@ enum EButtonState
 enum EKeyCode
 {
     KEY_UNKNOWN,
-    KEY_CTRL,// = VK_CONTROL,
-    KEY_W,// = 0x57,
-    KEY_A,// = 0x41,
-    KEY_S,// = 0x53,
-    KEY_D,// = 0x44,
-    KEY_Q,// = 0x51,
-    KEY_E,// = 0x45
+    KEY_CTRL,
+    KEY_W,
+    KEY_A,
+    KEY_S,
+    KEY_D,
+    KEY_Q,
+    KEY_E,
 };
 
 enum EInputMode
