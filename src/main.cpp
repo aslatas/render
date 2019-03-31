@@ -110,7 +110,9 @@ s32 Main()
 
 void ExitWithError(const char *message)
 {
-    std::cerr << "Error in " << __FILE__<< ", line " << __LINE__ << "! message: \"" << message << "\"." << std::endl;
+    char buffer[512];
+    snprintf(buffer, 512, "Error in %s, line %d!\nMessage: \"%s\".", __FILE__, __LINE__, message);
+    PlatformShowErrorDialog(buffer);
     exit(EXIT_FAILURE);
 }
 

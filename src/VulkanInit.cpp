@@ -632,7 +632,7 @@ void RecreateSwapchain(VulkanInfo *vulkan_info, SwapchainInfo *swapchain_info)
     ChooseSwapchainExtent(vulkan_info, swapchain_info);
     // TODO(Matt): Platform specific.
     while (swapchain_info->extent.width == 0 || swapchain_info->extent.height == 0) {
-        if (!PlatformPollEvents()) ShutdownVulkan(vulkan_info, swapchain_info);
+        if (PlatformPollEvents() < 0) ShutdownVulkan(vulkan_info, swapchain_info);
         ChooseSwapchainExtent(vulkan_info, swapchain_info);
     }
     CreateSwapchain(vulkan_info, swapchain_info);

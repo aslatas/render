@@ -557,7 +557,7 @@ void PlatformHideCursor()
 // TODO(Matt): Remove iostream calls.
 void PlatformSetCursor(ECursor cursor)
 {
-    std::cerr << "PlatformSetCursor() doesn't do anything yet. Sorry." << std::endl;
+    fprintf(stderr, "PlatformSetCursor() doesn't do anything yet. Sorry.\n");
 }
 
 VkSurfaceKHR PlatformCreateSurface(const PlatformWindow *window, VkInstance instance)
@@ -569,6 +569,11 @@ VkSurfaceKHR PlatformCreateSurface(const PlatformWindow *window, VkInstance inst
     create_info.hinstance = GetModuleHandle(nullptr);
     VK_CHECK_RESULT(vkCreateWin32SurfaceKHR(instance, &create_info, nullptr, &surface));
     return surface;
+}
+
+void PlatformShowErrorDialog(const char *message)
+{
+    MessageBoxA(0, message, 0, MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND);
 }
 
 #undef global

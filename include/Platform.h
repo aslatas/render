@@ -1,4 +1,5 @@
 #ifndef PLATFORM_H
+#define PLATFORM_H
 
 // Platform specific window info.
 struct PlatformWindow;
@@ -137,5 +138,7 @@ VkSurfaceKHR PlatformCreateSurface(const PlatformWindow *window, VkInstance inst
 // Sets the mouse cursor to a specified type.
 void PlatformSetCursor(ECursor cursor);
 
-#define PLATFORM_H
+// Pulls up a message dialog indicating that an error (usually a fatal one) has occured.
+void PlatformShowErrorDialog(const char *message);
+
 #endif
