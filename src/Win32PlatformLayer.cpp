@@ -171,7 +171,11 @@ LRESULT CALLBACK Win32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
         return 0;
         // OS request for repaint.
         case WM_PAINT: {
-            // TODO(Matt): Handle me.
+            // Return the whole update region as validated, so the message can be removed.
+            // The whole client rect is redrawn anyway.
+            RECT rect;
+            GetClientRect(hwnd, &rect);
+            ValidateRect(hwnd, &rect);
         }
         return 0;
         // Called when window is being resized, including (obnoxiously)
@@ -326,19 +330,25 @@ LRESULT CALLBACK Win32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
     }
 }
 
-// TODO(Matt): Correct this to process all queued events.
-// Will require special handling of WM_PAINT.
 s32 PlatformPeekEvents()
 {
-    MSG message = {};
-    PeekMessage(&message, nullptr, 0, 0, PM_REMOVE);
-    if (message.message == WM_QUIT) {
-        return -1;
-    }
-    TranslateMessage(&message);
-    DispatchMessage(&message);
+    // Reset cursor delta, to be accumulated this frame by WM_INPUT.
+    cursor_delta_x = 0;
+    cursor_delta_y = 0;
     
-    return 1;
+    MSG message = {};
+    s32 message_count = 0;
+    // Process any outstanding events.
+    while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {
+        printf("Message Count: %d\n", message_count);
+        TranslateMessage(&message);
+        DispatchMessage(&message);
+        message_count++;
+        if (message.message == WM_QUIT) {
+            return -message_count;
+        }
+    }
+    return message_count;
 }
 
 s32 PlatformPollEvents()
@@ -496,29 +506,6 @@ void PlatformGetCursorDelta(s32 *x, s32 *y)
 {
     *x = cursor_delta_x;
     *y = cursor_delta_y;
-}
-
-// TODO(Matt): This calculates cursor delta per window, but processes events
-// for ALL windows!
-s32 PlatformPeekInputEvents()
-{
-    cursor_delta_x = 0;
-    cursor_delta_y = 0;
-    
-    MSG message = {};
-    s32 message_count = 0;
-    // Process only input events (key, mouse, rawinput).
-    while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE | PM_QS_INPUT)) {
-        TranslateMessage(&message);
-        DispatchMessage(&message);
-        message_count++;
-        // TODO(Matt): I don't actually know if WM_QUIT can come from this.
-        if (message.message == WM_QUIT) {
-            return -message_count;
-        }
-    }
-    printf("Cursor delta: %d\n", cursor_delta_x);
-    return message_count;
 }
 
 void PlatformCaptureCursor(const PlatformWindow *window)

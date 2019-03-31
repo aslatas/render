@@ -72,7 +72,6 @@ void RunMainLoop()
 {
     double frame_delta_max = MAX_PHYSICS_DELTA * MAX_PHYSICS_STEPS;
     while (PlatformPeekEvents() >= 0) {
-        if (PlatformPeekInputEvents() < 0) break;
         double frame_delta = PlatformGetTimerDelta(&global_timer);
         if (frame_delta > frame_delta_max) frame_delta = frame_delta_max;
         // Pre-physics update here.
@@ -89,11 +88,6 @@ void RunMainLoop()
         DrawFrame();
         // Post-render update.
         UpdatePostRender(frame_delta);
-        // TODO(Matt): Why does this fix the mouse sensitivity on my Desktop? What?
-        // Do we need to modulate mouse delta by the frame delta? I would think that
-        // mouse polling rate would be independent though, and a slower frame just
-        // accumulates more mouse events?
-        //Sleep(10);
     }
 }
 

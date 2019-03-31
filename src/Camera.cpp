@@ -1,7 +1,7 @@
 
 #include "Camera.h"
 
-#define CAMERA_ANGLE_LIMIT 0.01f
+#define CAMERA_ANGLE_LIMIT 0.0001f
 
 glm::mat4 Camera::GetViewTransform(Camera *cam)
 {
@@ -53,6 +53,6 @@ void Camera::AddYaw(Camera *cam, float radians)
 void Camera::AddPitch(Camera *cam, float radians)
 {
     cam->rotation.y += radians;
-    if (cam->rotation.y >= glm::half_pi<float>()) cam->rotation.y = glm::half_pi<float>() - CAMERA_ANGLE_LIMIT;
-    if (cam->rotation.y <= -glm::half_pi<float>()) cam->rotation.y = -glm::half_pi<float>() + CAMERA_ANGLE_LIMIT;
+    if (cam->rotation.y >= glm::half_pi<float>() - CAMERA_ANGLE_LIMIT) cam->rotation.y = glm::half_pi<float>() - CAMERA_ANGLE_LIMIT;
+    if (cam->rotation.y <= -glm::half_pi<float>() + CAMERA_ANGLE_LIMIT) cam->rotation.y = -glm::half_pi<float>() + CAMERA_ANGLE_LIMIT;
 }

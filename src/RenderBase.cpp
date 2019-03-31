@@ -304,26 +304,32 @@ void DrawFrame()
     // Increment frame counter.
     swapchain_info.current_frame = (swapchain_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
+
 // TODO(Matt): Move this out of the rendering component.
 void UpdatePrePhysics(double delta)
 {
     if (GetInputMode() == VIEWPORT) {
         float forward_axis = GetForwardAxis();
-        if (fabs(forward_axis) > 0.01f) Camera::MoveForward(&camera, forward_axis * (float)delta);
+        if (fabs(forward_axis) > 0.01f) {
+            Camera::MoveForward(&camera, forward_axis * (float)delta);
+        }
         float right_axis = GetRightAxis();
-        if (fabs(right_axis) > 0.01f) Camera::MoveRight(&camera, right_axis * (float)delta);
+        if (fabs(right_axis) > 0.01f) {
+            Camera::MoveRight(&camera, right_axis * (float)delta);
+        }
         
         float up_axis = GetUpAxis();
-        if (fabs(up_axis) > 0.01f) Camera::MoveUp(&camera, up_axis * (float)delta);
-        //Camera::Move(&camera, forward_axis, right_axis, up_axis, (float) delta);
+        if (fabs(up_axis) > 0.01f) {
+            Camera::MoveUp(&camera, up_axis * (float)delta);
+        }
         s32 x, y;
         float x_delta, y_delta;
         PlatformGetCursorDelta(&x, &y);
         
         x_delta = (float)x;
         y_delta = (float)y;
-        float yaw = x_delta * -0.25f * (float)delta;
-        float pitch = y_delta * -0.25f * (float)delta;
+        float yaw = x_delta * -0.005f;
+        float pitch = y_delta * -0.005f;
         Camera::AddYaw(&camera, yaw);
         Camera::AddPitch(&camera, pitch);
     }

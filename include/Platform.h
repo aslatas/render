@@ -28,16 +28,13 @@ typedef void (*PlatformKeyCallback)(const PlatformWindow *window, EKeyCode key, 
 // message loop, and does not initialize rendering or input.
 void PlatformCreateWindow(PlatformWindow *window);
 
-// Checks the OS message queue, and processes all non-input events before
-// returning, unless a quit is requested. Does not wait for new events.
-// Returns -1 if the application should exit, or the number of processed
-// messages otherwise. Note that user callbacks are executed for every 
-// message. This prevents inputs from being dropped, but means that if 
-// messages are enqueued faster than they are processed, the application
-// can freeze!
-// TODO(Matt): This isn't implemented properly yet - only one event is
-// processed at a time. Once implemented, it may make sense to merge this
-// with PlatformPeekInputEvents().
+// Checks the OS message queue, and processes all events before returning, 
+// unless a quit is requested. Does not wait for new events. Returns the
+// negative number of processed messages if a quit is requested, or the
+// number of processed messages otherwise. Note that user callbacks are
+// executed for every message. This prevents inputs from being dropped, but
+// means that if messages are enqueued faster than they are processed, the
+// application can freeze!
 s32 PlatformPeekEvents();
 
 // Checks the OS message queue, and processes the first event found before
@@ -45,14 +42,6 @@ s32 PlatformPeekEvents();
 // wait for new events. Returns -1 if the application should exit, or the
 // number of processed messages otherwise.
 s32 PlatformPollEvents();
-
-// Checks the OS message queue, and processes all input events before
-// returning, unless a quit is requested. Does not wait for new events.
-// Returns -1 if a quit is requested, or the number of processed messages
-// otherwise. Note that user callbacks are executed for every message. This
-// prevents inputs from being dropped, but means that if messages are
-// enqueued faster than they are processed, the application can freeze!
-s32 PlatformPeekInputEvents();
 
 // Sets up platform code for mouse/keyboard devices.
 void PlatformSetupInputDevices(PlatformWindow *window);
