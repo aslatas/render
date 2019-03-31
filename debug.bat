@@ -9,5 +9,5 @@ if not exist build\debug (
     exit /b 0
 )
 pushd build\debug
-call devenv main.exe
+call devenv NYCE.exe
 popd

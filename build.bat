@@ -1,53 +1,42 @@
 @echo off
 ::      Set build tool and library paths as well as compile flags here.       ::
-:: ---------------------------------------------------------------------------::
-set toolpath=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build
-set source_files=..\..\src\Win32PlatformLayer.cpp
-set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo
-set debug_flags=/Od /Z7
-set release_flags=/O2 /GL /analyze- /D "NDEBUG"
+::----------------------------------------------------------------------------::
+set debug_flags=/Od /Z7 /MT
+set release_flags=/O2 /GL /MT /analyze- /D "NDEBUG"
+set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo /Fe: NYCE.exe /I ..\..\include /I ..\..\ext ..\..\src\Win32PlatformLayer.cpp
 set linker_flags=User32.lib Kernel32.lib Gdi32.lib /INCREMENTAL:no /NOLOGO
-set include_dir=/I..\..\include /I..\..\ext
 
 ::        Run the build tools, but only if they aren't set up already.        ::
-:: ---------------------------------------------------------------------------::
+::----------------------------------------------------------------------------::
 cl >nul 2>nul
 if %errorlevel% neq 9009 goto :build
 echo Running VS build tool setup.
-if exist "%toolpath%" (
-pushd "%toolpath%"
-if exist vcvarsall.bat (
 echo Initializing MS build tools...
-call vcvarsall.bat x64 > nul
-popd
-goto :build
-)
-) 
-echo Unable to find build tools! Make sure that you have Microsoft Visual Studio 2017 Community Edition installed!
+call windows\setup_cl.bat
+cl >nul 2>nul
+if %errorlevel% neq 9009 goto :build
+echo Unable to find build tools! Make sure that you have Microsoft Visual Studio 10 or above installed!
 exit /b 1
 
-::    Build in the correct mode, copying resources and whatnot as needed.     ::
-:: ---------------------------------------------------------------------------::
+::      Set the build mode, and create the build directory if necessary.      ::
+::----------------------------------------------------------------------------::
 :build
 set mode=debug
 if /i $%1 equ $release (set mode=release)
 if %mode% equ debug (
-set flags=%common_flags% %include_dir% %debug_flags% %source_files%
+set flags=%common_flags% %debug_flags%
 ) else (
-set flags=%common_flags% %include_dir% %release_flags% %source_files%
+set flags=%common_flags% %release_flags%
 )
 echo Building in %mode% mode.
-echo.     -Cleaning output directory.
 if not exist build\%mode% mkdir build\%mode%
 pushd build\%mode%
-if exist *.exe del /q *.exe
-if exist *.pdb del /q *.pdb
-if exist *.obj del /q *.obj
-if exist *.dll del /q *.dll
 
-:: BUILD
+::                          Perform the actual build.                         ::
+::----------------------------------------------------------------------------::
 echo.     -Compiling:
 call cl %flags% /link %linker_flags%
+del *.obj
 if %errorlevel% neq 0 (
 echo Error during compilation!
 popd
@@ -56,7 +45,7 @@ goto :fail
 popd
 
 ::      Compile shaders and stuff. Needs replaced with a better system.       ::
-:: ---------------------------------------------------------------------------::
+::----------------------------------------------------------------------------::
 echo.     -Compiling shaders:
 pushd shaders
 call compile.cmd
@@ -68,6 +57,8 @@ goto :fail
 
 popd
 
+::     Copy resources. Should be replaced by a proper hotloading system.      ::
+::----------------------------------------------------------------------------::
 if not exist build\%mode%\resources mkdir build\%mode%\resources
 if not exist build\%mode%\resources\shaders mkdir build\%mode%\resources\shaders
 robocopy shaders\spv build\%mode%\resources\shaders *.spv /move /mir /ns /nc /nfl /ndl /np /njh /njs
