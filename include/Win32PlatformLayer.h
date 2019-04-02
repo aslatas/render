@@ -1,5 +1,27 @@
 
 #ifndef WIN32PLATFORMLAYER_H
+#define WIN32PLATFORMLAYER_H
+
+// TODO(Matt): No idea if this thread representation will work. Just testing stuff out.
+struct PlatformThread
+{
+    EThreadType type;
+    HANDLE handle;
+    DWORD id;
+};
+
+struct Win32DirectoryWatcher
+{
+    char *directory_path;
+    // NOTE(Matt): The buffers are heap allocated to guarantee DWORD alignment (necessary for
+    // ReadDirectoryChangesW) and because they're kinda big. 
+    BYTE *buffers[2]; // We use two buffers as a swapchain.
+    HANDLE directory_handle; // Directory to watch.
+    DWORD notify_flags;
+    u32 buffer_index;
+    bool watch_subdirectories;
+};
+
 // Platform specific window information.
 struct PlatformWindow
 {
@@ -37,5 +59,4 @@ struct PlatformGlobalTimer
 
 // Window message handling procedure. 
 LRESULT CALLBACK Win32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-#define WIN32PLATFORMLAYER_H
 #endif

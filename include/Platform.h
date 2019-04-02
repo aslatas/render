@@ -1,6 +1,13 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+// TODO(Matt): I have no idea if this thread stuff is going to work. It's just an experiment for now.
+enum EThreadType
+{
+    GAME, RENDER, IO, WORKER
+};
+// Platform specific thread info.
+struct PlatformThread;
 // Platform specific window info.
 struct PlatformWindow;
 // Platform specific timer info.
@@ -21,8 +28,6 @@ typedef void (*PlatformMouseWheelCallback)(const PlatformWindow *window, s32 scr
 // Called when a keyboard key is pressed, released, or is being held.
 // Parameters are the code of the modified key, and the new state.
 typedef void (*PlatformKeyCallback)(const PlatformWindow *window, EKeyCode key, EButtonState state);
-
-// TODO(Matt): Callback for double click, and mouse capture handling.
 
 // Creates, but does not show the platform window. Does not start the
 // message loop, and does not initialize rendering or input.

@@ -1,6 +1,7 @@
 // TODO(Matt): Fullscreen support.
 // TODO(Matt): Support minimze, maximize, restore via function call.
-// TODO(Matt): Add functions for screen-space and NDC cursor location.
+// TODO(Matt): Double click callback, or let the application handle that?
+// TODO(Matt): Add functions for screen-space and NDC cursor location (GetCursorPos()).
 
 #define UNICODE
 #define _CRT_SECURE_NO_WARNINGS
@@ -89,13 +90,18 @@
 #define WNDCLASS_NAME L"Gerald"
 #define WINDOW_TITLE L"Rendering Prototype"
 #define VULKAN_LIB_PATH L"vulkan-1.dll"
+#define DIRECTORY_CHANGE_BUFFER_SIZE 4096
+// TODO(Matt): No idea if this thread system will work. Just experimenting.
+global PlatformThread io_thread;
 
 // Dynamically loaded vulkan library.
 global HMODULE vulkan_library = nullptr;
 
 // Raw cursor movement.
-s32 cursor_delta_x;
-s32 cursor_delta_y;
+// TODO(Matt): We should support a cursor delta pair per device (since we use
+// RAWINPUT, we can support multiple cursors).
+global s32 cursor_delta_x;
+global s32 cursor_delta_y;
 
 // Screen (not window) location of the cursor at the last capture. 
 global POINT cursor_capture_location = {};
@@ -120,7 +126,7 @@ void PlatformCreateWindow(PlatformWindow *window)
     window->handle = CreateWindowExW(WS_EX_OVERLAPPEDWINDOW, 
                                      WNDCLASS_NAME, WINDOW_TITLE,  WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
     
-    // Pack the window pointer with the new window handle.
+    // Pack the window struct pointer with the new window handle.
     SetWindowLongPtrW(window->handle, GWLP_USERDATA, (LONG_PTR)window);
 }
 
@@ -421,6 +427,112 @@ void PlatformFreeVulkanLibrary()
     FreeLibrary(vulkan_library);
 }
 
+// TODO(Matt): Temporary.
+bool wait_for_changes = true;
+void Win32OnDirectoryChanged(DWORD error_code, DWORD change_size, LPOVERLAPPED overlapped)
+{
+    Win32DirectoryWatcher *watcher = (Win32DirectoryWatcher *)overlapped->hEvent;
+    if (error_code == ERROR_OPERATION_ABORTED) {
+        printf("Shutting down directory watcher...\n");
+        CloseHandle(watcher->directory_handle);
+        free(watcher->buffers[0]);
+        free(watcher->buffers[1]);
+        free(overlapped);
+        wait_for_changes = false;
+    } else if (change_size == 0) {
+        printf("Got a directory change, but with size zero. We probably missed some changes.\n");
+        printf("This should only happen if many changes occur at once.\n");
+    } else {
+        u32 current_index = watcher->buffer_index;
+        watcher->buffer_index = (current_index + 1) % 2;
+        BOOL result = ReadDirectoryChangesW(watcher->directory_handle, watcher->buffers[watcher->buffer_index], DIRECTORY_CHANGE_BUFFER_SIZE, watcher->watch_subdirectories, watcher->notify_flags, nullptr, overlapped, Win32OnDirectoryChanged);
+        BYTE *current_offset = watcher->buffers[current_index];
+        for(;;) {
+            FILE_NOTIFY_INFORMATION *changes = (FILE_NOTIFY_INFORMATION *)current_offset;
+            switch (changes->Action) {
+                case FILE_ACTION_ADDED: {
+                    printf("File added: ");
+                }
+                break;
+                case FILE_ACTION_REMOVED: {
+                    printf("File removed: ");
+                }
+                break;
+                case FILE_ACTION_MODIFIED: {
+                    printf("File modified: ");
+                }
+                break;
+                case FILE_ACTION_RENAMED_OLD_NAME: {
+                    printf("File renamed from: ");
+                }
+                break;
+                case FILE_ACTION_RENAMED_NEW_NAME: {
+                    printf("to: ");
+                }
+                break;
+            }
+            
+            // TODO(Matt): This doesn't support using wide characters in the directory or file names.
+            u32 size = (changes->FileNameLength / sizeof(wchar_t)) + 1;
+            char *file_name = (char *)malloc(size);
+            s32 char_count = (s32)wcstombs(file_name, changes->FileName, size - 1);
+            if (char_count < 0) {
+                printf("contained non-ANSI characters, skipping.\n");
+            } else {
+                file_name[char_count] = '\0';
+                char *relative_path = (char *)malloc(strlen(file_name) + strlen(watcher->directory_path) + 2);
+                sprintf(relative_path, "%s/%s", watcher->directory_path, file_name);
+                printf("%s\n", relative_path);
+                FILE *file = fopen(relative_path, "rb");
+                if (file) {
+                    printf("File opened for binary read! radical!\n");
+                    fclose(file);
+                }
+                free(relative_path);
+            }
+            
+            free(file_name);
+            if (changes->NextEntryOffset) {
+                current_offset += changes->NextEntryOffset;
+            } else {
+                break;
+            }
+        }
+        
+        // TODO(Matt): Probably should collect all of the changes for one pass, then process them here.
+    }
+}
+
+// TODO(Matt): Temporary.
+DWORD WINAPI ThreadProc(LPVOID param)
+{
+    Win32DirectoryWatcher watcher = {};
+    watcher.directory_path = "shaders";
+    watcher.directory_handle = CreateFileA("shaders", FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+    if (watcher.directory_handle == INVALID_HANDLE_VALUE) return -1;
+    
+    // Allocate out two 4k buffers. We use two of them so we can kick off another request before processing the
+    // last one. It's possible that we get more than 4k worth of changes, in which case we'll just pretend
+    // we got NO changes.
+    watcher.buffers[0] = (BYTE *)malloc(DIRECTORY_CHANGE_BUFFER_SIZE);
+    watcher.buffers[1] = (BYTE *)malloc(DIRECTORY_CHANGE_BUFFER_SIZE);
+    watcher.notify_flags = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_CREATION;
+    watcher.watch_subdirectories = false;
+    
+    OVERLAPPED *overlapped = (OVERLAPPED *)malloc(sizeof(OVERLAPPED));
+    *overlapped = {};
+    overlapped->hEvent = &watcher; // Pass the directory watcher with the overlapped struct,
+    // because the hEvent member isn't used by the sytem (so we can use it instead).
+    BOOL result = ReadDirectoryChangesW(watcher.directory_handle, watcher.buffers[0], DIRECTORY_CHANGE_BUFFER_SIZE, watcher.watch_subdirectories, watcher.notify_flags, nullptr, overlapped, Win32OnDirectoryChanged);
+    // Could use WaitForMultipleObjectsEx if we want more notifications.
+    //CancelIo(dir_handle);
+    while (wait_for_changes) {
+        SleepEx(INFINITE, TRUE);
+    }
+    printf("Done waiting for changes.\n");
+    return 0;
+}
+
 // Program entry  point. Calls renderer main.
 // TODO(Matt): Rename Main.h/cpp and Main() to be less confusing.
 int WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int command_show)
@@ -432,6 +544,9 @@ int WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int
     UNREFERENCED_PARAMETER(command_line);
     UNREFERENCED_PARAMETER(command_show);
     
+    // TODO(Matt): Temporary.
+    io_thread.type = IO;
+    io_thread.handle = CreateThread(0, 0, ThreadProc, nullptr, 0, &io_thread.id);
     // Abstract past the platform specific launch point.
     return Main();
 }
