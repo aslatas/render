@@ -97,9 +97,11 @@ struct MaterialCreateInfo
     VkPipelineRasterizationStateCreateInfo raster_info;
     VkPipelineMultisampleStateCreateInfo multisample_info;
     VkPipelineColorBlendAttachmentState blend;
-    VkPipelineColorBlendStateCreateInfo blend_info;
     VkPipelineDepthStencilStateCreateInfo depth_stencil;
+    VkPipelineColorBlendStateCreateInfo blend_info;
+    VkDynamicState dynamic_states[VK_DYNAMIC_STATE_RANGE_SIZE];
     u32 stage_count; // Number of shader stages (usually 2).
+    u32 dynamic_state_count; // Dynamic states (usually 2).
     
     // Heap allocated.
     VkPipelineShaderStageCreateInfo *shader_stages;
@@ -213,4 +215,6 @@ void GetSwapchainExtent(u32 *width, u32 *height);
 u32 GetSwapchainImageCount();
 VkRenderPass GetSwapchainRenderPass();
 void PresentNextFrame(u32 image_index);
+void WaitDeviceIdle();
+
 #endif

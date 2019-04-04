@@ -53,17 +53,12 @@ void AddMaterial(MaterialCreateInfo *material_info, u32 material_type, VkRenderP
 
 // Creates the materials used by the scene.
 void CreateMaterials();
-// Destroys materials used by the scene. Performed on swapchain recreation.
-void DestroyMaterials();
 // Initializes models and other resources in the scene.
 void InitializeScene();
 // Adds a given model to the scene, using its material type and shader ID.
 void AddToScene(Model_Separate_Data model);
 // Destroys objects and materials in the scene.
 void DestroyScene();
-
-void InitializeSceneResources();
-void DestroySceneResources();
 
 void CreateGlobalUniformBuffers();
 PerDrawUniformObject *GetPerDrawUniform(u32 object_index);

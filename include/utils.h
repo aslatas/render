@@ -1,7 +1,11 @@
 // Contains global definitions and function that make life a little convienent
 
 #ifndef UTILS_H
+#define UTILS_H
 #include <stdint.h>
+
+#define U32_MAX UINT32_MAX
+#define U64_MAX UINT64_MAX
 
 typedef uint8_t u8;
 typedef int8_t s8;
@@ -20,5 +24,4 @@ typedef int64_t s64;
 // Unique Model id
 // extern unsigned int model_id = 0;
 
-#define UTILS_H
 #endif

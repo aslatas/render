@@ -1,4 +1,3 @@
-// TODO(Matt): There are a few platform specific bits lingering in here.
 // TODO(Matt): Use a texture list, and have models which use textures
 // specify which textures belong in which samplers.
 // TODO(Matt): Re-handle the way that uniforms are updated. It's hacky.
@@ -38,15 +37,13 @@ char *ReadShaderFile(const char *path, u32 *length)
 void InitializeRenderer()
 {
     InitializeVulkan();
-    CreateGlobalUniformBuffers();
-    InitializeSceneResources();
-    CreateDescriptorSets(uniform_buffers_new);
     InitializeScene();
 }
 
 void ShutdownRenderer()
 {
-    DestroySwapchain();
+    WaitDeviceIdle();
+    DestroyScene();
     ShutdownVulkan();
 }
 
@@ -59,7 +56,7 @@ void RecordRenderCommands(u32 image_index)
         // For each material of a given type.
         for (u32 j = 0; j < arrlen(material_type->materials); ++j) {
             Material *material = &material_type->materials[j];
-            // Bind the material pipeline.
+            // Bind the material pipeline and set dynamic state.
             CommandBindPipeline(material->pipeline, image_index);
             
             // For each model of a given material.
@@ -72,14 +69,7 @@ void RecordRenderCommands(u32 image_index)
                 CommandBindIndexBuffer(model->index_buffer, VK_INDEX_TYPE_UINT32, image_index);
                 PushConstantBlock push_block = {};
                 push_block.draw_index = model->uniform_index;
-                push_block.scalar_parameters[0] = 1;
-                push_block.scalar_parameters[1] = 2;
-                push_block.scalar_parameters[2] = 3;
-                push_block.scalar_parameters[3] = 4;
-                push_block.scalar_parameters[4] = 5;
-                push_block.scalar_parameters[5] = 6;
-                push_block.scalar_parameters[6] = 7;
-                
+                CommandPushConstants(material_types->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
                 // Draw the model.
                 CommandDrawIndexed(image_index, model->index_count);
             }
@@ -107,13 +97,6 @@ void RecordRenderCommands(u32 image_index)
             // Bind the vertex, index, and uniform buffers.
             PushConstantBlock push_block = {};
             push_block.draw_index = model->uniform_index;
-            push_block.scalar_parameters[0] = 1;
-            push_block.scalar_parameters[1] = 2;
-            push_block.scalar_parameters[2] = 3;
-            push_block.scalar_parameters[3] = 4;
-            push_block.scalar_parameters[4] = 5;
-            push_block.scalar_parameters[5] = 6;
-            push_block.scalar_parameters[6] = 7;
             CommandPushConstants(material_types[0].pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
             // Draw selected models.
             CommandDrawIndexed(image_index, model->index_count);
@@ -141,18 +124,8 @@ void UpdatePrePhysics(double delta)
 {
     if (GetInputMode() == VIEWPORT) {
         float forward_axis = GetForwardAxis();
-        //if (fabs(forward_axis) > 0.01f) {
-        //Camera::MoveForward(&camera, forward_axis * (float)delta);
-        //}
         float right_axis = GetRightAxis();
-        //if (fabs(right_axis) > 0.01f) {
-        //Camera::MoveRight(&camera, right_axis * (float)delta);
-        //}
-        
         float up_axis = GetUpAxis();
-        //if (fabs(up_axis) > 0.01f) {
-        //Camera::MoveUp(&camera, up_axis * (float)delta);
-        //}
         Camera::ApplyInput((float)delta, &controller, &camera, glm::vec3(forward_axis, right_axis, up_axis));
         s32 x, y;
         float x_delta, y_delta;
@@ -187,7 +160,6 @@ void UpdatePrePhysics(double delta)
             for (u32 k = 0; k < arrlen(material->models); ++k) {
                 Model_Separate_Data *model = &material->models[k];
                 PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
-                //model->rot.z += (float)delta * glm::radians(25.0f);
                 ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
                 ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
                 ubo->model = glm::rotate(ubo->model, model->rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -355,47 +327,48 @@ void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* bu
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
     CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
-    UpdateDeviceMemory(buffer_data, buffer_size, staging_buffer_memory);
     CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *buffer, *buffer_memory);
+    UpdateDeviceMemory(buffer_data, buffer_size, staging_buffer_memory);
     CopyBuffer(staging_buffer, *buffer, buffer_size);
+    DestroyDeviceBuffer(staging_buffer);
+    FreeDeviceMemory(staging_buffer_memory);
 }
 
-void InitializeSceneResources()
+internal void InitializeSceneResources()
 {
+    CreateMaterials();
+    CreateGlobalUniformBuffers();
     // Load fonts and textures.
-    // TODO(Matt): Move texture/font initialization somewhere else.
     arrput(textures, LoadTexture("resources/textures/proto.jpg", 4, true));
     //font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
     //arrput(textures, font.texture);
+    CreateDescriptorSets(uniform_buffers_new);
 }
 void InitializeScene()
 {
+    InitializeSceneResources();
     camera.location = glm::vec3(-2.0f, 0.0f, 0.0f);
-    // Throw some boxes in the scene.
-    //AddToScene(CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0));
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
-    //arrsetlen(object_uniforms_new, arrlenu(object_uniforms_new) + 1);
-    //u32 object_index = (u32)arrlen(object_uniforms_new) - 1;
     EModelLoadResult result = LoadGTLFModel(std::string(""), *model, GetPerDrawUniform(uniforms.object_count), 0, 0, uniforms.object_count);
     if (result == MODEL_LOAD_RESULT_SUCCESS) {
         uniforms.object_count++;
         AddToScene(*model);
     } else printf("FAILURE TO LOAD MODEL\n");
-    // Model_Separate_Data model = CreateBoxNonInterleaved({-0.3f, -0.3f, -0.3f}, {0.5f, 0.5f, 0.5f}, 0, 0);
-    // AddToScene(model);
-    
-    // DestroyModelSeparateDataTest(&m, &vulkan_info);
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
     // It should probably live on its own.
-    // AddToScene(CreateDebugQuad2D({0.0f, 0.0f}, {1.0f, 0.25f}, 0, 5, {1.0f, 0.0f, 0.0f, 1.0f}, false));
-    
-    // AddToScene(CreateText("This is some text.", &font, {0.2f, 0.5f}));
 }
 
-void DestroyMaterials()
+internal void DestroySceneResources()
 {
+    // Destroy textures.
+    for (u32 i = 0; i < arrlen(textures); ++i) {
+        DestroyTexture(&textures[i]);
+    }
+    arrfree(textures);
+    
+    // Destroy materials.
     for (u32 i = 0; i < arrlen(material_types); ++i) {
         for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
             DestroyPipeline(material_types[i].materials[j].pipeline);
@@ -429,6 +402,7 @@ void DestroyScene() {
     arrfree(uniform_buffers_memory_new);
     arrfree(uniform_buffers_new);
     uniforms.object_count = 0;
+    DestroySceneResources();
 }
 
 void AddToScene(Model_Separate_Data model)
@@ -438,15 +412,6 @@ void AddToScene(Model_Separate_Data model)
     CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     CreateModelBuffer(sizeof(u32) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     arrput(material_types[model.material_type].materials[model.shader_id].models, model);
-}
-
-void DestroySceneResources()
-{
-    //DestroyFont(&vulkan_info, &font);
-    for (u32 i = 0; i < arrlen(textures); ++i) {
-        DestroyTexture(&textures[i]);
-    }
-    arrfree(textures);
 }
 
 void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
