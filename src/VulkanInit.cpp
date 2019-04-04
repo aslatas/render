@@ -595,13 +595,13 @@ void InitializeVulkan()
 void RecreateSwapchain()
 {
     vkDeviceWaitIdle(vulkan_info.logical_device);
-    DestroySwapchain();
     u32 width, height;
     ChooseSwapchainExtent(&width, &height);
     while (width == 0 || height == 0) {
         if (PlatformPollEvents() < 0) ShutdownVulkan();
         ChooseSwapchainExtent(&width, &height);
     }
+    DestroySwapchain();
     CreateSwapchain(width, height);
 }
 
