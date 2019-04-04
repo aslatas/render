@@ -22,7 +22,7 @@ typedef enum EModelLoadResult {
 EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data& model, PerDrawUniformObject *ubo, u32 material_type, 
                                u32 shader_id, u32 uniform_index);
 // Destroy loaded model
-void DestroyModelSeparateDataTest(Model_Separate_Data *model, const VulkanInfo *vulkan_info);
+void DestroyModelSeparateDataTest(Model_Separate_Data *model);
 
 // Creates a generic box. Used for initial testing 
 Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDrawUniformObject *ubo, u32 material_type, u32 shader_id, u32 uniform_index);

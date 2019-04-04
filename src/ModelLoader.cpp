@@ -229,14 +229,14 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model,
 }
 
 
-void DestroyModelSeparateDataTest(Model_Separate_Data *model, const VulkanInfo *vulkan_info)
+void DestroyModelSeparateDataTest(Model_Separate_Data *model)
 {
     free(model->model_data->memory_block);
     free(model->model_data);
-    vkDestroyBuffer(vulkan_info->logical_device, model->vertex_buffer, nullptr);
-    vkFreeMemory(vulkan_info->logical_device, model->vertex_buffer_memory, nullptr);
-    vkDestroyBuffer(vulkan_info->logical_device, model->index_buffer, nullptr);
-    vkFreeMemory(vulkan_info->logical_device, model->index_buffer_memory, nullptr);
+    DestroyDeviceBuffer(model->vertex_buffer);
+    DestroyDeviceBuffer(model->index_buffer);
+    FreeDeviceMemory(model->vertex_buffer_memory);
+    FreeDeviceMemory(model->index_buffer_memory);
     model = nullptr;
 }
 
@@ -497,3 +497,4 @@ Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDra
     
     return model;
 }
+

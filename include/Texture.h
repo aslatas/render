@@ -1,5 +1,7 @@
 
 #ifndef TEXTURE_H
+#define TEXTURE_H
+
 // Holds information about an image texture.
 struct Texture
 {
@@ -15,16 +17,15 @@ struct Texture
 };
 
 // Loads a texture from a PNG file. 
-Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, u32 channel_count, bool generate_mips);
+Texture LoadTexture(const char *path, u32 channel_count, bool generate_mips);
 
 // Destroys a texture, freeing device memory and Vulkan objects.
 // Only call while queue is idle.
-void DestroyTexture(const VulkanInfo *vulkan_info, Texture *texture);
+void DestroyTexture(Texture *texture);
 
 // Gets a VkFormat for an image from the number of channels it uses.
 VkFormat GetFormatFromChannelCount(u32 channel_count);
 
-void CreateMipmaps(const VulkanInfo *vulkan_info, Texture *texture);
+void CreateMipmaps(Texture *texture);
 
-#define TEXTURE_H
 #endif

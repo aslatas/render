@@ -1,8 +1,8 @@
 
 #include "Texture.h"
 
-// Loads a texture from a PNG file. 
-Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, u32 channel_count, bool generate_mips)
+// Loads a texture from a PNG or JPG file. 
+Texture LoadTexture(const char *path, u32 channel_count, bool generate_mips)
 {
     Texture texture = {};
     int width, height, channels;
@@ -21,25 +21,22 @@ Texture LoadTexture(const VulkanInfo *vulkan_info, const char *path, u32 channel
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
     
-    CreateBuffer(vulkan_info, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+    CreateBuffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
     
-    void *data;
-    vkMapMemory(vulkan_info->logical_device, staging_buffer_memory, 0, image_size, 0, &data);
-    memcpy(data, buffer, image_size);
-    vkUnmapMemory(vulkan_info->logical_device, staging_buffer_memory);
+    UpdateDeviceMemory(buffer, image_size, staging_buffer_memory);
     stbi_image_free(buffer);
     
     VkFormat format = GetFormatFromChannelCount(texture.channel_count);
-    CreateImage(vulkan_info, texture.width, texture.height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &texture.image, &texture.device_memory, texture.mip_count, VK_SAMPLE_COUNT_1_BIT);
+    CreateImage(texture.width, texture.height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &texture.image, &texture.device_memory, texture.mip_count, VK_SAMPLE_COUNT_1_BIT);
     
-    TransitionImageLayout(vulkan_info, texture.image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.mip_count);
-    CopyBufferToImage(vulkan_info, staging_buffer, texture.image, texture.width, texture.height);
+    TransitionImageLayout(texture.image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.mip_count);
+    CopyBufferToImage(staging_buffer, texture.image, texture.width, texture.height);
     
-    CreateMipmaps(vulkan_info, &texture);
+    CreateMipmaps(&texture);
     
-    vkDestroyBuffer(vulkan_info->logical_device, staging_buffer, nullptr);
-    vkFreeMemory(vulkan_info->logical_device, staging_buffer_memory, nullptr);
-    texture.image_view = CreateImageView(vulkan_info, texture.image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture.mip_count);
+    DestroyDeviceBuffer(staging_buffer);
+    FreeDeviceMemory(staging_buffer_memory);
+    texture.image_view = CreateImageView(texture.image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture.mip_count);
     return texture;
 }
 
@@ -57,24 +54,23 @@ VkFormat GetFormatFromChannelCount(u32 channel_count)
     return VK_FORMAT_R8G8B8A8_UNORM;
 }
 
-void DestroyTexture(const VulkanInfo *vulkan_info, Texture *texture)
+void DestroyTexture(Texture *texture)
 {
-    
-    vkDestroyImageView(vulkan_info->logical_device, texture->image_view, nullptr);
-    vkDestroyImage(vulkan_info->logical_device, texture->image, nullptr);
-    vkFreeMemory(vulkan_info->logical_device, texture->device_memory, nullptr);
+    DestroyImageView(texture->image_view);
+    DestroyImage(texture->image);
+    FreeDeviceMemory(texture->device_memory);
     *texture = {};
 }
 
-void CreateMipmaps(const VulkanInfo *vulkan_info, Texture *texture)
+void CreateMipmaps(Texture *texture)
 {
-    VkFormatProperties properties;
-    vkGetPhysicalDeviceFormatProperties(vulkan_info->physical_device, GetFormatFromChannelCount(texture->channel_count), &properties);
+    VkFormatProperties properties = GetFormatProperties(GetFormatFromChannelCount(texture->channel_count));
     if (!(properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
         std::cerr << "Texture filtering is unsupported!" << std::endl;
         exit(EXIT_FAILURE);
     }
-    VkCommandBuffer command_buffer = BeginOneTimeCommand(vulkan_info);
+    
+    VkCommandBuffer command_buffer = BeginOneTimeCommand();
     
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -143,5 +139,5 @@ void CreateMipmaps(const VulkanInfo *vulkan_info, Texture *texture)
                          0, nullptr,
                          1, &barrier);
     
-    EndOneTimeCommand(vulkan_info, command_buffer);
+    EndOneTimeCommand(command_buffer);
 }
