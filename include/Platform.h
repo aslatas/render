@@ -135,4 +135,8 @@ void PlatformSetCursor(ECursor cursor);
 // Pulls up a message dialog indicating that an error (usually a fatal one) has occured.
 void PlatformShowErrorDialog(const char *message);
 
+// TODO(Matt): Temporary.
+// Compiles a shader file to SPIR-V. Returns the compiler exit code,
+// 0 on success.
+int PlatformCompileShaderFile(const char *file);
 #endif

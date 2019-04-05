@@ -89,7 +89,12 @@
 
 #define WNDCLASS_NAME L"Gerald"
 #define WINDOW_TITLE L"Rendering Prototype"
+#ifndef VULKLAN_LIB_PATH
 #define VULKAN_LIB_PATH L"vulkan-1.dll"
+#endif
+#ifndef GLSLC_PATH
+#define GLSLC_PATH "C:/VulkanSDK/1.1.97.0/Bin32/glslc.exe"
+#endif
 #define DIRECTORY_CHANGE_BUFFER_SIZE 4096
 // TODO(Matt): No idea if this thread system will work. Just experimenting.
 global PlatformThread io_thread;
@@ -105,6 +110,22 @@ global s32 cursor_delta_y;
 
 // Screen (not window) location of the cursor at the last capture. 
 global POINT cursor_capture_location = {};
+
+int PlatformCompileShaderFile(const char *file_name)
+{
+    STARTUPINFOA startup_info = {};
+    startup_info.cb = sizeof(startup_info);
+    
+    PROCESS_INFORMATION process_info = {};
+    BOOL result = CreateProcessA(0, "glslc ../../../shaders/shader.vert -o vert.spv", 0, 0, FALSE, CREATE_NO_WINDOW, 0, "shaders", &startup_info, &process_info);
+    ExitWithError("Unable to run the shader compiler! Make sure that GLSLC is in your path, or just don't edit shaders at runtime!");
+    WaitForSingleObject(process_info.hProcess, INFINITE);
+    DWORD exit_code = 0;
+    result = GetExitCodeProcess(process_info.hProcess, &exit_code);
+    CloseHandle(process_info.hProcess);
+    
+    return result;
+}
 
 void PlatformCreateWindow(PlatformWindow *window)
 {
@@ -547,6 +568,8 @@ int WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int
     // TODO(Matt): Temporary.
     io_thread.type = IO;
     io_thread.handle = CreateThread(0, 0, ThreadProc, nullptr, 0, &io_thread.id);
+    
+    PlatformCompileShaderFile("not_actually_used_yet.vert");
     // Abstract past the platform specific launch point.
     return Main();
 }
