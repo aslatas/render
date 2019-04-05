@@ -13,7 +13,7 @@ void main() {
     out_uv0 = in_uv0;
     out_uv1 = in_uv1;
     out_uv2 = in_uv2;
-    
+   
     gl_Position = GetProjectionTransform() * GetViewTransform() * pos;
 }
 

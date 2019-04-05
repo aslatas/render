@@ -118,13 +118,15 @@ int PlatformCompileShaderFile(const char *file_name)
     
     PROCESS_INFORMATION process_info = {};
     BOOL result = CreateProcessA(0, "glslc ../../../shaders/shader.vert -o vert.spv", 0, 0, FALSE, CREATE_NO_WINDOW, 0, "shaders", &startup_info, &process_info);
-    ExitWithError("Unable to run the shader compiler! Make sure that GLSLC is in your path, or just don't edit shaders at runtime!");
+    if (!result) {
+        ExitWithError("Unable to run the shader compiler! Make sure that GLSLC is in your path, or just don't edit shaders at runtime!");
+    }
     WaitForSingleObject(process_info.hProcess, INFINITE);
     DWORD exit_code = 0;
     result = GetExitCodeProcess(process_info.hProcess, &exit_code);
     CloseHandle(process_info.hProcess);
     
-    return result;
+    return exit_code;
 }
 
 void PlatformCreateWindow(PlatformWindow *window)
@@ -504,11 +506,17 @@ void Win32OnDirectoryChanged(DWORD error_code, DWORD change_size, LPOVERLAPPED o
                 char *relative_path = (char *)malloc(strlen(file_name) + strlen(watcher->directory_path) + 2);
                 sprintf(relative_path, "%s/%s", watcher->directory_path, file_name);
                 printf("%s\n", relative_path);
-                FILE *file = fopen(relative_path, "rb");
-                if (file) {
-                    printf("File opened for binary read! radical!\n");
-                    fclose(file);
+                int result = PlatformCompileShaderFile(relative_path);
+                if (result == 0) {
+                    printf("Successfully compiled shader %s! (hardcoded)\n", relative_path);
+                } else {
+                    printf("Unable to compile shader %s (hardcoded), exit code %d!\n", relative_path, result);
                 }
+                //FILE *file = fopen(relative_path, "rb");
+                //if (file) {
+                //printf("File opened for binary read! radical!\n");
+                //fclose(file);
+                //}
                 free(relative_path);
             }
             
@@ -528,8 +536,8 @@ void Win32OnDirectoryChanged(DWORD error_code, DWORD change_size, LPOVERLAPPED o
 DWORD WINAPI ThreadProc(LPVOID param)
 {
     Win32DirectoryWatcher watcher = {};
-    watcher.directory_path = "shaders";
-    watcher.directory_handle = CreateFileA("shaders", FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+    watcher.directory_path = "../../shaders";
+    watcher.directory_handle = CreateFileA(watcher.directory_path, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
     if (watcher.directory_handle == INVALID_HANDLE_VALUE) return -1;
     
     // Allocate out two 4k buffers. We use two of them so we can kick off another request before processing the
