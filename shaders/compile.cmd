@@ -4,6 +4,9 @@ if not exist spv mkdir spv
 
 pushd spv
 
+glslc ..\engine_default.vert -o engine_default_vert.spv
+glslc ..\engine_default.frag -o engine_default_frag.spv
+
 glslc ..\shader.vert -o vert.spv
 glslc ..\shader.frag -o frag.spv
 

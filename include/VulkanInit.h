@@ -91,9 +91,9 @@ struct MaterialCreateInfo
     VkVertexInputBindingDescription binding_description[7];
     VkVertexInputAttributeDescription attribute_descriptions[7];
     VkPipelineInputAssemblyStateCreateInfo assembly_info;
-    VkViewport viewport; // TODO(Matt): Dynamic?
+    VkViewport viewport;
     VkPipelineViewportStateCreateInfo viewport_info;
-    VkRect2D scissor; // TODO(Matt): Dynamic?
+    VkRect2D scissor;
     VkPipelineRasterizationStateCreateInfo raster_info;
     VkPipelineMultisampleStateCreateInfo multisample_info;
     VkPipelineColorBlendAttachmentState blend;

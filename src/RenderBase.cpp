@@ -79,7 +79,7 @@ void RecordRenderCommands(u32 image_index)
     // Do post process for outlines.
     // NOTE(Matt): Outlines are done in two passes - one to draw selected
     // into stencil buffer, and one to read stencil buffer for outlines.
-    for (u32 outline_stage = 2; outline_stage <= 3; ++outline_stage) {
+    for (u32 outline_stage = 3; outline_stage <= 4; ++outline_stage) {
         if (arrlen(selected_models) == 0) {
             break;
         }
@@ -268,8 +268,10 @@ void CreateMaterials()
     CreateDescriptorLayout(&descriptor_layout_new);
     MaterialCreateInfo material_info;
     arrput(material_types, CreateMaterialLayout());
-    material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
+    material_info = CreateDefaultMaterialInfo("resources/shaders/engine_default_vert.spv", "resources/shaders/engine_default_frag.spv");
+    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
     
+    material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
     AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
@@ -349,7 +351,7 @@ void InitializeScene()
     InitializeSceneResources();
     camera.location = glm::vec3(-2.0f, 0.0f, 0.0f);
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
-    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, GetPerDrawUniform(uniforms.object_count), 0, 0, uniforms.object_count);
+    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
     if (result == MODEL_LOAD_RESULT_SUCCESS) {
         uniforms.object_count++;
         AddToScene(*model);
