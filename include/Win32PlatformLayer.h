@@ -47,6 +47,7 @@ struct PlatformWindow
     PlatformMouseButtonCallback mouse_button_callback; // Button callback.
     PlatformMouseWheelCallback mouse_wheel_callback; // Wheel callback.
     PlatformKeyCallback key_callback; // Keyboard key callback.
+    PlatformFileChangeCallback file_change_callback; // File change callback.
 };
 
 // Platform specific timer info.

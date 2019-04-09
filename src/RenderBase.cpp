@@ -111,8 +111,18 @@ void DrawFrame()
     // Update uniforms to reflect new state of all scene objects.
     // TODO(Matt): Probably only update dynamic object uniforms - static
     // geometry won't change.
+    for (u32 i = 0; i < arrlenu(material_types[0].pending_destruction); ++i) {
+        if (material_types[0].pending_flags[i]) {
+            DestroyPipeline(material_types[0].pending_destruction[i].pipeline);
+            arrdelswap(material_types[0].pending_destruction, i);
+            arrdelswap(material_types[0].pending_flags, i);
+        } else {
+            material_types[0].pending_flags[i] = true;
+        }
+    }
     UpdateUniforms(image_index);
     // Record draw calls and other work for this frame.
+    
     RecordRenderCommands(image_index);
     
     SubmitRenderCommands(image_index);
@@ -470,4 +480,16 @@ PerFrameUniformObject *GetPerFrameUniform()
 PerPassUniformObject *GetPerPassUniform()
 {
     return (PerPassUniformObject *)(uniforms.buffer + uniforms.per_pass_offset);
+}
+
+void ReloadShader(u32 type, u32 id, char *path)
+{
+    arrput(material_types[type].pending_destruction, material_types[type].materials[id]);
+    arrput(material_types[type].pending_flags, false);
+    
+    MaterialCreateInfo material_info;
+    material_info = CreateDefaultMaterialInfo("shaders/shader_vert.spv", "resources/shaders/frag.spv");
+    Material material = CreateMaterial(&material_info, material_types[type].pipeline_layout, type, GetSwapchainRenderPass(), 0);
+    material.models = material_types[type].materials[id].models;
+    material_types[type].materials[id] = material;
 }

@@ -89,11 +89,15 @@
 
 #define WNDCLASS_NAME L"Gerald"
 #define WINDOW_TITLE L"Rendering Prototype"
-#ifndef VULKLAN_LIB_PATH
+#ifndef VULKAN_LIB_PATH
 #define VULKAN_LIB_PATH L"vulkan-1.dll"
 #endif
-#ifndef GLSLC_PATH
-#define GLSLC_PATH "C:/VulkanSDK/1.1.97.0/Bin32/glslc.exe"
+
+// Command  used to start a child process for compiling a shader.
+// Can be an absolute path, or relative to the executable, or
+// relative to a directory specified in PATH.
+#ifndef SHADER_COMPILE_COMMAND
+#define SHADER_COMPILE_COMMAND "glslc"
 #endif
 #define DIRECTORY_CHANGE_BUFFER_SIZE 4096
 // TODO(Matt): No idea if this thread system will work. Just experimenting.
@@ -102,6 +106,8 @@ global PlatformThread io_thread;
 // Dynamically loaded vulkan library.
 global HMODULE vulkan_library = nullptr;
 
+// File change callback.
+global PlatformFileChangeCallback file_change_callback = nullptr;
 // Raw cursor movement.
 // TODO(Matt): We should support a cursor delta pair per device (since we use
 // RAWINPUT, we can support multiple cursors).
@@ -111,21 +117,47 @@ global s32 cursor_delta_y;
 // Screen (not window) location of the cursor at the last capture. 
 global POINT cursor_capture_location = {};
 
-int PlatformCompileShaderFile(const char *file_name)
+int PlatformCompileShaderFile(const char *file_path)
 {
+    // Buffers for file name and extension, and for the compile command.
+    persistent char file_name[_MAX_FNAME];
+    persistent char file_ext[_MAX_EXT];
+    // Use _MAX_FNAME (256) as maximim command length.
+    persistent char compile_command[_MAX_FNAME];
+    // Parse the given path, ignoring drive and directory.
+    _splitpath(file_path, 0, 0, file_name, file_ext);
+    // If the name or extension are empty, print a warning and exit early.
+    if (!file_name || !file_ext) {
+        printf("Unable to parse file name/extension from file \"%s\"\n", file_path);
+        return -1;
+    }
+    
+    // Create the compile command.
+    snprintf(compile_command, _MAX_FNAME, SHADER_COMPILE_COMMAND " ../%s -o %s_%s.spv", file_path, file_name, &file_ext[1]);
+    
+    // Process startup info, unused except to fill in the size member.
     STARTUPINFOA startup_info = {};
     startup_info.cb = sizeof(startup_info);
     
+    // Process info, will store the handle and other info.
     PROCESS_INFORMATION process_info = {};
-    BOOL result = CreateProcessA(0, "glslc ../../../shaders/shader.vert -o vert.spv", 0, 0, FALSE, CREATE_NO_WINDOW, 0, "shaders", &startup_info, &process_info);
+    
+    // Create a child process to compile the shader file.
+    // NOTE(Matt): Process runs in the build's "shaders" directory.
+    BOOL result = CreateProcessA(0, compile_command, 0, 0, FALSE, CREATE_NO_WINDOW, 0, "shaders", &startup_info, &process_info);
+    
+    // If the process couldn't be created, exit in error.
     if (!result) {
         ExitWithError("Unable to run the shader compiler! Make sure that GLSLC is in your path, or just don't edit shaders at runtime!");
     }
+    
+    // Wait on the process to complete.
     WaitForSingleObject(process_info.hProcess, INFINITE);
+    
+    // Close the process handle and return the exit code to the user.
     DWORD exit_code = 0;
     result = GetExitCodeProcess(process_info.hProcess, &exit_code);
     CloseHandle(process_info.hProcess);
-    
     return exit_code;
 }
 
@@ -429,17 +461,13 @@ void PlatformHideWindow(PlatformWindow *window)
 void PlatformLoadVulkanLibrary()
 {
     vulkan_library = LoadLibrary(VULKAN_LIB_PATH);
-    if (!vulkan_library) {
-        std::cerr << "Unable to load vulkan library!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    if (!vulkan_library) ExitWithError("Unable to load vulkan library!");
     
     // Vulkan loader macro, loads vulkan functions that are directly
     // exported by the DLL.
 #define VK_EXPORTED_FUNCTION(name)                                         \
     if (!(name = (PFN_##name)GetProcAddress(vulkan_library, #name))) {         \
-        std::cerr << "Unable to load function: " << #name << "!" << std::endl; \
-        exit(EXIT_FAILURE);                                                    \
+        ExitWithError("Unable to load function: " #name "!");                  \
     }
     
 #include "VulkanFunctions.inl"
@@ -454,6 +482,7 @@ void PlatformFreeVulkanLibrary()
 bool wait_for_changes = true;
 void Win32OnDirectoryChanged(DWORD error_code, DWORD change_size, LPOVERLAPPED overlapped)
 {
+    persistent char last_file_processed[_MAX_FNAME] = "";
     Win32DirectoryWatcher *watcher = (Win32DirectoryWatcher *)overlapped->hEvent;
     if (error_code == ERROR_OPERATION_ABORTED) {
         printf("Shutting down directory watcher...\n");
@@ -471,56 +500,54 @@ void Win32OnDirectoryChanged(DWORD error_code, DWORD change_size, LPOVERLAPPED o
         BOOL result = ReadDirectoryChangesW(watcher->directory_handle, watcher->buffers[watcher->buffer_index], DIRECTORY_CHANGE_BUFFER_SIZE, watcher->watch_subdirectories, watcher->notify_flags, nullptr, overlapped, Win32OnDirectoryChanged);
         BYTE *current_offset = watcher->buffers[current_index];
         for(;;) {
+            bool should_process = true;
             FILE_NOTIFY_INFORMATION *changes = (FILE_NOTIFY_INFORMATION *)current_offset;
             switch (changes->Action) {
                 case FILE_ACTION_ADDED: {
-                    printf("File added: ");
+                    //printf("File added: ");
                 }
                 break;
                 case FILE_ACTION_REMOVED: {
-                    printf("File removed: ");
+                    //printf("File removed: ");
                 }
                 break;
                 case FILE_ACTION_MODIFIED: {
-                    printf("File modified: ");
+                    //printf("File modified: ");
                 }
                 break;
-                case FILE_ACTION_RENAMED_OLD_NAME: {
-                    printf("File renamed from: ");
+                default: {
+                    should_process = false;
                 }
-                break;
-                case FILE_ACTION_RENAMED_NEW_NAME: {
-                    printf("to: ");
-                }
-                break;
             }
             
             // TODO(Matt): This doesn't support using wide characters in the directory or file names.
-            u32 size = (changes->FileNameLength / sizeof(wchar_t)) + 1;
-            char *file_name = (char *)malloc(size);
-            s32 char_count = (s32)wcstombs(file_name, changes->FileName, size - 1);
-            if (char_count < 0) {
-                printf("contained non-ANSI characters, skipping.\n");
-            } else {
-                file_name[char_count] = '\0';
-                char *relative_path = (char *)malloc(strlen(file_name) + strlen(watcher->directory_path) + 2);
-                sprintf(relative_path, "%s/%s", watcher->directory_path, file_name);
-                printf("%s\n", relative_path);
-                int result = PlatformCompileShaderFile(relative_path);
-                if (result == 0) {
-                    printf("Successfully compiled shader %s! (hardcoded)\n", relative_path);
+            if (should_process) {
+                u32 size = (changes->FileNameLength / sizeof(wchar_t)) + 1;
+                char file_name[_MAX_FNAME];
+                s32 char_count = (s32)wcstombs(file_name, changes->FileName, size - 1);
+                if (char_count < 0) {
+                    printf("Changed file contained non-ANSI characters, ignoring change event.\n");
+                } else if (char_count >= _MAX_FNAME) {
+                    printf("Changed file name was too long, ignoring change event.\n");
                 } else {
-                    printf("Unable to compile shader %s (hardcoded), exit code %d!\n", relative_path, result);
+                    file_name[char_count] = '\0';
+                    char relative_path[_MAX_PATH];
+                    snprintf(relative_path, _MAX_PATH, "%s/%s", watcher->directory_path, file_name);
+                    bool is_unique = (strcmp(file_name, last_file_processed) != 0);
+                    if (!is_unique) {
+                        strcpy(last_file_processed, "");
+                    } else {
+                        strcpy(last_file_processed, file_name);
+                    }
+                    
+                    if (is_unique && file_change_callback) {
+                        file_change_callback(relative_path);
+                    } else {
+                        printf("Detected a duplicate file change event.\n");
+                    }
                 }
-                //FILE *file = fopen(relative_path, "rb");
-                //if (file) {
-                //printf("File opened for binary read! radical!\n");
-                //fclose(file);
-                //}
-                free(relative_path);
             }
             
-            free(file_name);
             if (changes->NextEntryOffset) {
                 current_offset += changes->NextEntryOffset;
             } else {
@@ -558,7 +585,6 @@ DWORD WINAPI ThreadProc(LPVOID param)
     while (wait_for_changes) {
         SleepEx(INFINITE, TRUE);
     }
-    printf("Done waiting for changes.\n");
     return 0;
 }
 
@@ -626,6 +652,11 @@ void PlatformRegisterMouseButtonCallback(PlatformWindow *window, PlatformMouseBu
 void PlatformRegisterMouseWheelCallback(PlatformWindow *window, PlatformMouseWheelCallback callback)
 {
     window->mouse_wheel_callback = callback;
+}
+
+void PlatformRegisterFileChangeCallback(PlatformFileChangeCallback callback)
+{
+    file_change_callback = callback;
 }
 
 void PlatformGetCursorLocation(const PlatformWindow *window, s32 *x, s32 *y)

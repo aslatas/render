@@ -70,6 +70,17 @@ internal void MouseWheelCallback(const PlatformWindow *window, s32 amount)
     if (speed_multiplier < 0.125f) speed_multiplier = 0.125f;
 }
 
+internal void FileChangeCallback(char *file_path)
+{
+    int result = PlatformCompileShaderFile(file_path);
+    if (result == 0) {
+        printf("Successfully compiled shader %s!\n", file_path);
+    } else {
+        printf("Unable to compile shader %s, exit code %d!\n", file_path, result);
+    }
+    ReloadShader(0, 0, file_path);
+}
+
 void RunMainLoop()
 {
     double frame_delta_max = MAX_PHYSICS_DELTA * MAX_PHYSICS_STEPS;
@@ -101,6 +112,7 @@ s32 Main()
     PlatformRegisterKeyCallback(&global_window, KeyCallback);
     PlatformRegisterMouseButtonCallback(&global_window, MouseButtonCallback);
     PlatformRegisterMouseWheelCallback(&global_window, MouseWheelCallback);
+    PlatformRegisterFileChangeCallback(FileChangeCallback);
     InitializeRenderer();
     PlatformShowWindow(&global_window);
     PlatformInitializeGlobalTimer(&global_timer);

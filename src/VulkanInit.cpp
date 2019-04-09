@@ -1274,7 +1274,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
 Material CreateMaterial(MaterialCreateInfo *material_info, VkPipelineLayout layout, u32 type, VkRenderPass renderpass, u32 sub_pass)
 {
     material_info->input_info.pVertexBindingDescriptions = material_info->binding_description;
-    material_info->input_info.pVertexAttributeDescriptions = material_info->attribute_descriptions;
+    material_info->input_info.pVertexAttributeDescriptions =  material_info->attribute_descriptions;
     material_info->viewport_info.pViewports = &material_info->viewport;
     material_info->viewport_info.pScissors = &material_info->scissor;
     material_info->blend_info.pAttachments = &material_info->blend;

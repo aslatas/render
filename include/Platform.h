@@ -29,6 +29,7 @@ typedef void (*PlatformMouseWheelCallback)(const PlatformWindow *window, s32 scr
 // Parameters are the code of the modified key, and the new state.
 typedef void (*PlatformKeyCallback)(const PlatformWindow *window, EKeyCode key, EButtonState state);
 
+typedef void (*PlatformFileChangeCallback)(char *file_path);
 // Creates, but does not show the platform window. Does not start the
 // message loop, and does not initialize rendering or input.
 void PlatformCreateWindow(PlatformWindow *window);
@@ -107,6 +108,10 @@ void PlatformRegisterMouseWheelCallback(PlatformWindow *window, PlatformMouseWhe
 
 // Register a function to be called a keyboard key is modified.
 void PlatformRegisterKeyCallback(PlatformWindow *window, PlatformKeyCallback callback);
+
+// Register a function to be called when a file in a tracked
+// directory is modified.
+void PlatformRegisterFileChangeCallback(PlatformFileChangeCallback callback);
 
 // Attempts to capture the mouse cursor, restricting it to the client area.
 // Often called in tandem with PlatformHideCursor().

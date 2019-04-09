@@ -81,6 +81,8 @@ struct MaterialLayout
 {
     VkPipelineLayout pipeline_layout; // Pipeline layout.
     Material *materials;
+    Material *pending_destruction;
+    bool *pending_flags;
 };
 
 // Holds information necessary to create a material. To be filled in with

@@ -65,4 +65,5 @@ PerDrawUniformObject *GetPerDrawUniform(u32 object_index);
 PerFrameUniformObject *GetPerFrameUniform();
 PerPassUniformObject *GetPerPassUniform();
 
+void ReloadShader(u32 type, u32 id, char *path);
 #endif
