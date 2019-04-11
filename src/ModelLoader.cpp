@@ -1,17 +1,8 @@
-#define _CRT_SECURE_NO_WARNINGS
 
-#define TINYGLTF_IMPLEMENTATION
-#define TINYGLTF_NOEXCEPTION
-#define JSON_NOEXCEPTION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "tinygltf/tiny_gltf.h"
+#include "ModelLoader.h"
 
-#include <ModelLoader.h>
-#include <glm/gtc/type_ptr.hpp>
-#include "RenderBase.h"
-
-EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data &model, PerDrawUniformObject *ubo, uint32_t material_type,
-                               uint32_t shader_id, uint32_t uniform_index)
+EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model, PerDrawUniformObject *ubo, u32 material_type,
+                               u32 shader_id, u32 uniform_index)
 {
     
     // TODO(Dustin): Remove this hardcoded nonsense
@@ -63,13 +54,13 @@ EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data 
         if (gltf_model.nodes[i].mesh < 0)
             continue;
         
-        model.vertex_count += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].attributes.find("POSITION")->second].count;
-        model.index_count  += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].indices].count;
+        model.vertex_count += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].attributes.find("POSITION")->second].count;
+        model.index_count  += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].indices].count;
     }
     
     // Allocate memory for the model
     {
-        size_t indices_length  = model.index_count * sizeof(uint32_t);
+        size_t indices_length  = model.index_count * sizeof(u32);
         size_t position_length = model.vertex_count * sizeof(glm::vec3);
         size_t normal_length   = model.vertex_count * sizeof(glm::vec3);
         size_t tangent_length  = model.vertex_count * sizeof(glm::vec4);
@@ -81,7 +72,7 @@ EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data 
         model.model_data->memory_block_size = indices_length + position_length + normal_length + tangent_length + color_length + uv0_length + uv1_length + uv2_length;
         model.model_data->memory_block      = (void *)malloc(model.model_data->memory_block_size);
         
-        model.model_data->indices  = (uint32_t *)model.model_data->memory_block;
+        model.model_data->indices  = (u32 *)model.model_data->memory_block;
         model.model_data->position = (glm::vec3 *)((char *)model.model_data->memory_block + indices_length);
         model.model_data->normal   = (glm::vec3 *)((char *)model.model_data->memory_block + indices_length + position_length);
         model.model_data->tangent  = (glm::vec4 *)((char *)model.model_data->memory_block + indices_length + position_length + normal_length);
@@ -201,7 +192,7 @@ EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data 
                 {
                     case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
                     {
-                        uint32_t *buf = static_cast<uint32_t *>(data_ptr);
+                        u32 *buf = static_cast<u32 *>(data_ptr);
                         for (size_t k = 0; k < idx_count; ++k)
                         {
                             model.model_data->indices[k + index_offset] = buf[k] + vertex_offset;
@@ -219,7 +210,7 @@ EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data 
                     break;
                     case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
                     {
-                        uint8_t *buf = static_cast<uint8_t *>(data_ptr);
+                        u8 *buf = static_cast<u8 *>(data_ptr);
                         for (size_t k = 0; k < idx_count; ++k)
                         {
                             model.model_data->indices[k + index_offset] = buf[k] + vertex_offset;
@@ -234,8 +225,8 @@ EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data 
                 }
             }
             
-            vertex_offset += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].attributes.find("POSITION")->second].count;
-            index_offset  += (uint32_t)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].indices].count;
+            vertex_offset += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].attributes.find("POSITION")->second].count;
+            index_offset  += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].indices].count;
         }
     }
     model.bounds.min = min;
@@ -244,18 +235,18 @@ EModelLoadResult LoadGTLFModel(SceneModelData& scene_model, Model_Separate_Data 
 }
 
 
-void DestroyModelSeparateDataTest(Model_Separate_Data *model, const VulkanInfo *vulkan_info)
+void DestroyModelSeparateDataTest(Model_Separate_Data *model)
 {
     free(model->model_data->memory_block);
     free(model->model_data);
-    vkDestroyBuffer(vulkan_info->logical_device, model->vertex_buffer, nullptr);
-    vkFreeMemory(vulkan_info->logical_device, model->vertex_buffer_memory, nullptr);
-    vkDestroyBuffer(vulkan_info->logical_device, model->index_buffer, nullptr);
-    vkFreeMemory(vulkan_info->logical_device, model->index_buffer_memory, nullptr);
+    DestroyDeviceBuffer(model->vertex_buffer);
+    DestroyDeviceBuffer(model->index_buffer);
+    FreeDeviceMemory(model->vertex_buffer_memory);
+    FreeDeviceMemory(model->index_buffer_memory);
     model = nullptr;
 }
 
-Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDrawUniformObject *ubo, uint32_t material_type, uint32_t shader_id, uint32_t uniform_index) 
+Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDrawUniformObject *ubo, u32 material_type, u32 shader_id, u32 uniform_index) 
 {
     
     Model_Separate_Data model;
@@ -269,7 +260,7 @@ Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDra
     // Create the memory block for the data
     model.model_data = (ModelData*)malloc(sizeof(ModelData));
     {
-        size_t indices_length  = model.index_count  * sizeof(uint32_t);
+        size_t indices_length  = model.index_count  * sizeof(u32);
         size_t position_length = model.vertex_count * sizeof(glm::vec3);
         size_t normal_length   = model.vertex_count * sizeof(glm::vec3);
         size_t color_length    = model.vertex_count * sizeof(glm::vec4);
@@ -282,7 +273,7 @@ Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDra
         
         model.model_data->memory_block = (void*)malloc(model.model_data->memory_block_size);
         
-        model.model_data->indices  = (uint32_t* )((char*)model.model_data->memory_block + 0); // indices are first
+        model.model_data->indices  = (u32*)((char*)model.model_data->memory_block + 0); // indices are first
         model.model_data->position = (glm::vec3*)((char*)model.model_data->memory_block + indices_length);
         model.model_data->normal   = (glm::vec3*)((char*)model.model_data->memory_block + indices_length + position_length);
         model.model_data->color    = (glm::vec4*)((char*)model.model_data->memory_block + indices_length + position_length + normal_length);
@@ -512,3 +503,4 @@ Model_Separate_Data CreateBoxNonInterleaved(glm::vec3 pos, glm::vec3 ext, PerDra
     
     return model;
 }
+

@@ -1,15 +1,12 @@
 
 #include "RenderTypes.h"
-#include "RenderBase.h"
 
-#define STB_DS_IMPLEMENTATION
-#include "stb/stb_ds.h"
 /*
 void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
 {
     free(model->vertices);
     free(model->indices);
-    for (uint32_t i = 0; i < model->uniform_count; ++i) {
+    for (u32 i = 0; i < model->uniform_count; ++i) {
         vkDestroyBuffer(vulkan_info->logical_device, model->uniform_buffers[i], nullptr);
         vkFreeMemory(vulkan_info->logical_device, model->uniform_buffers_memory[i], nullptr);
     }
@@ -23,7 +20,7 @@ void DestroyModel(Model *model, const VulkanInfo *vulkan_info)
     model = nullptr;
 }
 
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id)
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, u32 material_type, u32 shader_id)
 {
     Model model;
     model.material_type = material_type;
@@ -33,7 +30,7 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t s
     model.vertex_count = 24;
     model.index_count = 36;
     model.vertices = (Vertex *)malloc(model.vertex_count * sizeof(Vertex));
-    model.indices = (uint32_t *)malloc(sizeof(uint32_t) * model.index_count);
+    model.indices = (u32 *)malloc(sizeof(u32) * model.index_count);
     model.vertices[ 0].position = glm::vec3(0.0f, 0.0f, 0.0f);
     model.vertices[ 1].position = glm::vec3(0.0f, 0.0f, ext.z);
     model.vertices[ 2].position = glm::vec3(ext.x, 0.0f, ext.z);
@@ -263,7 +260,7 @@ bool RaycastAgainstModelBounds(Ray ray, const Model_Separate_Data *model, glm::v
     return intersect;
 }
 
-Ray ScreenPositionToWorldRay(int32_t mouse_x, int32_t mouse_y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 projection, float ray_length)
+Ray ScreenPositionToWorldRay(s32 mouse_x, s32 mouse_y, u32 screen_width, u32 screen_height, glm::mat4 view, glm::mat4 projection, float ray_length)
 {
     glm::vec4 screen_start(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, -1.0, 1.0f);
     glm::vec4 screen_end(((float)mouse_x / (float)screen_width  - 0.5f) * 2.0f, ((float)mouse_y / (float)screen_height - 0.5f) * 2.0f, 0.0, 1.0f);
@@ -291,7 +288,7 @@ Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length)
     return ray;
 }
 /*
-Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, uint32_t shader_id, glm::vec4 color, bool filled)
+Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, u32 material_type, u32 shader_id, glm::vec4 color, bool filled)
 {
     Model model = {};
     model.material_type = material_type;
@@ -300,7 +297,7 @@ Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, ui
     model.vertex_count = 4;
     model.index_count = 6;
     model.vertices = (Vertex *)malloc(sizeof(Vertex) * model.vertex_count);
-    model.indices = (uint32_t *)malloc(sizeof(uint32_t) * model.index_count);
+    model.indices = (u32 *)malloc(sizeof(u32) * model.index_count);
     
     pos = (pos - 0.5f) * 2.0f;
     ext *= 2.0f;

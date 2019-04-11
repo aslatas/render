@@ -1,14 +1,5 @@
-#pragma once
-#include "VulkanLoader.h"
-#define GLM_FORCE_RADIANS
-#pragma warning(push, 0)
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#define GLM_ENABLE_EXPERIMENTAL
-#include "glm/gtx/euler_angles.hpp"
-#include "glm/gtx/norm.hpp"
-#pragma warning(pop)
-#include "stb/stb_ds.h"
+
+#ifndef RENDERTYPES_H
 
 // Stores vulkan instance/device information not dependent on swapchain.
 struct VulkanInfo
@@ -18,8 +9,8 @@ struct VulkanInfo
     VkDevice logical_device;
     VkSurfaceKHR surface;
     VkDebugUtilsMessengerEXT debug_messenger;
-    uint32_t graphics_index;
-    uint32_t present_index;
+    u32 graphics_index;
+    u32 present_index;
     VkQueue graphics_queue;
     VkQueue present_queue;
     // NOTE(Matt): Likely, graphics and present are the same queue. If so,
@@ -64,10 +55,10 @@ struct PerPassUniformObject
 struct UniformBuffer
 {
     char *buffer;
-    uint32_t buffer_size;
-    uint32_t per_pass_offset;
-    uint32_t per_draw_offset;
-    uint32_t object_count;
+    u32 buffer_size;
+    u32 per_pass_offset;
+    u32 per_draw_offset;
+    u32 object_count;
 };
 
 struct AxisAlignedBoundingBox
@@ -88,7 +79,7 @@ struct ModelData {
     void*    memory_block;
     size_t   memory_block_size;
     
-    uint32_t* indices;
+    u32* indices;
     glm::vec3* position; // 12
     glm::vec3* normal;   // 24
     glm::vec4* tangent;  // 40
@@ -102,14 +93,14 @@ struct ModelData {
 
 struct Model_Separate_Data
 {
-    uint32_t vertex_count;
-    uint32_t index_count;
-    uint32_t uniform_index;
+    u32 vertex_count;
+    u32 index_count;
+    u32 uniform_index;
     AxisAlignedBoundingBox bounds;
     bool hit_test_enabled;
     
-    uint32_t material_type;
-    uint32_t shader_id;
+    u32 material_type;
+    u32 shader_id;
     VkBuffer vertex_buffer;
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
@@ -126,14 +117,14 @@ struct Model_Separate_Data
 /*
 struct Model
 {
-    uint32_t vertex_count;
-    uint32_t index_count;
+    u32 vertex_count;
+    u32 index_count;
     UniformBufferObject ubo;
     AxisAlignedBoundingBox bounds;
     bool hit_test_enabled;
     
-    uint32_t material_type;
-    uint32_t shader_id;
+    u32 material_type;
+    u32 shader_id;
     VkBuffer vertex_buffer;
     VkBuffer index_buffer;
     VkDeviceMemory vertex_buffer_memory;
@@ -145,18 +136,18 @@ struct Model
     
     // Heap allocated:
     Vertex *vertices;
-    uint32_t *indices;
+    u32 *indices;
     VkBuffer *uniform_buffers;
     VkDeviceMemory *uniform_buffers_memory;
     VkDescriptorSet *descriptor_sets;
-    uint32_t uniform_count;
+    u32 uniform_count;
 };
 
 // Destroys a model, freeing associated resources.
 void DestroyModel(Model *model, const VulkanInfo *vulkan_info);
 
 // Creates a box given a world space position, size, and material info.
-Model CreateBox(glm::vec3 pos, glm::vec3 ext, uint32_t material_type, uint32_t shader_id);
+Model CreateBox(glm::vec3 pos, glm::vec3 ext, u32 material_type, u32 shader_id);
 */
 
 // Creates a ray with a given world origin, direction, and length.
@@ -181,7 +172,7 @@ bool RayIntersectAxisAlignedBox(const Ray *ray, const AxisAlignedBoundingBox *bo
 // can be negative if the position is outside the window), the screen size,
 // and projection/view matrices to deproject.
 // Returns a Ray object.
-Ray ScreenPositionToWorldRay(int32_t x, int32_t y, uint32_t screen_width, uint32_t screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
+Ray ScreenPositionToWorldRay(s32 x, s32 y, u32 screen_width, u32 screen_height, glm::mat4 view, glm::mat4 proj, float ray_distance);
 
 /*
 // Creates a screen-space quad given a normalized (0-1 range where (0, 0) is
@@ -189,5 +180,8 @@ Ray ScreenPositionToWorldRay(int32_t x, int32_t y, uint32_t screen_width, uint32
 // to identify the material to use. Color is used by the debug material.
 // If filled, creates an index buffer for triangle drawing. Otherwise,
 // index buffer is for line drawing (outline bounds).
-Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, uint32_t material_type, uint32_t shader_id, glm::vec4 color, bool filled);
+Model CreateDebugQuad2D(glm::vec2 pos, glm::vec2 ext, u32 material_type, u32 shader_id, glm::vec4 color, bool filled);
 */
+
+#define RENDERTYPES_H
+#endif
