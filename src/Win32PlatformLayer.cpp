@@ -13,6 +13,9 @@
 #include <iostream>
 #include <cstdlib>
 #include <assert.h>
+#include <fstream>
+#include <iomanip>
+#include <string.h>
 
 // External libraries.
 #define VK_NO_PROTOTYPES
@@ -44,11 +47,25 @@
 #define JSON_NOEXCEPTION
 #include "tinygltf/tiny_gltf.h"
 
+#include <rapidjson/document.h>
+#include <rapidjson/filereadstream.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
+
+using namespace rapidjson;
+
 // NOTE(Matt): The "static" keyword has several uses in C/C++. We define a
 // keyword for each primary use, for clarity/searchability.
 #define global static
 #define internal static
 #define persistent static
+
+// Config Parser Component headers
+#include "config_parsers/ConfigUtils.h"
+#include "config_parsers/EngineConfig.h"
+#include "config_parsers/PhysicsConfig.h"
+#include "config_parsers/RenderConfig.h"
+#include "config_parsers/SceneConfig.h"
 
 // Component headers.
 #include "Utils.h"
@@ -67,6 +84,12 @@
 
 // Platform specific headers.
 #include "Win32PlatformLayer.h"
+
+// Config component source files (unity build).
+#include "config_parsers/EngineConfig.cpp"
+#include "config_parsers/PhysicsConfig.cpp"
+#include "config_parsers/RenderConfig.cpp"
+#include "config_parsers/SceneConfig.cpp"
 
 // Component source files (unity build).
 #include "VulkanFunctions.cpp"

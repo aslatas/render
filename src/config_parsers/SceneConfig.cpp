@@ -1,8 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <config_parsers/SceneConfig.h>
 #include <config_parsers/ConfigUtils.h>
+#include "rapidjson/error/en.h"
 
-SceneSettings* LoadSceneSettings(char* filename)
+SceneSettings* LoadSceneSettings(const char *filename)
 {
   // Read from the file
   FILE *fp = fopen(filename, "r");
@@ -21,7 +22,13 @@ SceneSettings* LoadSceneSettings(char* filename)
 
   // Load the JSON into the struct
   Document scene_document;
-  scene_document.Parse(buffer);
+  scene_document.ParseStream(frs);
+  if (scene_document.HasParseError()) {
+    fprintf(stderr, "\nError(offset %u): %s\n", 
+        (unsigned)scene_document.GetErrorOffset(),
+        GetParseError_En(scene_document.GetParseError()));
+    // ...
+}
 
   // 
   SceneSettings* scene_settings = (SceneSettings*)malloc(sizeof(scene_settings));
@@ -35,7 +42,7 @@ SceneSettings* LoadSceneSettings(char* filename)
   scene_settings->light_data  = (SceneLightData*)malloc(scene_settings->num_lights * sizeof(SceneLightData));
 
   Value model_array = scene_document["models"].GetArray();
-  for (int i = 0; i < scene_settings->num_models; ++i)
+  for (unsigned int i = 0; i < scene_settings->num_models; ++i)
   {
     // filename
     size_t name_len = model_array[i]["filepath"].GetStringLength();;
@@ -46,16 +53,24 @@ SceneSettings* LoadSceneSettings(char* filename)
     // id
     scene_settings->model_data[i].id = model_array[i]["id"].GetInt();
 
-    // model matrix
-    Value model_matrix_array = model_array[i]["model_matrix"].GetArray();
-    for (int j = 0; j < model_matrix_array.Size(); ++j)
-    {
-      scene_settings->model_data[i].model_matrix[j] = model_matrix_array[j].GetFloat();
-    }
+    // position
+    scene_settings->model_data[i].position[0] = model_array[i]["mposition"].GetArray()[0].GetFloat();
+    scene_settings->model_data[i].position[1] = model_array[i]["mposition"].GetArray()[1].GetFloat();
+    scene_settings->model_data[i].position[2] = model_array[i]["mposition"].GetArray()[2].GetFloat();
+
+    // scale
+    scene_settings->model_data[i].scale[0] = model_array[i]["mscale"].GetArray()[0].GetFloat();
+    scene_settings->model_data[i].scale[1] = model_array[i]["mscale"].GetArray()[1].GetFloat();
+    scene_settings->model_data[i].scale[2] = model_array[i]["mscale"].GetArray()[2].GetFloat();
+
+    // rotation
+    scene_settings->model_data[i].rotation[0] = model_array[i]["mrotation"].GetArray()[0].GetFloat();
+    scene_settings->model_data[i].rotation[1] = model_array[i]["mrotation"].GetArray()[1].GetFloat();
+    scene_settings->model_data[i].rotation[2] = model_array[i]["mrotation"].GetArray()[2].GetFloat();
   }
 
   Value camera_array = scene_document["cameras"].GetArray();
-  for (int i = 0; i < scene_settings->num_cameras; ++i)
+  for (unsigned int i = 0; i < scene_settings->num_cameras; ++i)
   {
     // position
     scene_settings->camera_data[i].position[0] = camera_array[i]["position"].GetArray()[0].GetFloat();
@@ -86,7 +101,7 @@ SceneSettings* LoadSceneSettings(char* filename)
   }
 
   Value light_array = scene_document["lights"].GetArray();
-  for (int i = 0; i < scene_settings->num_lights; ++i)
+  for (unsigned int i = 0; i < scene_settings->num_lights; ++i)
   {
     if (strncmp("DIRECTIONAL", light_array[i]["type"].GetString(), light_array[i]["type"].GetStringLength()) == 0)
     {
@@ -129,7 +144,7 @@ void SaveSceneSettings(char* filename)
 
 void FreeSceneSettings(SceneSettings* scene_settings)
 {
-  for (int i = 0; i < scene_settings->num_models; ++i)
+  for (unsigned int i = 0; i < scene_settings->num_models; ++i)
   {
     free(scene_settings->model_data[i].filepath);
   }

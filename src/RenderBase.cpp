@@ -349,6 +349,11 @@ internal void InitializeSceneResources()
 void InitializeScene()
 {
     InitializeSceneResources();
+
+    // Load scene config
+    SceneSettings* scene = LoadSceneSettings("../../config/scene/default_scene.json");
+
+
     camera.location = glm::vec3(-2.0f, 0.0f, 0.0f);
     Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
     EModelLoadResult result = LoadGTLFModel(std::string(""), *model, GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
@@ -356,6 +361,10 @@ void InitializeScene()
         uniforms.object_count++;
         AddToScene(*model);
     } else printf("FAILURE TO LOAD MODEL\n");
+
+    // Delete scene config
+    FreeSceneSettings(scene);
+
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.

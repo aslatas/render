@@ -9,7 +9,9 @@ typedef enum {
 struct SceneModelData {
     char* filepath;
     int id;
-    float model_matrix[16]; // mat4
+    float position[3]; // mat4
+    float scale[3];
+    float rotation[3];
 };
 
 struct SceneCameraData {
@@ -46,6 +48,6 @@ struct SceneSettings {
   uint32_t num_lights;
 };
 
-SceneSettings* LoadSceneSettings(char* filename);
+SceneSettings* LoadSceneSettings(const char *filename);
 void SaveSceneSettings(char* filename);
 void FreeSceneSettings(SceneSettings* scene_settings);
