@@ -49,5 +49,5 @@ struct SceneSettings {
 };
 
 SceneSettings* LoadSceneSettings(const char *filename);
-void SaveSceneSettings(char* filename);
+void SaveSceneSettings(SceneSettings* scene, char* filename);
 void FreeSceneSettings(SceneSettings* scene_settings);

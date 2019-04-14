@@ -354,15 +354,22 @@ void InitializeScene()
     SceneSettings* scene = LoadSceneSettings("../../config/scene/default_scene.json");
 
 
-    camera.location = glm::vec3(-2.0f, 0.0f, 0.0f);
-    Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
-    EModelLoadResult result = LoadGTLFModel(std::string(""), *model, GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
-    if (result == MODEL_LOAD_RESULT_SUCCESS) {
-        uniforms.object_count++;
-        AddToScene(*model);
-    } else printf("FAILURE TO LOAD MODEL\n");
+    camera.location = glm::make_vec3(&scene->camera_data[0].position[0]);
+
+    for (uint32_t i = 0; i < scene->num_models; ++i) 
+    {
+        SceneModelData* model_data = scene->model_data + i;
+        Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
+        EModelLoadResult result = LoadGTLFModel(model_data, *model, GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
+        if (result == MODEL_LOAD_RESULT_SUCCESS) {
+            uniforms.object_count++;
+            AddToScene(*model);
+        } else printf("FAILURE TO LOAD MODEL\n");
+    }
+    
 
     // Delete scene config
+    SaveSceneSettings(scene, "../../config/scene/default_scene.json");
     FreeSceneSettings(scene);
 
     

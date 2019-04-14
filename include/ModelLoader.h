@@ -19,7 +19,7 @@ typedef enum EModelLoadResult {
 } EModelLoadResult;
 
 // Load a GLTF Model at the given filepath
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data& model, PerDrawUniformObject *ubo, u32 material_type, 
+EModelLoadResult LoadGTLFModel(SceneModelData* model_data, Model_Separate_Data& model, PerDrawUniformObject *ubo, u32 material_type, 
                                u32 shader_id, u32 uniform_index);
 // Destroy loaded model
 void DestroyModelSeparateDataTest(Model_Separate_Data *model);

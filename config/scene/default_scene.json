@@ -1,34 +1,98 @@
 {
-  "models" : [
-    {
-      "filepath" : "resources/models/Lantern/glTF-Binary/Lantern.glb",
-      "id": -1,
-      "mposition": [0.0, -3.0, 0.0],
-      "mscale": [0.0, -3.0, 0.0],
-      "mrotation": [0.0, -3.0, 0.0]
-    }
-  ],
-  "cameras" : [
-    {
-      "position": [-2.0, 0.0, 0.0],
-      "up_vector": [0, 0, 0],
-      "look_at_vector": [0, 0, 0],
-      "pitch": 0,
-      "yaw": 0,
-      "roll": 0,
-      "zoom": 0
-    }
-  ],
-  "lights": [
-    {
-      "type": "DIRECTIONAL",
-      "position": [0, 0, 0],
-      "color": {
-        "diffuse": [0, 0, 0],
-        "specular": [0, 0, 0],
-        "ambient": [0, 0, 0]
-      },
-      "direction": [0, 0, 0, 0]
-    }
-  ]
+    "models": [
+        {
+            "filepath": "resources/models/Lantern/glTF-Binary/Lantern.glb",
+            "id": -1,
+            "position": [
+                0.0,
+                -3.0,
+                0.0
+            ],
+            "scale": [
+                0.10000000149011612,
+                0.10000000149011612,
+                0.10000000149011612
+            ],
+            "rotation": [
+                1.5707999467849732,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Lantern/glTF-Binary/Lantern.glb",
+            "id": -1,
+            "position": [
+                5.0,
+                5.0,
+                10.0
+            ],
+            "scale": [
+                0.10000000149011612,
+                0.10000000149011612,
+                0.10000000149011612
+            ],
+            "rotation": [
+                1.5707999467849732,
+                0.0,
+                0.0
+            ]
+        }
+    ],
+    "cameras": [
+        {
+            "position": [
+                -2.0,
+                0.0,
+                0.0
+            ],
+            "up_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "look_at_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "pitch": 0.0,
+            "yaw": 0.0,
+            "roll": 0.0,
+            "zoom": 0.0
+        }
+    ],
+    "lights": [
+        {
+            "type": "DIRECTIONAL",
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "color": {
+                "diffuse": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "specular": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "direction": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        }
+    ]
 }

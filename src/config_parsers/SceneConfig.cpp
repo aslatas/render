@@ -1,7 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <config_parsers/SceneConfig.h>
-#include <config_parsers/ConfigUtils.h>
-#include "rapidjson/error/en.h"
+
+#define MAX_FILE_LEN 256
 
 SceneSettings* LoadSceneSettings(const char *filename)
 {
@@ -15,23 +14,17 @@ SceneSettings* LoadSceneSettings(const char *filename)
   const size_t size = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
-  char* buffer = (char*)malloc(size);
-  FileReadStream frs(fp, buffer, size);
-
+  char* buffer = (char*)malloc(size + 1);
+  size_t read_size = fread(buffer, 1, size, fp);
+  buffer[read_size] = '\0';
   fclose(fp);
 
   // Load the JSON into the struct
   Document scene_document;
-  scene_document.ParseStream(frs);
-  if (scene_document.HasParseError()) {
-    fprintf(stderr, "\nError(offset %u): %s\n", 
-        (unsigned)scene_document.GetErrorOffset(),
-        GetParseError_En(scene_document.GetParseError()));
-    // ...
-}
+  scene_document.ParseInsitu(buffer);
 
   // 
-  SceneSettings* scene_settings = (SceneSettings*)malloc(sizeof(scene_settings));
+  SceneSettings* scene_settings = (SceneSettings*)malloc(sizeof(SceneSettings));
 
   scene_settings->num_models  = scene_document["models"].GetArray().Size();
   scene_settings->num_cameras = scene_document["cameras"].GetArray().Size();
@@ -54,19 +47,19 @@ SceneSettings* LoadSceneSettings(const char *filename)
     scene_settings->model_data[i].id = model_array[i]["id"].GetInt();
 
     // position
-    scene_settings->model_data[i].position[0] = model_array[i]["mposition"].GetArray()[0].GetFloat();
-    scene_settings->model_data[i].position[1] = model_array[i]["mposition"].GetArray()[1].GetFloat();
-    scene_settings->model_data[i].position[2] = model_array[i]["mposition"].GetArray()[2].GetFloat();
+    scene_settings->model_data[i].position[0] = model_array[i]["position"].GetArray()[0].GetFloat();
+    scene_settings->model_data[i].position[1] = model_array[i]["position"].GetArray()[1].GetFloat();
+    scene_settings->model_data[i].position[2] = model_array[i]["position"].GetArray()[2].GetFloat();
 
     // scale
-    scene_settings->model_data[i].scale[0] = model_array[i]["mscale"].GetArray()[0].GetFloat();
-    scene_settings->model_data[i].scale[1] = model_array[i]["mscale"].GetArray()[1].GetFloat();
-    scene_settings->model_data[i].scale[2] = model_array[i]["mscale"].GetArray()[2].GetFloat();
+    scene_settings->model_data[i].scale[0] = model_array[i]["scale"].GetArray()[0].GetFloat();
+    scene_settings->model_data[i].scale[1] = model_array[i]["scale"].GetArray()[1].GetFloat();
+    scene_settings->model_data[i].scale[2] = model_array[i]["scale"].GetArray()[2].GetFloat();
 
     // rotation
-    scene_settings->model_data[i].rotation[0] = model_array[i]["mrotation"].GetArray()[0].GetFloat();
-    scene_settings->model_data[i].rotation[1] = model_array[i]["mrotation"].GetArray()[1].GetFloat();
-    scene_settings->model_data[i].rotation[2] = model_array[i]["mrotation"].GetArray()[2].GetFloat();
+    scene_settings->model_data[i].rotation[0] = model_array[i]["rotation"].GetArray()[0].GetFloat();
+    scene_settings->model_data[i].rotation[1] = model_array[i]["rotation"].GetArray()[1].GetFloat();
+    scene_settings->model_data[i].rotation[2] = model_array[i]["rotation"].GetArray()[2].GetFloat();
   }
 
   Value camera_array = scene_document["cameras"].GetArray();
@@ -135,11 +128,211 @@ SceneSettings* LoadSceneSettings(const char *filename)
     }
   }
 
+  free(buffer);
+
   return scene_settings;
 }
 
-void SaveSceneSettings(char* filename)
+void SaveSceneSettings(SceneSettings* scene, char* filename)
 {
+    Document d;
+    d.SetObject();
+
+    Value models(kArrayType);
+    Value cameras(kArrayType);
+    Value lights(kArrayType);
+
+    for (uint32_t i = 0; i < scene->num_models; ++i) 
+    {
+        SceneModelData* model = scene->model_data + i;
+
+        Value element(kObjectType);
+
+        Value filepath;
+        Value id;
+        Value position(kArrayType);
+        Value scale(kArrayType);
+        Value rotation(kArrayType);
+
+        // filename: only allow up to 256 characters
+        size_t len = strnlen(model->filepath, MAX_FILE_LEN);
+        filepath.SetString(model->filepath, (int)len, d.GetAllocator());
+
+        // model id
+        id.SetInt(model->id);
+
+        // position
+        position.PushBack(model->position[0], d.GetAllocator());
+        position.PushBack(model->position[1], d.GetAllocator());
+        position.PushBack(model->position[2], d.GetAllocator());
+
+        // scale
+        scale.PushBack(model->scale[0], d.GetAllocator());
+        scale.PushBack(model->scale[1], d.GetAllocator());
+        scale.PushBack(model->scale[2], d.GetAllocator());
+
+        // position
+        rotation.PushBack(model->rotation[0], d.GetAllocator());
+        rotation.PushBack(model->rotation[1], d.GetAllocator());
+        rotation.PushBack(model->rotation[2], d.GetAllocator());
+
+
+        // Add each parameter to the element object
+        element.AddMember("filepath", filepath, d.GetAllocator());
+        element.AddMember("id",       id,       d.GetAllocator());
+        element.AddMember("position", position, d.GetAllocator());
+        element.AddMember("scale",    scale,    d.GetAllocator());
+        element.AddMember("rotation", rotation, d.GetAllocator());
+
+        // add to model array
+        models.PushBack(element, d.GetAllocator());
+    }
+    
+    // Camera Data
+    for (uint32_t i = 0; i < scene->num_cameras; ++i) 
+    {
+        SceneCameraData* camera = scene->camera_data + i;
+
+        Value element(kObjectType);
+
+        Value type;
+        Value position(kArrayType);
+        Value up_vector(kArrayType);
+        Value look_at_vector(kArrayType);
+        Value pitch;
+        Value yaw;
+        Value roll;
+        Value zoom;
+
+        // position
+        position.PushBack(camera->position[0], d.GetAllocator());
+        position.PushBack(camera->position[1], d.GetAllocator());
+        position.PushBack(camera->position[2], d.GetAllocator());
+
+        // up vec
+        up_vector.PushBack(camera->up_vector[0], d.GetAllocator());
+        up_vector.PushBack(camera->up_vector[1], d.GetAllocator());
+        up_vector.PushBack(camera->up_vector[2], d.GetAllocator());
+
+        // look at vec
+        look_at_vector.PushBack(camera->look_at_vector[0], d.GetAllocator());
+        look_at_vector.PushBack(camera->look_at_vector[1], d.GetAllocator());
+        look_at_vector.PushBack(camera->look_at_vector[2], d.GetAllocator());
+
+        // pitch, yaw, roll, zoom
+        pitch.SetFloat(camera->pitch);
+        yaw.SetFloat(camera->yaw);
+        roll.SetFloat(camera->roll);
+        zoom.SetFloat(camera->zoom);
+
+        element.AddMember("position",       position,       d.GetAllocator());
+        element.AddMember("up_vector",      up_vector,      d.GetAllocator());
+        element.AddMember("look_at_vector", look_at_vector, d.GetAllocator());
+        element.AddMember("pitch",          pitch,          d.GetAllocator());
+        element.AddMember("yaw",            yaw,            d.GetAllocator());
+        element.AddMember("roll",           roll,           d.GetAllocator());
+        element.AddMember("zoom",           zoom,           d.GetAllocator());
+
+        // add to camera array
+        cameras.PushBack(element, d.GetAllocator());
+    }
+
+    for (uint32_t i = 0; i < scene->num_lights; ++i) 
+    {
+
+        SceneLightData* light = scene->light_data + i;
+
+        Value element(kObjectType);
+
+        Value type;
+        Value position(kArrayType);
+        Value color(kObjectType);
+        Value direction(kArrayType);
+
+        // Set the light type
+        {
+            switch(light->light_type)
+            {
+                case DIRECTIONAL:
+                {
+                    char* ltype = "DIRECTIONAL\0";
+                    size_t len = strnlen(ltype, MAX_FILE_LEN);
+                    type.SetString(ltype, (int)len, d.GetAllocator());
+                } break;
+                default: 
+                {
+                    char* ltype = "NO_TYPE\0";
+                    size_t len = strnlen(ltype, MAX_FILE_LEN);
+                    type.SetString(ltype, (int)len, d.GetAllocator());
+                } break;
+            }
+        }
+
+        // position
+        position.PushBack(light->position[0], d.GetAllocator());
+        position.PushBack(light->position[1], d.GetAllocator());
+        position.PushBack(light->position[2], d.GetAllocator());
+
+        // color
+        {
+            Value diffuse(kArrayType);
+            Value specular(kArrayType);
+            Value ambient(kArrayType);
+
+            // diffuse
+            diffuse.PushBack(light->color.diffuse[0], d.GetAllocator());
+            diffuse.PushBack(light->color.diffuse[1], d.GetAllocator());
+            diffuse.PushBack(light->color.diffuse[2], d.GetAllocator());
+
+            // diffuse
+            specular.PushBack(light->color.specular[0], d.GetAllocator());
+            specular.PushBack(light->color.specular[1], d.GetAllocator());
+            specular.PushBack(light->color.specular[2], d.GetAllocator());
+
+            // diffuse
+            ambient.PushBack(light->color.ambient[0], d.GetAllocator());
+            ambient.PushBack(light->color.ambient[1], d.GetAllocator());
+            ambient.PushBack(light->color.ambient[2], d.GetAllocator());
+
+            color.AddMember("diffuse",  diffuse,  d.GetAllocator());
+            color.AddMember("specular", specular, d.GetAllocator());
+            color.AddMember("ambient",  ambient,  d.GetAllocator());
+        }
+
+        // direction
+        direction.PushBack(light->direction[0], d.GetAllocator());
+        direction.PushBack(light->direction[1], d.GetAllocator());
+        direction.PushBack(light->direction[2], d.GetAllocator());
+        direction.PushBack(light->direction[3], d.GetAllocator());
+
+        // Now add them to the element
+        element.AddMember("type",      type,      d.GetAllocator());
+        element.AddMember("position",  position,  d.GetAllocator());
+        element.AddMember("color",     color,     d.GetAllocator());
+        element.AddMember("direction", direction, d.GetAllocator());
+
+        // Finally, add to the lights Object
+        lights.PushBack(element, d.GetAllocator());
+    }
+
+    d.AddMember("models",  models,  d.GetAllocator());
+    d.AddMember("cameras", cameras, d.GetAllocator());
+    d.AddMember("lights",  lights,  d.GetAllocator());
+
+    // Write to the specified file
+    StringBuffer buffer;
+    PrettyWriter<StringBuffer> writer(buffer);
+    d.Accept(writer);
+
+    FILE* fp = fopen(filename, "w+");
+    if (!fp)
+    {
+      printf("Failed to write to file %s!\n", filename);
+    }
+    fputs(buffer.GetString(), fp);
+    fclose(fp);
+
+
 }
 
 void FreeSceneSettings(SceneSettings* scene_settings)

@@ -1,7 +1,7 @@
 
 #include "ModelLoader.h"
 
-EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model, PerDrawUniformObject *ubo, u32 material_type,
+EModelLoadResult LoadGTLFModel(SceneModelData* model_data, Model_Separate_Data &model, PerDrawUniformObject *ubo, u32 material_type,
                                u32 shader_id, u32 uniform_index)
 {
     
@@ -13,9 +13,9 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model,
     glm::vec3 pos = glm::vec3(0.0f, -3.0f, 0.0f);
     glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
     
-    model.pos                   = pos;
-    model.rot                   = glm::vec3(glm::radians(90.0f), 0.0f, 0.0f);
-    model.scl                   = glm::vec3(0.1f);
+    model.pos                   = glm::make_vec3(&model_data->position[0]);
+    model.rot                   = glm::make_vec3(&model_data->rotation[0]);
+    model.scl                   = glm::make_vec3(&model_data->scale[0]);
     ubo->model = glm::scale(glm::mat4(1.0f), model.scl);
     ubo->model = glm::rotate(ubo->model, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
     ubo->model = glm::rotate(ubo->model, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -30,7 +30,7 @@ EModelLoadResult LoadGTLFModel(std::string filepath, Model_Separate_Data &model,
     std::string err;
     std::string warn;
     
-    bool ret = gltf_ctx.LoadBinaryFromFile(&gltf_model, &err, &warn, file);
+    bool ret = gltf_ctx.LoadBinaryFromFile(&gltf_model, &err, &warn, model_data->filepath);
     // bool ret = gltf_ctx.LoadASCIIFromFile(&model, &err, &warn, file);
     if (!ret)
         return MODEL_LOAD_RESULT_FILE_NOT_FOUND;
