@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include <assert.h>
-#define STB_DS_IMPLEMENTATION
-#include <stb/stb_ds.h>
-
 #include "Tree.h"
 
 // TODO(Matt): Should these go in a config file? (maybe even a hotloaded one
@@ -343,6 +338,7 @@ void TestBoundingBoxCollisions()
     assert(!CheckBoundingBoxCollision2D(boundsE, bbC)); // br
 }
 
+/*
 // Entry point
 int main(void)
 {
@@ -416,3 +412,4 @@ int main(void)
     
     return (0);
 }
+*/

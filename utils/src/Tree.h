@@ -1,7 +1,4 @@
-#pragma once
-
-#include <stdlib.h>
-#include <stdint.h>
+#ifndef TREE_H
 
 // Bounding region for 2D space
 //   min: minimum x,y values located in the model
@@ -97,3 +94,13 @@ void PrintQuadTree(QuadTree &qt);
 
 // Free the quad tree passed as the parameter.
 void FreeQuadTree(QuadTree* qt);
+
+// 
+class OctTree 
+{
+
+};
+
+
+#define TREE_H
+#endif

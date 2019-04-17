@@ -4,9 +4,9 @@ set common_flags=/W3 /Gm- /EHsc /std:c++17 /nologo
 set debug_flags=/Od /Z7
 set release_flags=/O2 /GL /analyze- /D "NDEBUG"
 set linker_flags=User32.lib Kernel32.lib Gdi32.lib /INCREMENTAL:no /NOLOGO
-set include_dir=/I..\..\..\include
+set include_dir=/I..\..\..\include /I..\..\..\ext
 
-set source_files=..\..\src\Tree.cpp
+set source_files=..\..\src\main.cpp
 
 
 set mode=debug
