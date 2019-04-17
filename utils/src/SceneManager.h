@@ -1,11 +1,17 @@
 #ifndef SCENE_MANAGER_H
 
+struct HashModel 
+{
+    char* key;
+    Model* value;
+};
+
 class SceneManager {
 
 private:
     // Scene Assets
     Material*  materials  = nullptr; // HashTable
-    Model*     models     = nullptr; // HashTable
+    HashModel*     models     = nullptr; // HashTable
     ModelData* model_data = nullptr; // ArrayList
 
 
@@ -20,13 +26,16 @@ public:
     // Data Load Functions
     //--------------------------------------------------------------------------------//
     // Visual only - gets added to the materials list
-    void LoadMaterial(char* key);
+    int LoadMaterial(char* key);
     // Does not really load from a file
     // Note: filename is the hashed key for the HashTable
-    void LoadModel(char* filename);
+    int LoadModel(char* filename);
     // OctTree is not populated by default. Uses the Model HashTable
     // to populate the HashTable.
     void LoadOctTree();
+
+    ptrdiff_t GetModelIndex(char* key);
+    HashModel GetModelStruct(char* key);
 
     //--------------------------------------------------------------------------------//
     // Render functions
