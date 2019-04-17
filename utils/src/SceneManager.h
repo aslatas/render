@@ -44,7 +44,7 @@ public:
     // Prints the scene 
     // -> using the QuadTree
     // -> Print Contents of the HashTables with filenames unhashed for visuals
-    PrintScene();
+    void PrintScene();
 };
 
 #define SCENE_MANAGER_H

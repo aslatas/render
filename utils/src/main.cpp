@@ -42,7 +42,6 @@ TODO List:
 
 int main(void) 
 {
-
   float min[2] = {0, 0};
   float max[2] = {10, 10};
 
