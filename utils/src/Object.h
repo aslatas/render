@@ -13,6 +13,36 @@
 
 //     // Device memory references
 // };
+// Bounding region for 2D space
+//   min: minimum x,y values located in the model
+//   max: maximum x,y values located in the model
+struct AABB_2D
+{
+    float min[2];
+    float max[2];
+};
+// Bounding region for 3D space
+//   min: minimum x,y,z values located in the model
+//   max: maximum x,y,z values located in the model
+struct AABB_3D
+{
+    float min[3];
+    float max[3];
+};
+
+// Temporary model used for the Quad tree. Values are currently harcoded
+// into the tree, but this will change in later iterations.
+struct Model
+{
+    // General representation of a model in a scene
+    AABB_2D aabb;
+    int val; // For now a model is simply an integer type
+    ptrdiff_t material_index;
+};
+
+struct Temp {
+    ptrdiff_t material_index;
+};
 
 // Partial Representaion of a Model. This is what is inserted into the OctTree
 // model_index is the index into the HashTable for the full Model

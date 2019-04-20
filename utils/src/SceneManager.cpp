@@ -5,6 +5,7 @@ SceneManager::SceneManager()
 {
     materials = nullptr;
     models = nullptr;
+    sh_new_strdup(models);
     model_data = nullptr;
 }
 SceneManager::~SceneManager()
@@ -15,39 +16,49 @@ SceneManager::~SceneManager()
     }
 }
 
-int SceneManager::LoadMaterial(char* key)
+ptrdiff_t SceneManager::LoadMaterial(const char* key)
 {
+    return (0);
 }
 
-int SceneManager::LoadModel(char* filename)
+ptrdiff_t SceneManager::LoadModel(const char* filename, ptrdiff_t mat_idx)
 {
-    printf("Model being loaded: %s\n", filename);
+    // printf("Model being loaded: %s\n", filename);
     // Create a default model
-    Model* m = (Model*)malloc(sizeof(Model));
+    Temp* m = (Temp*)malloc(sizeof(Temp));
+    m->material_index = mat_idx;
 
     // Place the model in the map
     shput(models, filename, m);
 
-    printf("Length of Model HashTable: %d\n", shlen(models));
+    // printf("Length of Model HashTable: %td\n", shlen(models));
 
-    for (int i = 0; i < shlen(models); ++i) {
-        printf("Index %d has the key %s\n", i, models[i].key);
-    }
+    
 
-    HashModel hmo = shgets(models, filename);
-    printf("Another attempts to get the correct key: %d\n", shgeti(models, filename));
+    // HashModel hmo = shgets(models, &filename[0]);
+    // printf("Another attempts to get the correct key: %td\n", hmo.value->material_index);
+
+        // shdel(models, filename);
+
 
     // retrieve its index from the map
     return shgeti(models, filename);
 }
-ptrdiff_t SceneManager::GetModelIndex(char* key)
+ptrdiff_t SceneManager::GetModelIndex(const char* key)
 {
     return shgeti(models, key);
 }
-HashModel SceneManager::GetModelStruct(char* key)
+HashModel SceneManager::GetModelStruct(const char* key)
 {
     return shgets(models, key);
 }
+
+Model* SceneManager::GetModel(const char* key)
+{
+    return nullptr;
+}
+
+
 void SceneManager::LoadOctTree()
 {
 }
@@ -64,4 +75,11 @@ void SceneManager::GetVisibleData()
 
 void SceneManager::PrintScene()
 {
+}
+
+void SceneManager::PrintModelTable() 
+{
+    for (unsigned int i = 0; i < shlen(models); ++i) {
+        printf("Index %d has the key %s\n", i, models[i].key);
+    }
 }

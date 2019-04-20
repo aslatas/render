@@ -9,5 +9,5 @@ if not exist build\debug (
     exit /b 0
 )
 pushd build\debug
-call devenv Tree.exe
+call devenv main.exe
 popd

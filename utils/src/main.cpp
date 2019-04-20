@@ -37,22 +37,27 @@ Steps for implementation:
 
 */
 
+// usefule defines
+#define _CRT_SECURE_NO_WARNINGS
+
 // C Lib Files
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <string>
 
 // External Lib Files
 #define STB_DS_IMPLEMENTATION
+#define STBDS_SIPHASH_2_4
 #include <stb/stb_ds.h>
 
 // Some convientent defines
 #define u32 unsigned int 
 
 // Header Files
-#include "Tree.h"
 #include "Object.h"
+#include "Tree.h"
 #include "SceneManager.h"
 
 // SRC Files
@@ -62,11 +67,13 @@ Steps for implementation:
 
 int main(void) 
 {
-    //stbds_rand_seed(174769);
+    stbds_rand_seed(174769);
     char* test = (char*)malloc(6 * sizeof(char));
     char* o = "rtyhg";
     strncpy(test, o, 5);
     test[5] = '\0';
+
+    const std::string *str = new std::string("this is another test");
 
   float min[2] = {0, 0};
   float max[2] = {10, 10};
@@ -75,26 +82,40 @@ int main(void)
   FreeQuadTree(qt);
 
   SceneManager* sm = new SceneManager();
-  printf("Model was loaded at index %td\n", sm->LoadModel("randomfilename"));
-  printf("Model was loaded at index %d\n", sm->LoadModel(test));
-  printf("Model was loaded at index %d\n", sm->LoadModel("filename"));
-  printf("Model was loaded at index %d\n", sm->LoadModel("name"));
-  printf("Model was loaded at index %d\n", sm->LoadModel("file"));
+  // printf("Model was loaded at index %td\n", sm->LoadModel("randomfilename", 0));
+  printf("Model was loaded at index %td\n", sm->LoadModel(&str->c_str()[0], 2));
+  printf("Model was loaded at index %td\n", sm->LoadModel(test, 1));
 
-  printf("Model %s at index: %td\n", "randomfilename", sm->GetModelIndex("randomfilename"));
-  printf("Model %s has key: %s\n", "randomfilename", sm->GetModelStruct("randomfilename").key);
+  // printf("Model was loaded at index %td\n", sm->LoadModel("filename", 2));
+  // printf("Model was loaded at index %td\n", sm->LoadModel("name", 3));
+  // printf("Model was loaded at index %td\n", sm->LoadModel("file", 4));
 
-  printf("Model %s at index: %td\n", test, sm->GetModelIndex(test));
-  printf("Model %s has key: %s\n", test, sm->GetModelStruct(test).key);
+  printf("\n");
+  printf("\n");
+  printf("\n");
 
-  printf("Model %s at index: %td\n", "filename", sm->GetModelIndex("filename"));
-  printf("Model %s has key: %s\n", "filename", sm->GetModelStruct("filename").key);
 
-  printf("Model %s at index: %d\n", "name", sm->GetModelIndex("name"));
-  printf("Model %s has key: %s\n", "name", sm->GetModelStruct("name").key);
+  // printf("Model %s at index: %td\n", "randomfilename", sm->GetModelIndex("randomfilename"));
+  // printf("Model %s has key: %s\n", "randomfilename", sm->GetModelStruct("randomfilename").key);
 
-  printf("Model %s at index: %s\n", "file", sm->GetModelIndex("file"));
-  printf("Model %s has key: %s\n", "file", sm->GetModelStruct("file").key);
+  // printf("Model %s at index: %td\n", test, sm->GetModelIndex(test));
+  // printf("Model %s has key: %s\n", test, sm->GetModelStruct(test).key);
+
+  // printf("Model %s at index: %td\n", "filename", sm->GetModelIndex("filename"));
+  // printf("Model %s has key: %s\n", "filename", sm->GetModelStruct("filename").key);
+
+  // printf("Model %s at index: %td\n", "name", sm->GetModelIndex("name"));
+  // printf("Model %s has key: %s\n", "name", sm->GetModelStruct("name").key);
+
+  // printf("Model %s at index: %td\n", "file", sm->GetModelIndex("file"));
+  // printf("Model %s has key: %s\n", "file", sm->GetModelStruct("file").key);
+
+    printf("\n");
+  printf("\n");
+  printf("\n");
+
+  
+  sm->PrintModelTable();
 
   delete sm;
 

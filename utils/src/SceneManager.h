@@ -2,8 +2,8 @@
 
 struct HashModel 
 {
-    char* key;
-    Model* value;
+    const char* key;
+    Temp* value;
 };
 
 class SceneManager {
@@ -26,16 +26,20 @@ public:
     // Data Load Functions
     //--------------------------------------------------------------------------------//
     // Visual only - gets added to the materials list
-    int LoadMaterial(char* key);
+    ptrdiff_t LoadMaterial(const char* key);
     // Does not really load from a file
     // Note: filename is the hashed key for the HashTable
-    int LoadModel(char* filename);
+    ptrdiff_t LoadModel(const char* filename, ptrdiff_t mat_idx);
     // OctTree is not populated by default. Uses the Model HashTable
     // to populate the HashTable.
     void LoadOctTree();
 
-    ptrdiff_t GetModelIndex(char* key);
-    HashModel GetModelStruct(char* key);
+    //--------------------------------------------------------------------------------//
+    // Getters
+    //--------------------------------------------------------------------------------//
+    ptrdiff_t GetModelIndex(const char* key);
+    Model*    GetModel(const char* key);
+    HashModel GetModelStruct(const char* key);
 
     //--------------------------------------------------------------------------------//
     // Render functions
@@ -54,6 +58,7 @@ public:
     // -> using the QuadTree
     // -> Print Contents of the HashTables with filenames unhashed for visuals
     void PrintScene();
+    void PrintModelTable();
 };
 
 #define SCENE_MANAGER_H

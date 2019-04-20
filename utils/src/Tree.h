@@ -1,31 +1,5 @@
 #ifndef TREE_H
 
-// Bounding region for 2D space
-//   min: minimum x,y values located in the model
-//   max: maximum x,y values located in the model
-struct AABB_2D
-{
-    float min[2];
-    float max[2];
-};
-// Bounding region for 3D space
-//   min: minimum x,y,z values located in the model
-//   max: maximum x,y,z values located in the model
-struct AABB_3D
-{
-    float min[3];
-    float max[3];
-};
-
-// Temporary model used for the Quad tree. Values are currently harcoded
-// into the tree, but this will change in later iterations.
-struct Model
-{
-    // General representation of a model in a scene
-    AABB_2D aabb;
-    int val; // For now a model is simply an integer type
-};
-
 // Bins contain a list of models.
 //   model: an array of models utilizing the header only library, stb_ds.h.
 //   count: number of models located in the bin.
