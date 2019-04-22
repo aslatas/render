@@ -73,7 +73,7 @@ int main(void)
     strncpy(test, o, 5);
     test[5] = '\0';
 
-    const std::string *str = new std::string("this is another test");
+    std::string *str = new std::string("this is another test");
 
   float min[2] = {0, 0};
   float max[2] = {10, 10};
@@ -83,7 +83,7 @@ int main(void)
 
   SceneManager* sm = new SceneManager();
   // printf("Model was loaded at index %td\n", sm->LoadModel("randomfilename", 0));
-  printf("Model was loaded at index %td\n", sm->LoadModel(&str->c_str()[0], 2));
+  printf("Model was loaded at index %td\n", sm->LoadModel("yoyoyoyo", 2));
   printf("Model was loaded at index %td\n", sm->LoadModel(test, 1));
 
   // printf("Model was loaded at index %td\n", sm->LoadModel("filename", 2));
@@ -94,21 +94,9 @@ int main(void)
   printf("\n");
   printf("\n");
 
+  printf("Model is string key %s hash the index %d\n", test, sm->GetModelIndex(test));
 
-  // printf("Model %s at index: %td\n", "randomfilename", sm->GetModelIndex("randomfilename"));
-  // printf("Model %s has key: %s\n", "randomfilename", sm->GetModelStruct("randomfilename").key);
-
-  // printf("Model %s at index: %td\n", test, sm->GetModelIndex(test));
-  // printf("Model %s has key: %s\n", test, sm->GetModelStruct(test).key);
-
-  // printf("Model %s at index: %td\n", "filename", sm->GetModelIndex("filename"));
-  // printf("Model %s has key: %s\n", "filename", sm->GetModelStruct("filename").key);
-
-  // printf("Model %s at index: %td\n", "name", sm->GetModelIndex("name"));
-  // printf("Model %s has key: %s\n", "name", sm->GetModelStruct("name").key);
-
-  // printf("Model %s at index: %td\n", "file", sm->GetModelIndex("file"));
-  // printf("Model %s has key: %s\n", "file", sm->GetModelStruct("file").key);
+  printf("Model is string key %s hash the index %d\n", "yoyoyoyo", sm->GetModelIndex("yoyoyoyo"));
 
     printf("\n");
   printf("\n");

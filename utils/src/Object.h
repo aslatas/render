@@ -37,11 +37,11 @@ struct Model
     // General representation of a model in a scene
     AABB_2D aabb;
     int val; // For now a model is simply an integer type
-    ptrdiff_t material_index;
+    int material_index;
 };
 
 struct Temp {
-    ptrdiff_t material_index;
+    int material_index;
 };
 
 // Partial Representaion of a Model. This is what is inserted into the OctTree

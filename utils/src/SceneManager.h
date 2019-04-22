@@ -2,8 +2,23 @@
 
 struct HashModel 
 {
-    const char* key;
-    Temp* value;
+    size_t key;    // hashed key
+    void* value; // struct containing the data
+};
+
+/*
+ * Here is what I want: 
+ *   An Array of Key-Object struct
+ *     Hashed Key
+ *     void* object -> some other struct containing the data
+ *   
+ *   Return the index of th
+ */
+struct FakeHashTable
+{
+    long seed = -1;
+    HashModel* hash_table = nullptr;
+
 };
 
 class SceneManager {
@@ -11,7 +26,7 @@ class SceneManager {
 private:
     // Scene Assets
     Material*  materials  = nullptr; // HashTable
-    HashModel*     models     = nullptr; // HashTable
+    FakeHashTable*     models     = nullptr; // HashTable
     ModelData* model_data = nullptr; // ArrayList
 
 
@@ -26,10 +41,10 @@ public:
     // Data Load Functions
     //--------------------------------------------------------------------------------//
     // Visual only - gets added to the materials list
-    ptrdiff_t LoadMaterial(const char* key);
+    size_t LoadMaterial(char* key);
     // Does not really load from a file
     // Note: filename is the hashed key for the HashTable
-    ptrdiff_t LoadModel(const char* filename, ptrdiff_t mat_idx);
+    size_t LoadModel(char* filename, ptrdiff_t mat_idx);
     // OctTree is not populated by default. Uses the Model HashTable
     // to populate the HashTable.
     void LoadOctTree();
@@ -37,9 +52,9 @@ public:
     //--------------------------------------------------------------------------------//
     // Getters
     //--------------------------------------------------------------------------------//
-    ptrdiff_t GetModelIndex(const char* key);
-    Model*    GetModel(const char* key);
-    HashModel GetModelStruct(const char* key);
+    size_t GetModelIndex(char* key);
+    Model*    GetModel(char* key);
+    HashModel* GetModelStruct(char* key);
 
     //--------------------------------------------------------------------------------//
     // Render functions
