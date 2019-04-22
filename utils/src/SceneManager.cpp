@@ -8,33 +8,52 @@
  *
  */
 
+//-------------------------------------------------------------------//
+// SINGLETON
+//-------------------------------------------------------------------//
 SceneManager::SceneManager()
 {
     materials = nullptr;
 
     models = (FakeHashTable*)malloc(sizeof(FakeHashTable));
+    models->hash_table = nullptr;
     models->seed = 178433;
     // Seed the hash table with some number
     stbds_rand_seed(models->seed);
 
     model_data = nullptr;
 }
-SceneManager::~SceneManager()
+
+const SceneManager* SceneManager::GetInstance()                                              
 {
-    if (models != nullptr)
+    if (manager == nullptr)   
+        manager = new SceneManager();                                                                       
+                                                                                 
+    return manager;                                                            
+}    
+
+void SceneManager::Shutdown() const
+{
+    if (models != nullptr) 
     {
-        arrfree(models);
+        for (int i = 0; i < arrlen(models->hash_table); ++i)
+        {
+            free(models->hash_table[i].value);
+        }
+        arrfree(models->hash_table);
+        free(models);
     }
 }
 
-size_t SceneManager::LoadMaterial(char* key)
+SceneManager::~SceneManager() = default;
+
+size_t SceneManager::LoadMaterial(char* key) const
 {
     return (0);
 }
 
-size_t SceneManager::LoadModel(char* filename, ptrdiff_t mat_idx)
+size_t SceneManager::LoadModel(char* filename, ptrdiff_t mat_idx) const
 {
-    // printf("Model being loaded: %s\n", filename);
     // Create a default model
     Temp* m = (Temp*)malloc(sizeof(Temp));
     m->material_index = mat_idx;
@@ -42,17 +61,17 @@ size_t SceneManager::LoadModel(char* filename, ptrdiff_t mat_idx)
     size_t hashed_key = stbds_hash_string(filename, models->seed);
     models->hash_table;
 
-    HashModel *hm = (HashModel*)malloc(sizeof(HashModel));
-    hm->key = hashed_key;
-    hm->value = (void*)m;
+    HashModel hm;
+    hm.key = hashed_key;
+    hm.value = (void*)m;
 
     // Place the model in the map
     size_t idx = arrlen(models->hash_table);
-    arrput(models->hash_table, *hm);
+    arrput(models->hash_table, hm);
     // retrieve its index from the map
     return idx;
 }
-size_t SceneManager::GetModelIndex(char* key)
+size_t SceneManager::GetModelIndex(char* key) const
 {
     size_t hashed_key = stbds_hash_string(key, models->seed);
     for (size_t i = 0; i < arrlen(models->hash_table); ++i) {
@@ -64,7 +83,7 @@ size_t SceneManager::GetModelIndex(char* key)
     //return shgets(models, key);
     return -1;
 }
-HashModel* SceneManager::GetModelStruct(char* key)
+HashModel* SceneManager::GetModelStruct(char* key) const
 {
     size_t hashed_key = stbds_hash_string(key, models->seed);
     for (int i = 0; i < arrlen(models->hash_table); ++i) {
@@ -97,7 +116,7 @@ void SceneManager::GetVisibleData()
 {
 }
 
-void SceneManager::PrintScene()
+void SceneManager::PrintScene() const
 {
 }
 

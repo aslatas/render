@@ -2,18 +2,19 @@
 
 // TODO(Matt): Should these go in a config file? (maybe even a hotloaded one
 // to run speed tests)?
-#define QUAD_TREE_CHILDREN 4
-#define QUAD_TREE_BIN_SIZE 4
+#define TREE_CHILDREN 8
+#define TREE_BIN_SIZE 4
+//#define QUAD_TREE_BIN_SIZE 4
 
-#define OCT_TREE_CHILDREN 8
-#define OCT_TREE_BIN_SIZE 20
+// #define OCT_TREE_CHILDREN 8
+// #define OCT_TREE_BIN_SIZE 20
 
 // Helper Functions for the QuadTree
-static bool  helper_add(QuadTree *qt, int position, Model *model);
-static void  helper_print_quad_tree(Node **tree, int position);
-static void  helper_free_quad_tree(Node **tree, int position);
-static void  Split(QuadTree *qt, int position);
-static Node* CreateNode(float *s_min, float *s_max, size_t per_element_bin_size, Node *parent);
+// static bool  helper_add(QuadTree *qt, int position, Model *model);
+// static void  helper_print_quad_tree(Node **tree, int position);
+// static void  helper_free_quad_tree(Node **tree, int position);
+// static void  Split(QuadTree *qt, int position);
+// static Node* CreateNode(float *s_min, float *s_max, size_t per_element_bin_size, Node *parent);
 
 // TODO(Matt): Rework this to use fmin/fmax instead of branching, for 
 // M A X I M U M    S P E E D.
@@ -41,67 +42,300 @@ bool CheckBoundingBoxCollision3D(AABB_3D &boxA, AABB_3D &boxB)
         CheckAxisPointOverlapp(boxA.min[2], boxA.max[2], boxB.min[2], boxB.max[2]);
 }
 
-static void
-Split(QuadTree *qt, int position)
+// static void
+// Split(QuadTree *qt, int position)
+// {
+//     Node *node = qt->tree[position];
+    
+//     AABB_2D *aabb = node->bounding_box;
+//     float *min = aabb->min;
+//     float *max = aabb->max;
+    
+//     // front top left
+//     float ftl_min[3] = {0, max[1] / 2};
+//     float ftl_max[3] = {max[0] / 2, max[1]};
+    
+//     // front bottom left
+//     float fbl_min[3] = {max[0] / 2, max[1] / 2};
+//     float fbl_max[3] = {max[0], max[1]};
+    
+//     // front top right
+//     float ftr_min[3] = {0, 0};
+//     float ftr_max[3] = {max[0] / 2, max[1] / 2};
+    
+//     // front bottom right
+//     float fbr_min[3] = {max[0] / 2, 0};
+//     float fbr_max[3] = {max[0], max[1] / 2};
+
+//     // back top left
+//     float btl_min[3] = {0, max[1] / 2};
+//     float btl_max[3] = {max[0] / 2, max[1]};
+    
+//     // back bottom left
+//     float bbl_min[3] = {max[0] / 2, max[1] / 2};
+//     float bbl_max[3] = {max[0], max[1]};
+    
+//     // back top right
+//     float btr_min[3] = {0, 0};
+//     float btr_max[3] = {max[0] / 2, max[1] / 2};
+    
+//     // back bottom right
+//     float bbr_min[3] = {max[0] / 2, 0};
+//     float bbr_max[3] = {max[0], max[1] / 2};
+    
+//     if ((position * TREE_CHILDREN) + 4 >= arrlen(qt->tree))
+//     {
+//         arrsetlen(qt->tree, (arrlen(qt->tree) + 1) * 4);
+//     }
+    
+//     qt->tree[(position * TREE_CHILDREN) + 1] = CreateNode(ftl_min, ftl_max, sizeof(int), node);
+//     qt->tree[(position * TREE_CHILDREN) + 2] = CreateNode(fbl_min, fbl_max, sizeof(int), node);
+//     qt->tree[(position * TREE_CHILDREN) + 3] = CreateNode(ftr_min, ftr_max, sizeof(int), node);
+//     qt->tree[(position * TREE_CHILDREN) + 4] = CreateNode(fbr_min, fbr_max, sizeof(int), node);
+//     qt->tree[(position * TREE_CHILDREN) + 5] = CreateNode(btl_min, btl_max, sizeof(int), node);
+//     qt->tree[(position * TREE_CHILDREN) + 6] = CreateNode(bbl_min, bbl_max, sizeof(int), node);
+//     qt->tree[(position * TREE_CHILDREN) + 7] = CreateNode(btr_min, btr_max, sizeof(int), node);
+//     qt->tree[(position * TREE_CHILDREN) + 8] = CreateNode(bbr_min, bbr_max, sizeof(int), node);
+    
+//     node->isLeaf = false;
+    
+//     for (int i = 0; i < node->bin->count; ++i)
+//     {
+//         Model *model = node->bin->model[i];
+//         helper_add(qt, position, model);
+//     }
+    
+//     // No longer should have a bin attached to the node
+//     arrfree(node->bin->model);
+//     free(node->bin);
+//     node->bin = nullptr;
+// }
+
+// static bool
+// helper_add(QuadTree *qt, int position, Model *model)
+// {
+    
+//     Node *node = qt->tree[position];
+//     if (!node->isLeaf) // this node has children, need to go further down the tree
+//     {
+//         bool at_least_one_node_intersection_found = false;
+//         for (int i = 0; i < TREE_CHILDREN; ++i)
+//         {
+//             int l = arrlen(qt->tree);
+//             assert((position * TREE_CHILDREN) + (i + 1) < arrlen(qt->tree)); // the child node should be within bounds of the tree
+//             if (CheckBoundingBoxCollision2D(*qt->tree[(position * TREE_CHILDREN) + (i + 1)]->bounding_box, model->aabb))
+//             {
+//                 at_least_one_node_intersection_found = true;
+//                 helper_add(qt, (position * TREE_CHILDREN) + (i + 1), model);
+//             }
+//         }
+        
+//         return at_least_one_node_intersection_found;
+//     }
+//     else // we are at a leaf
+//     {
+//         assert(node->bin); // the bin should be allocated
+//         if (node->bin->count + 1 > TREE_CHILDREN)
+//         {
+//             Split(qt, position);
+            
+//             // Verify the split was successful
+//             assert(!qt->tree[position]->isLeaf);
+            
+//             for (int i = 0; i < TREE_CHILDREN; ++i)
+//             {
+//                 assert((position * TREE_CHILDREN) + (i + 1) < arrlen(qt->tree)); // the child node should be within bounds of the tree
+//                 if (CheckBoundingBoxCollision2D(*qt->tree[(position * TREE_CHILDREN) + i]->bounding_box, model->aabb))
+//                 {
+//                     helper_add(qt, (position * TREE_CHILDREN) + (i + 1), model);
+//                 }
+//             }
+//         }
+//         else
+//         {
+//             arrput(node->bin->model, model);
+//             ++node->bin->count;
+//         }
+        
+//         return true;
+//     }
+// }
+
+// bool Add(QuadTree *qt, Model *model)
+// {
+    
+//     // Preliminary check to verify the model exists within bounds of the tree
+//     if (!CheckBoundingBoxCollision2D(*qt->tree[0]->bounding_box, model->aabb))
+//         return false;
+    
+//     return helper_add(qt, 0, model);
+// }
+
+// static Node*
+// CreateNode(float *s_min, float *s_max, size_t per_element_bin_size, Node *parent)
+// {
+//     size_t node_size = sizeof(Node);
+    
+//     AABB_3D *aabb = (AABB_3D *)malloc(sizeof(AABB_2D));
+//     aabb->min[0] = s_min[0];
+//     aabb->min[1] = s_min[1];
+//     aabb->min[2] = s_min[2];
+//     aabb->max[0] = s_max[0];
+//     aabb->max[1] = s_max[1];
+//     aabb->max[2] = s_max[2];
+    
+//     Node *n = (Node *)malloc(sizeof(Node));
+//     n->bounding_box = aabb;
+//     n->parent = parent;
+//     n->isLeaf = true;
+//     n->bin = (Bin *)malloc(sizeof(Bin));
+//     n->bin->count = 0;
+//     n->bin->model = nullptr;
+    
+//     return n;
+// }
+
+// // Creates a Quad tree given a min and max bounds
+// // min and max should be a 2 element array
+// QuadTree *CreateQuadTree(float *min, float *max, size_t element_size_bin)
+// {
+//     QuadTree *qt = (QuadTree *)malloc(sizeof(QuadTree));
+//     qt->num_levels = 0;
+//     qt->size_element_per_bin = element_size_bin;
+//     qt->tree = nullptr;
+    
+//     arrsetlen(qt->tree, 1);
+//     qt->tree[0] = CreateNode(min, max, element_size_bin, nullptr);
+    
+//     return qt;
+// }
+
+// static void
+// helper_print_quad_tree(Node **tree, int position)
+// {
+//     Node *node = tree[position];
+    
+//     printf("Node %d at level %d.\n", position, position / 4);
+//     printf("This node has this bounding box.\n");
+//     printf("  Bounding Box:\n      minimum: (%f, %f)\n      maximum: (%f, %f)\n", node->bounding_box->min[0], node->bounding_box->min[1], node->bounding_box->max[0], node->bounding_box->max[1]);
+    
+//     if (!node->parent)
+//     {
+//         printf("  This node is the root.\n");
+//     }
+//     if (!node->isLeaf)
+//     {
+//         printf("  This node has the following children at the indices:\n");
+//         for (int i = 1; i <= TREE_CHILDREN; ++i) {
+//             helper_print_quad_tree(tree, (position * TREE_CHILDREN) + i);    
+//         }
+        
+//         // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 2);
+//         // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 3);
+//         // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 4);
+//     }
+//     else
+//     {
+//         printf("  This node has no children.\n");
+//     }
+    
+//     if (!node->bin)
+//     {
+//         printf("  This node does not have a bin.\n");
+//     }
+//     else
+//     {
+//         if (node->bin->count == 0)
+//         {
+//             printf("  This node has a bin, but contains no models.\n");
+//         }
+//         else
+//         {
+//             printf("  This node's bin contains %d models:\n", node->bin->count);
+//             for (int j = 0; j < node->bin->count; ++j)
+//             {
+//                 Model *m = node->bin->model[j];
+//                 printf("    Bounding Box:\n      minimum: (%f, %f)\n      maximum: (%f, %f)\n", m->aabb.min[0], m->aabb.min[1], m->aabb.max[0], m->aabb.max[1]);
+//                 printf("    Data: %d\n", m->val);
+//             }
+//             //printf("  ");
+//         }
+//     }
+//     printf("\n");
+// }
+
+// void PrintQuadTree(QuadTree &qt)
+// {
+//     helper_print_quad_tree(qt.tree, 0);
+// }
+
+// static void
+// helper_free_quad_tree(Node **tree, int position)
+// {
+//     if (!tree[position]->isLeaf)
+//     {
+//         for (int i = 1; i <= TREE_CHILDREN; ++i)
+//         {
+//             helper_free_quad_tree(tree, (position * TREE_CHILDREN) + i);
+//         }
+//     }
+//     else
+//     {
+//         arrfree(tree[position]->bin->model);
+//     }
+    
+//     free(tree[position]->bounding_box);
+//     free(tree[position]);
+// }
+
+// void FreeQuadTree(QuadTree *qt)
+// {
+//     helper_free_quad_tree(qt->tree, 0);
+//     arrfree(qt->tree);
+//     free(qt);
+// }
+
+//-------------------------------------------------------------------//
+// Helper Functions
+//-------------------------------------------------------------------//
+OctTree::Node* OctTree::create_node(float *s_min, float *s_max, size_t per_element_bin_size, Node *parent)
 {
-    Node *node = qt->tree[position];
+    size_t node_size = sizeof(Node);
     
-    AABB_2D *aabb = node->bounding_box;
-    float *min = aabb->min;
-    float *max = aabb->max;
+    AABB_3D *aabb = (AABB_3D *)malloc(sizeof(AABB_2D));
+    aabb->min[0] = s_min[0];
+    aabb->min[1] = s_min[1];
+    aabb->min[2] = s_min[2];
+    aabb->max[0] = s_max[0];
+    aabb->max[1] = s_max[1];
+    aabb->max[2] = s_max[2];
     
-    float tl_min[2] = {0, max[1] / 2};
-    float tl_max[2] = {max[0] / 2, max[1]};
+    Node *n = (Node *)malloc(sizeof(Node));
+    n->bounding_box = aabb;
+    n->parent = parent;
+    n->isLeaf = true;
+    n->bin = (Bin *)malloc(sizeof(Bin));
+    n->bin->count = 0;
+    n->bin->model = nullptr;
     
-    float tr_min[2] = {max[0] / 2, max[1] / 2};
-    float tr_max[2] = {max[0], max[1]};
-    
-    float bl_min[2] = {0, 0};
-    float bl_max[2] = {max[0] / 2, max[1] / 2};
-    
-    float br_min[2] = {max[0] / 2, 0};
-    float br_max[2] = {max[0], max[1] / 2};
-    
-    if ((position * QUAD_TREE_CHILDREN) + 4 >= arrlen(qt->tree))
-    {
-        arrsetlen(qt->tree, (arrlen(qt->tree) + 1) * 4);
-    }
-    
-    qt->tree[(position * QUAD_TREE_CHILDREN) + 1] = CreateNode(tl_min, tl_max, sizeof(int), node);
-    qt->tree[(position * QUAD_TREE_CHILDREN) + 2] = CreateNode(tr_min, tr_max, sizeof(int), node);
-    qt->tree[(position * QUAD_TREE_CHILDREN) + 3] = CreateNode(bl_min, bl_max, sizeof(int), node);
-    qt->tree[(position * QUAD_TREE_CHILDREN) + 4] = CreateNode(br_min, br_max, sizeof(int), node);
-    
-    node->isLeaf = false;
-    
-    for (int i = 0; i < node->bin->count; ++i)
-    {
-        Model *model = node->bin->model[i];
-        helper_add(qt, position, model);
-    }
-    
-    // No longer should have a bin attached to the node
-    arrfree(node->bin->model);
-    free(node->bin);
-    node->bin = nullptr;
+    return n;
+    // return nullptr;
 }
 
-static bool
-helper_add(QuadTree *qt, int position, Model *model)
+bool OctTree::helper_add(int position, Model *model)
 {
-    
-    Node *node = qt->tree[position];
+    Node *node = tree[position];
     if (!node->isLeaf) // this node has children, need to go further down the tree
     {
         bool at_least_one_node_intersection_found = false;
-        for (int i = 0; i < QUAD_TREE_CHILDREN; ++i)
+        for (int i = 0; i < TREE_CHILDREN; ++i)
         {
-            int l = arrlen(qt->tree);
-            assert((position * QUAD_TREE_CHILDREN) + (i + 1) < arrlen(qt->tree)); // the child node should be within bounds of the tree
-            if (CheckBoundingBoxCollision2D(*qt->tree[(position * QUAD_TREE_CHILDREN) + (i + 1)]->bounding_box, model->aabb))
+            int l = arrlen(tree);
+            assert((position * TREE_CHILDREN) + (i + 1) < arrlen(tree)); // the child node should be within bounds of the tree
+            if (CheckBoundingBoxCollision3D(*tree[(position * TREE_CHILDREN) + (i + 1)]->bounding_box, model->aabb))
             {
                 at_least_one_node_intersection_found = true;
-                helper_add(qt, (position * QUAD_TREE_CHILDREN) + (i + 1), model);
+                helper_add((position * TREE_CHILDREN) + (i + 1), model);
             }
         }
         
@@ -110,19 +344,21 @@ helper_add(QuadTree *qt, int position, Model *model)
     else // we are at a leaf
     {
         assert(node->bin); // the bin should be allocated
-        if (node->bin->count + 1 > QUAD_TREE_BIN_SIZE)
+        if (node->bin->count + 1 > TREE_CHILDREN)
         {
-            Split(qt, position);
+            // printf("SPLIT ATTEMPT :(\n");
+            // return false;
+            split(position);
             
             // Verify the split was successful
-            assert(!qt->tree[position]->isLeaf);
+            // assert(!qt->tree[position]->isLeaf);
             
-            for (int i = 0; i < QUAD_TREE_CHILDREN; ++i)
+            for (int i = 0; i < TREE_CHILDREN; ++i)
             {
-                assert((position * QUAD_TREE_CHILDREN) + (i + 1) < arrlen(qt->tree)); // the child node should be within bounds of the tree
-                if (CheckBoundingBoxCollision2D(*qt->tree[(position * QUAD_TREE_CHILDREN) + i]->bounding_box, model->aabb))
+                assert((position * TREE_CHILDREN) + (i + 1) < arrlen(tree)); // the child node should be within bounds of the tree
+                if (CheckBoundingBoxCollision3D(*tree[(position * TREE_CHILDREN) + i]->bounding_box, model->aabb))
                 {
-                    helper_add(qt, (position * QUAD_TREE_CHILDREN) + (i + 1), model);
+                    helper_add((position * TREE_CHILDREN) + (i + 1), model);
                 }
             }
         }
@@ -136,62 +372,91 @@ helper_add(QuadTree *qt, int position, Model *model)
     }
 }
 
-bool Add(QuadTree *qt, Model *model)
+void OctTree::split(int position)
 {
+    Node *node = tree[position];
     
-    // Preliminary check to verify the model exists within bounds of the tree
-    if (!CheckBoundingBoxCollision2D(*qt->tree[0]->bounding_box, model->aabb))
-        return false;
+    AABB_3D *aabb = node->bounding_box;
+    float   *min  = aabb->min;
+    float   *max  = aabb->max;
+
+    // half the distance between min and max
+    float ext[3] = {(max[0] - min[0]) / 2, (max[1] - min[1]) / 2, (max[2] - min[2]) / 2};
     
-    return helper_add(qt, 0, model);
+    // Create the AABBs of the children of this node 
+    // front top left
+    float ftl_min[3] = {min[0],          min[1] + ext[1], min[2]         };
+    float ftl_max[3] = {min[0] + ext[0], max[1],          min[2] + ext[2]};
+    
+    // front bottom left
+    float fbl_min[3] = {min[0],          min[1],          min[2]         };
+    float fbl_max[3] = {min[0] + ext[0], min[1] + ext[1], min[2] + ext[2]};
+    
+    // front top right
+    float ftr_min[3] = {min[0] + ext[0], min[1] + ext[1], min[0]         };
+    float ftr_max[3] = {max[0],          max[1],          min[2] + ext[2]};
+    
+    // front bottom right
+    float fbr_min[3] = {min[0] + ext[0], min[1],          min[2]};
+    float fbr_max[3] = {max[0],          min[1] + ext[1], min[2] + ext[2]};
+
+    // back top left
+    float btl_min[3] = {min[0],          min[1] + ext[1], min[2] + ext[2]};
+    float btl_max[3] = {min[0] + ext[0], max[1],          max[2]};
+    
+    // back bottom left
+    float bbl_min[3] = {min[0],          min[1],          min[2] + ext[2]};
+    float bbl_max[3] = {min[0] + ext[0], min[1] + ext[1], max[2]};
+    
+    // back top right
+    float btr_min[3] = {min[0] + ext[0], min[1] + ext[1], min[2] + ext[2]};
+    float btr_max[3] = {max[0],          max[1],          max[2]};
+    
+    // back bottom right
+    float bbr_min[3] = {min[0] + ext[0], min[1],          min[2] + ext[2]};
+    float bbr_max[3] = {max[0],          min[1] + ext[1], max[2]};
+    
+    // grow if necessary
+    if ((position * TREE_CHILDREN) + 4 >= arrlen(tree))
+    {
+        arrsetlen(tree, (arrlen(tree) + 1) * 4);
+    }
+    
+    // Create nodes for childre
+    tree[(position * TREE_CHILDREN) + 1] = create_node(ftl_min, ftl_max, sizeof(int), node);
+    tree[(position * TREE_CHILDREN) + 2] = create_node(fbl_min, fbl_max, sizeof(int), node);
+    tree[(position * TREE_CHILDREN) + 3] = create_node(ftr_min, ftr_max, sizeof(int), node);
+    tree[(position * TREE_CHILDREN) + 4] = create_node(fbr_min, fbr_max, sizeof(int), node);
+    tree[(position * TREE_CHILDREN) + 5] = create_node(btl_min, btl_max, sizeof(int), node);
+    tree[(position * TREE_CHILDREN) + 6] = create_node(bbl_min, bbl_max, sizeof(int), node);
+    tree[(position * TREE_CHILDREN) + 7] = create_node(btr_min, btr_max, sizeof(int), node);
+    tree[(position * TREE_CHILDREN) + 8] = create_node(bbr_min, bbr_max, sizeof(int), node);
+    
+    // Now an internal node
+    node->isLeaf = false;
+    
+    // Re-add the contents of this Bin to the node so they are added to the approppriate child
+    for (int i = 0; i < node->bin->count; ++i)
+    {
+        Model *model = node->bin->model[i];
+        helper_add(position, model);
+    }
+    
+    // No longer should have a bin attached to the node
+    arrfree(node->bin->model);
+    free(node->bin);
+    node->bin = nullptr;
 }
 
-static Node*
-CreateNode(float *s_min, float *s_max, size_t per_element_bin_size, Node *parent)
-{
-    size_t node_size = sizeof(Node);
-    
-    AABB_2D *aabb = (AABB_2D *)malloc(sizeof(AABB_2D));
-    ;
-    aabb->min[0] = s_min[0];
-    aabb->min[1] = s_min[1];
-    aabb->max[0] = s_max[0];
-    aabb->max[1] = s_max[1];
-    
-    Node *n = (Node *)malloc(sizeof(Node));
-    n->bounding_box = aabb;
-    n->parent = parent;
-    n->isLeaf = true;
-    n->bin = (Bin *)malloc(sizeof(Bin));
-    n->bin->count = 0;
-    n->bin->model = nullptr;
-    
-    return n;
-}
-
-// Creates a Quad tree given a min and max bounds
-// min and max should be a 2 element array
-QuadTree *CreateQuadTree(float *min, float *max, size_t element_size_bin)
-{
-    QuadTree *qt = (QuadTree *)malloc(sizeof(QuadTree));
-    qt->num_levels = 0;
-    qt->size_element_per_bin = element_size_bin;
-    qt->tree = nullptr;
-    
-    arrsetlen(qt->tree, 1);
-    qt->tree[0] = CreateNode(min, max, element_size_bin, nullptr);
-    
-    return qt;
-}
-
-static void
-helper_print_quad_tree(Node **tree, int position)
+void OctTree::helper_print_quad_tree(int position)
 {
     Node *node = tree[position];
     
     printf("Node %d at level %d.\n", position, position / 4);
     printf("This node has this bounding box.\n");
-    printf("  Bounding Box:\n      minimum: (%f, %f)\n      maximum: (%f, %f)\n", node->bounding_box->min[0], node->bounding_box->min[1], node->bounding_box->max[0], node->bounding_box->max[1]);
+    printf("  Bounding Box:\n      minimum: (%f, %f, %f)\n      maximum: (%f, %f, %f)\n", 
+        node->bounding_box->min[0], node->bounding_box->min[1], node->bounding_box->min[2], 
+        node->bounding_box->max[0], node->bounding_box->max[1], node->bounding_box->max[2]);
     
     if (!node->parent)
     {
@@ -200,10 +465,13 @@ helper_print_quad_tree(Node **tree, int position)
     if (!node->isLeaf)
     {
         printf("  This node has the following children at the indices:\n");
-        helper_print_quad_tree(tree, (position * QUAD_TREE_CHILDREN) + 1);
-        helper_print_quad_tree(tree, (position * QUAD_TREE_CHILDREN) + 2);
-        helper_print_quad_tree(tree, (position * QUAD_TREE_CHILDREN) + 3);
-        helper_print_quad_tree(tree, (position * QUAD_TREE_CHILDREN) + 4);
+        for (int i = 1; i <= TREE_CHILDREN; ++i) {
+            helper_print_quad_tree((position * TREE_CHILDREN) + i);    
+        }
+        
+        // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 2);
+        // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 3);
+        // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 4);
     }
     else
     {
@@ -235,35 +503,44 @@ helper_print_quad_tree(Node **tree, int position)
     printf("\n");
 }
 
-void PrintQuadTree(QuadTree &qt)
+//-------------------------------------------------------------------//
+// Main Functions
+//-------------------------------------------------------------------//
+OctTree::OctTree(float* min, float* max)
 {
-    helper_print_quad_tree(qt.tree, 0);
+    // First set defaults
+    size_element_per_bin = 0; // keep? Helps to determine the required space for a bin element
+    num_levels = 0; // depth of the tree, default is 0
+
+    // array representation of the tree. Must be set to null to the stb library
+    tree = nullptr; 
+    arrsetlen(tree, 1);
+    tree[0] = create_node(min, max, 0, nullptr);
 }
 
-static void
-helper_free_quad_tree(Node **tree, int position)
+OctTree::~OctTree()
 {
-    if (!tree[position]->isLeaf)
-    {
-        for (int i = 1; i <= QUAD_TREE_CHILDREN; ++i)
-        {
-            helper_free_quad_tree(tree, (position * QUAD_TREE_CHILDREN) + i);
-        }
-    }
-    else
-    {
-        arrfree(tree[position]->bin->model);
-    }
-    
-    free(tree[position]->bounding_box);
-    free(tree[position]);
+
 }
 
-void FreeQuadTree(QuadTree *qt)
+void OctTree::Shutdown()
 {
-    helper_free_quad_tree(qt->tree, 0);
-    arrfree(qt->tree);
-    free(qt);
+
+}
+
+void OctTree::Print()
+{
+    helper_print_quad_tree(0);
+}
+
+bool OctTree::Add(Model* model)
+{
+    if (tree == nullptr)
+        return false;
+    else if (!CheckBoundingBoxCollision3D(*tree[0]->bounding_box, model->aabb))
+        return false;
+    else 
+        return helper_add(0, model);
 }
 
 // TODO(Matt): Hardcode.

@@ -35,7 +35,7 @@ struct AABB_3D
 struct Model
 {
     // General representation of a model in a scene
-    AABB_2D aabb;
+    AABB_3D aabb;
     int val; // For now a model is simply an integer type
     int material_index;
 };
