@@ -1,11 +1,12 @@
-#include "SceneManager.h"
+#include "SceneManager.h" 
 
 /*
  * Things to note:
  *  HashTable is currently being faked - I do not have time to continue to play with the stbds_hashtable, I am using an array that contains the key,value pair. To retrieve a particular index, pass the key (string) to Get*Index(char*) and the index will be returned. Of course, this isn't as efficient as a HashTable, but this is a temporary fix to my current problem.  
  *
  * Assign Global Memory to HashTables ?
- *
+ * 
+ * Make SceneManager a Singleton instance?
  */
 
 //-------------------------------------------------------------------//
@@ -22,17 +23,19 @@ SceneManager::SceneManager()
     stbds_rand_seed(models->seed);
 
     model_data = nullptr;
+
+    scene = nullptr;
 }
 
-const SceneManager* SceneManager::GetInstance()                                              
-{
-    if (manager == nullptr)   
-        manager = new SceneManager();                                                                       
+// const SceneManager* SceneManager::GetInstance()                                              
+// {
+//     if (manager == nullptr)   
+//         manager = new SceneManager();                                                                       
                                                                                  
-    return manager;                                                            
-}    
+//     return manager;                                                            
+// }    
 
-void SceneManager::Shutdown() const
+void SceneManager::Shutdown()
 {
     if (models != nullptr) 
     {
@@ -43,16 +46,21 @@ void SceneManager::Shutdown() const
         arrfree(models->hash_table);
         free(models);
     }
+
+    if (model_data != nullptr)
+    {
+        arrfree(model_data);
+    }
 }
 
 SceneManager::~SceneManager() = default;
 
-size_t SceneManager::LoadMaterial(char* key) const
+size_t SceneManager::LoadMaterial(char* key)
 {
     return (0);
 }
 
-size_t SceneManager::LoadModel(char* filename, ptrdiff_t mat_idx) const
+size_t SceneManager::LoadModel(char* filename, u32 mat_idx)
 {
     // Create a default model
     Temp* m = (Temp*)malloc(sizeof(Temp));
@@ -71,10 +79,22 @@ size_t SceneManager::LoadModel(char* filename, ptrdiff_t mat_idx) const
     // retrieve its index from the map
     return idx;
 }
-size_t SceneManager::GetModelIndex(char* key) const
+
+void SceneManager::AddModel(float* min, float* max, size_t mat_index, int val)
+{
+    Model m;
+    m.aabb = *Create3DAxisAlignedBoundingBox(min, max);
+    m.val = val;
+    m.material_index = mat_index;
+    m.hash_index = -1;
+
+    arrput(model_data, m);
+}
+
+size_t SceneManager::GetModelIndex(char* key)
 {
     size_t hashed_key = stbds_hash_string(key, models->seed);
-    for (size_t i = 0; i < arrlen(models->hash_table); ++i) {
+    for (u32 i = 0; i < arrlen(models->hash_table); ++i) {
         if (hashed_key == models->hash_table[i].key)
         {
             return i;
@@ -83,7 +103,7 @@ size_t SceneManager::GetModelIndex(char* key) const
     //return shgets(models, key);
     return -1;
 }
-HashModel* SceneManager::GetModelStruct(char* key) const
+HashModel* SceneManager::GetModelStruct(char* key)
 {
     size_t hashed_key = stbds_hash_string(key, models->seed);
     for (int i = 0; i < arrlen(models->hash_table); ++i) {
@@ -101,9 +121,24 @@ HashModel* SceneManager::GetModelStruct(char* key) const
 //    return nullptr;
 //}
 
+// Creates a spatial heirarchy for the scene
+void SceneManager::CreateSpatialHeirarchy(float *min, float *max)
+{
+    scene = new OctTree(min, max);
+}
 
 void SceneManager::LoadOctTree()
 {
+    if (scene == nullptr)
+    {
+        printf("Scene Heirarchy not initialized! Please initialize before loading scene data into the heirarchy.\n");
+        return;
+    }
+
+    for (int i = 0; i < arrlen(model_data); ++i)
+    {
+        scene->Add(&model_data[i]);
+    }
 }
 
 void SceneManager::FrustumCullOctTree()
@@ -116,8 +151,11 @@ void SceneManager::GetVisibleData()
 {
 }
 
-void SceneManager::PrintScene() const
+void SceneManager::PrintScene()
 {
+    size_t len = arrlen(model_data);
+    printf("There are %zu objects in the scene", arrlen(model_data));
+    scene->Print();
 }
 
 void SceneManager::PrintModelTable() 

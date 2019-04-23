@@ -1,8 +1,8 @@
 #ifndef TREE_H
 
 // Check bounding box-bounding box collisions. Return true if there was a collision, false otherwise 
-bool CheckBoundingBoxCollision2D(AABB_2D& boxA, AABB_2D& boxB);
-bool CheckBoundingBoxCollision3D(AABB_3D& boxA, AABB_3D& boxB);
+// bool CheckBoundingBoxCollision2D(AABB_2D& boxA, AABB_2D& boxB);
+// bool CheckBoundingBoxCollision3D(AABB_3D& boxA, AABB_3D& boxB);
 
 class OctTree 
 {
@@ -12,7 +12,7 @@ protected:
     //   count: number of models located in the bin.
     struct Bin
     {
-        Model** model= NULL; // list of models in this bin
+        Model** model = nullptr; // list of models in this bin
         uint8_t count = 0;
     };
     // A node in the OctTree.
@@ -36,12 +36,12 @@ protected:
 
 private:
     // some nifty state
-    size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
+    // size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
     uint8_t num_levels = 0; // depth of the tree, default is 0
     Node** tree = NULL; // array representation of the tree
 
     // Private helper functions
-    Node* create_node(float *s_min, float *s_max, size_t per_element_bin_size, Node *parent);
+    Node* create_node(AABB_3D* aabb, Node *parent);
     bool helper_add(int position, Model *model);
     void helper_print_quad_tree(int position);
     void split(int position);

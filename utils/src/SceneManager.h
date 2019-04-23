@@ -21,14 +21,22 @@ struct FakeHashTable
 
 };
 
+// Probably unnecessary right now, but there is a possibility we use other 
+// spatial heirarchies in the future and this can be used to create different
+// types of heirarchies
+// enum ESpatialHeirarchy
+// {
+//     OCT_TREE
+// };
+
 class SceneManager {
 
 private:
     //---------------//
     // SINGLETON
     //---------------//
-    SceneManager();
-    static SceneManager* manager;
+    // SceneManager();
+    // static SceneManager* manager;
 
     //---------------//
     // Internal State
@@ -36,40 +44,46 @@ private:
     // Scene Assets
     Material*      materials  = nullptr; // HashTable
     FakeHashTable* models     = nullptr; // HashTable
-    ModelData*     model_data = nullptr; // ArrayList
+    Model*     model_data = nullptr; // ArrayList
 
-    // OctTree containg spatial representation of Data
-    OctTree* scene;
+    // Spatial Heirarchies
+    // ESpatialHeirarchy scene_active_spatial_heirarchy;
+    OctTree* scene = nullptr;
 
 public:
     // Remove the copy constructors
-    SceneManager(const SceneManager&)            = delete;
-    SceneManager& operator=(const SceneManager&) = delete;
+    // SceneManager(const SceneManager&)            = delete;
+    // SceneManager& operator=(const SceneManager&) = delete;
+    SceneManager();
     ~SceneManager(); // Destructor
 
-    static const SceneManager* GetInstance();
+    // static const SceneManager* GetInstance();
 
     // Frees the object's resources
-    void Shutdown() const;
+    void Shutdown();
 
     //--------------------------------------------------------------------------------//
     // Data Load Functions
     //--------------------------------------------------------------------------------//
     // Visual only - gets added to the materials list
-    size_t LoadMaterial(char* key) const;
+    size_t LoadMaterial(char* key);
     // Does not really load from a file
     // Note: filename is the hashed key for the HashTable
-    size_t LoadModel(char* filename, ptrdiff_t mat_idx) const;
+    size_t LoadModel(char* filename, u32 mat_idx);
+
+    void AddModel(float* min, float* max, size_t mat_index, int val);
+
     // OctTree is not populated by default. Uses the Model HashTable
     // to populate the HashTable.
+    void CreateSpatialHeirarchy(float *min, float *max);
     void LoadOctTree();
 
     //--------------------------------------------------------------------------------//
     // Getters
     //--------------------------------------------------------------------------------//
-    size_t GetModelIndex(char* key) const;
-    Model*    GetModel(char* key) const;
-    HashModel* GetModelStruct(char* key) const;
+    size_t GetModelIndex(char* key);
+    Model*    GetModel(char* key);
+    HashModel* GetModelStruct(char* key);
 
     //--------------------------------------------------------------------------------//
     // Render functions
@@ -87,7 +101,7 @@ public:
     // Prints the scene 
     // -> using the QuadTree
     // -> Print Contents of the HashTables with filenames unhashed for visuals
-    void PrintScene() const;
+    void PrintScene();
     void PrintModelTable();
 };
 

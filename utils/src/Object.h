@@ -13,22 +13,6 @@
 
 //     // Device memory references
 // };
-// Bounding region for 2D space
-//   min: minimum x,y values located in the model
-//   max: maximum x,y values located in the model
-struct AABB_2D
-{
-    float min[2];
-    float max[2];
-};
-// Bounding region for 3D space
-//   min: minimum x,y,z values located in the model
-//   max: maximum x,y,z values located in the model
-struct AABB_3D
-{
-    float min[3];
-    float max[3];
-};
 
 // Temporary model used for the Quad tree. Values are currently harcoded
 // into the tree, but this will change in later iterations.
@@ -37,7 +21,8 @@ struct Model
     // General representation of a model in a scene
     AABB_3D aabb;
     int val; // For now a model is simply an integer type
-    int material_index;
+    size_t material_index;
+    size_t hash_index;
 };
 
 struct Temp {
@@ -52,7 +37,7 @@ struct Temp {
 struct ModelBounds 
 {
     // aabb
-
+    AABB_3D aabb;
     u32 model_index;
     u32 material_index;
 };
