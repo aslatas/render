@@ -72,12 +72,12 @@ struct Material
 {
     VkPipeline pipeline; // Pipeline object.
     u32 type; // Material type (by index).
-    Model_Separate_Data *models; // Model list.
+    Model *models; // Model list.
 };
 
 // Holds info about a material layout. Keeps a list of materials of its'
 // type.
-struct MaterialLayout
+struct MaterialLayout 
 {
     VkPipelineLayout pipeline_layout; // Pipeline layout.
     Material *materials;

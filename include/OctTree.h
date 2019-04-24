@@ -1,4 +1,4 @@
-#ifndef TREE_H
+#ifndef OCT_TREE_H
 
 // Check bounding box-bounding box collisions. Return true if there was a collision, false otherwise 
 // bool CheckBoundingBoxCollision2D(AABB_2D& boxA, AABB_2D& boxB);
@@ -12,7 +12,7 @@ protected:
     //   count: number of models located in the bin.
     struct Bin
     {
-        Model** model = nullptr; // list of models in this bin
+        SpatialModel** model = nullptr; // list of models in this bin
         uint8_t count = 0;
     };
     // A node in the OctTree.
@@ -26,9 +26,9 @@ protected:
     //  isLeaf: a quick check whether or not the Node is a leaf. True if leaf node, false otherwise.
     struct Node
     {
-       // Bounding Box for this node
-       AABB_3D* bounding_box;
-    
+        // Bounding Box for this node
+        AABB_3D* bounding_box;
+        u32 bin_size = 0;
         Node *parent   = NULL;
         Bin  *bin      = NULL;
         bool isLeaf    = true;
@@ -37,13 +37,16 @@ protected:
 private:
     // some nifty state
     // size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
-    uint8_t num_levels = 0; // depth of the tree, default is 0
+    // u32 current_max_depth = 0; // depth of the tree, default is 0
+    // u32 bin_size = 0;
+    // u32 max_depth = 30;
     Node** tree = NULL; // array representation of the tree
 
     // Private helper functions
     Node* create_node(AABB_3D* aabb, Node *parent);
-    bool helper_add(int position, Model *model);
+    bool helper_add(int position, SpatialModel *model);
     void helper_print_quad_tree(int position);
+    SpatialModel* helper_get_all_visible_data(SpatialModel* list, int position);
     void split(int position);
 
 
@@ -54,7 +57,8 @@ public:
     void Shutdown();
     void Print();
 
-    bool Add(Model* model);
+    bool Add(SpatialModel* model);
+    SpatialModel* GetAllVisibleData();
     
 
 };
@@ -99,5 +103,5 @@ public:
 // void FreeQuadTree(QuadTree* qt);
 
 
-#define TREE_H
+#define OCT_TREE_H
 #endif

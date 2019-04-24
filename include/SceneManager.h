@@ -2,7 +2,7 @@
 
 struct HashModel 
 {
-    size_t key;    // hashed key
+    size_t key;    // hashed key 
     void* value; // struct containing the data
 };
 
@@ -30,15 +30,18 @@ struct FakeHashTable
 // };
 
 // Struct that is returned when RenderScene is called. Generally will be returned as a list
-// where each element in the list represents a single Material.
-// mat_idx: index of the material into the ScenenManager material list
+// mat_layout_idx: index into MaterialLayoutList to get the MaterialLayout
+// mat_idx: index into the material list in a given MaterialLayout 
 // scene_models: list of indices into the SceneManager Model list. Each model in this list is attached
 //               to the material pipeline
-struct RenderSceneMaterials
+struct RenderSceneMaterial
 {
-    u32 mat_idx;       // index into SceneManager Material list for this material
-    u32 *scene_models; // list of indices into SceneManager Model List that have this material 
-}
+    u32 mat_layout_idx;       // index into SceneManager Material list for this material
+    struct {
+        u32 mat_idx;
+        u32 *model_idx;
+    } *scene_materials; // list of indices into SceneManager Model List that have this material 
+};
 
 class SceneManager {
 
@@ -53,7 +56,7 @@ private:
     // Internal State
     //---------------//
     // Scene Assets
-    Material*      materials  = nullptr; // HashTable
+    MaterialLayout* material_types  = nullptr; // HashTable
     FakeHashTable* models     = nullptr; // HashTable
     Model*     model_data = nullptr; // ArrayList
 
@@ -76,13 +79,17 @@ public:
     //--------------------------------------------------------------------------------//
     // Data Load Functions
     //--------------------------------------------------------------------------------//
-    // Visual only - gets added to the materials list
-    size_t LoadMaterial(char* key);
+    // Gets added to the MaterialLayout List and returns the index at which it was
+    // added to 
+    u32 AddMaterialType(MaterialLayout *layout);
+    // Given the index into the MaterialLayout list, add a material to that type. Return
+    // The index into the material list that material was added to.
+    u32 AddMaterial(Material* mat, u32 layout_idx);
     // Does not really load from a file
     // Note: filename is the hashed key for the HashTable
     size_t LoadModel(char* filename, u32 mat_idx);
 
-    void AddModel(float* min, float* max, size_t mat_index, int val);
+    void AddModel(char* key, Model* model);
 
     // OctTree is not populated by default. Uses the Model HashTable
     // to populate the HashTable.
@@ -93,8 +100,12 @@ public:
     // Getters
     //--------------------------------------------------------------------------------//
     size_t GetModelIndex(char* key);
+    u32 GetNumberOfModelsInScene();
     Model*    GetModel(char* key);
+    Model*    GetModelByIndex(u32 mod_idx);
     HashModel* GetModelStruct(char* key);
+    MaterialLayout* GetMaterialLayout(u32 mat_layout_idx);
+    Material* GetMaterial(u32 mat_layout_idx, u32 mat_idx);
 
     //--------------------------------------------------------------------------------//
     // Render functions
@@ -104,7 +115,7 @@ public:
     // Performs occlusion culling on the OctTree
     void OcclusionCullOctTree();
     // Retrive all visible data in the Tree
-    void GetVisibleData();
+    RenderSceneMaterial* GetVisibleData();
 
 
     //--------------------------------------------------------------------------------//

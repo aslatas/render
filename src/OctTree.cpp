@@ -1,20 +1,27 @@
-#include "Tree.h"
+#include "OctTree.h"
 
-// TODO(Matt): Should these go in a config file? (maybe even a hotloaded one
-// to run speed tests)?
+/*
+TODOs for the QuadTree
+-> Free your memory!!!
+-> Play with Bin growth heuristic
+-> Convert the Bin contents to a void* so the tree can be used for other objects
+
+-> Memory Allocator for OctTree
+  Essentailly the total size of the array containing the octtree is limited by the depth of the 
+  tree. This is due to the array representation of the tree, which can cause an integer overflow
+  should the array become too large. To solve this problem, a memory allocator can be used. Allocate
+  a portion of memory that gets filled up as the tree expands. Now there is a potential problem
+  where bins are freed, creating internal fragmentation. It is like this block of memory will have to
+  occasionally grow, so during this expansion implement a hueristic that tightens the memory gaps
+  produced from freeing Bins.
+  This solves the integer overflow at index, I now longer index into the tree based on an int, but 
+  rather a pointer. Still maintain as much cache coherence as an array based list with less internal
+  fragmentation.
+*/
+
 #define TREE_CHILDREN 8
-#define TREE_BIN_SIZE 100
-//#define QUAD_TREE_BIN_SIZE 4
-
-// #define OCT_TREE_CHILDREN 8
-// #define OCT_TREE_BIN_SIZE 20
-
-// Helper Functions for the QuadTree
-// static bool  helper_add(QuadTree *qt, int position, Model *model);
-// static void  helper_print_quad_tree(Node **tree, int position);
-// static void  helper_free_quad_tree(Node **tree, int position);
-// static void  Split(QuadTree *qt, int position);
-// static Node* CreateNode(float *s_min, float *s_max, size_t per_element_bin_size, Node *parent);
+#define INITIAL_BIN_SIZE 50
+#define BIN_DEPTH(x) ((x) * 1.4)
 
 //-------------------------------------------------------------------//
 // Helper Functions
@@ -24,6 +31,8 @@ OctTree::Node* OctTree::create_node(AABB_3D* aabb, Node *parent)
     Node *n = (Node *)malloc(sizeof(Node));
     n->bounding_box = aabb;
     n->parent = parent;
+    // Not quite a double, but a slow growth based on depth
+    n->bin_size = (parent == nullptr) ? INITIAL_BIN_SIZE : ((u32)(BIN_DEPTH(parent->bin_size)));
     n->isLeaf = true;
     n->bin = (Bin *)malloc(sizeof(Bin));
     n->bin->count = 0;
@@ -32,7 +41,7 @@ OctTree::Node* OctTree::create_node(AABB_3D* aabb, Node *parent)
     return n;
 }
 
-bool OctTree::helper_add(int position, Model *model)
+bool OctTree::helper_add(int position, SpatialModel *model)
 {
     Node *node = tree[position];
     if (!node->isLeaf) // this node has children, need to go further down the tree
@@ -53,7 +62,7 @@ bool OctTree::helper_add(int position, Model *model)
     else // we are at a leaf
     {
         assert(node->bin); // the bin should be allocated
-        if (node->bin->count + 1 > TREE_BIN_SIZE)
+        if ((u32)node->bin->count + 1 > node->bin_size)
         {
             // split and then re-add to this node, which is not a leaf
             split(position);
@@ -128,9 +137,7 @@ void OctTree::split(int position)
     }
     
     // Create nodes for childre
-    size_t len = arrlen(tree);
-    u32 access = (u32)(position * TREE_CHILDREN) + 1;
-    tree[(u32)(position * TREE_CHILDREN) + 1] = create_node(ftl, node);
+    tree[(position * TREE_CHILDREN) + 1] = create_node(ftl, node);
     tree[(position * TREE_CHILDREN) + 2] = create_node(fbl, node);
     tree[(position * TREE_CHILDREN) + 3] = create_node(ftr, node);
     tree[(position * TREE_CHILDREN) + 4] = create_node(fbr, node);
@@ -145,7 +152,7 @@ void OctTree::split(int position)
     // Re-add the contents of this Bin to the node so they are added to the approppriate child
     for (int i = 0; i < node->bin->count; ++i)
     {
-        Model *model = node->bin->model[i];
+        SpatialModel *model = node->bin->model[i];
         helper_add(position, model);
     }
     
@@ -177,10 +184,6 @@ void OctTree::helper_print_quad_tree(int position)
         for (int i = 1; i <= TREE_CHILDREN; ++i) {
             helper_print_quad_tree((position * TREE_CHILDREN) + i);    
         }
-        
-        // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 2);
-        // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 3);
-        // helper_print_quad_tree(tree, (position * TREE_CHILDREN) + 4);
     }
     else
     {
@@ -199,22 +202,45 @@ void OctTree::helper_print_quad_tree(int position)
         }
         else
         {
+            printf("  Bin Size: %d\n", node->bin_size);    
             printf("  This node's bin contains %d models:\n", node->bin->count);
             for (int j = 0; j < node->bin->count; ++j)
             {
-                Model *m = node->bin->model[j];
+                SpatialModel *m = node->bin->model[j];
                 printf("    Bounding Box:\n      Minimum: (%f, %f, %f)\n      Maximum: (%f, %f, %f)\n      Center: (%f, %f, %f)\n      Extent: (%f, %f, %f)\n", 
                     m->aabb.min[0], m->aabb.min[1], m->aabb.min[2],
                     m->aabb.max[0], m->aabb.max[1], m->aabb.max[2],
                     m->aabb.center[0], m->aabb.center[1], m->aabb.center[2], 
                     m->aabb.ext[0], m->aabb.ext[1], m->aabb.ext[2]);
-                printf("    Data: %d\n", m->val);
+                // printf("    Data: %d\n", m->val);
             }
             //printf("  ");
         }
     }
     printf("\n");
 }
+
+SpatialModel* OctTree::helper_get_all_visible_data(SpatialModel* list, int position)
+{
+    Node *node = tree[position];
+    if (!node->isLeaf)
+    {
+        // recursively search for a leaf
+        for (int i = 1; i <= TREE_CHILDREN; ++i) {
+            return helper_get_all_visible_data(list, (position * TREE_CHILDREN) + i); 
+        }
+    }
+    else
+    {
+        // put each SpatialModel from the Bin into the list
+        for (int j = 0; j < node->bin->count; ++j)
+        {
+            arrput(list, *node->bin->model[j]);
+        }
+        return list;
+    }
+}
+
 
 //-------------------------------------------------------------------//
 // Main Functions
@@ -223,7 +249,8 @@ OctTree::OctTree(float* min, float* max)
 {
     // First set defaults
     // size_element_per_bin = 0; // keep? Helps to determine the required space for a bin element
-    num_levels = 0; // depth of the tree, default is 0
+    // current_max_depth = 0; // depth of the tree, default is 0
+    // bin_size = INITIAL_BIN_SIZE;
 
     // array representation of the tree. Must be set to null to the stb library
     tree = nullptr; 
@@ -246,12 +273,39 @@ void OctTree::Print()
     helper_print_quad_tree(0);
 }
 
-bool OctTree::Add(Model* model)
+bool OctTree::Add(SpatialModel* model)
 {
-    if (tree == nullptr)
+    if (tree == nullptr) 
+    {
+        printf("Attempted to add, but tree was null!\n");
+        printf("    Bounding Box:\n      Minimum: (%f, %f, %f)\n      Maximum: (%f, %f, %f)\n      Center: (%f, %f, %f)\n      Extent: (%f, %f, %f)\n", 
+                    model->aabb.min[0], model->aabb.min[1], model->aabb.min[2],
+                    model->aabb.max[0], model->aabb.max[1], model->aabb.max[2],
+                    model->aabb.center[0], model->aabb.center[1], model->aabb.center[2], 
+                    model->aabb.ext[0], model->aabb.ext[1], model->aabb.ext[2]);
         return false;
+    }
     else if (!CheckBoundingBoxCollision3D(*tree[0]->bounding_box, model->aabb))
+    {
+        printf("Attempted to add, but model was out of bounds!\n");
         return false;
-    else 
-        return helper_add(0, model);
+    }
+    else {
+        bool ret = helper_add(0, model);
+        if (!ret)
+        {
+            printf("failed to add model!\n");
+        } 
+        return ret;
+    }
+}
+
+SpatialModel* OctTree::GetAllVisibleData()
+{
+    SpatialModel* list = nullptr;
+    if (arrlen(tree) > 0)
+    {
+        return helper_get_all_visible_data(list, 0);
+    }
+    return list;
 }

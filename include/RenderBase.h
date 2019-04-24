@@ -56,7 +56,7 @@ void CreateMaterials();
 // Initializes models and other resources in the scene.
 void InitializeScene();
 // Adds a given model to the scene, using its material type and shader ID.
-void AddToScene(Model_Separate_Data model);
+void AddToScene(Model model);
 // Destroys objects and materials in the scene.
 void DestroyScene();
 

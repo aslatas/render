@@ -1388,7 +1388,9 @@ void CommandBeginRenderPass(u32 image_index)
     
     // TODO(Matt): Should contain offsets of each descriptor in the buffer.
     u32 offsets[] = {0};
-    vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material_types[0].pipeline_layout, 0, 1, &swapchain_info.descriptor_sets[image_index], 1, offsets);
+    vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], 
+        VK_PIPELINE_BIND_POINT_GRAPHICS, scene_manager->GetMaterialLayout(0)->pipeline_layout, 0, 1, 
+        &swapchain_info.descriptor_sets[image_index], 1, offsets);
 }
 
 void CommandBindPipeline(VkPipeline pipeline, u32 image_index)

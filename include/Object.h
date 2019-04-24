@@ -38,27 +38,27 @@ struct Model
 {
     u32 vertex_count;
     u32 index_count;
-    // u32 uniform_index;
+    u32 uniform_index;
     // AxisAlignedBoundingBox bounds;
-    // bool hit_test_enabled;
+    bool hit_test_enabled;
     
-    // u32 material_type;
-    // u32 shader_id;
-    // VkBuffer vertex_buffer;
-    // VkBuffer index_buffer;
-    // VkDeviceMemory vertex_buffer_memory;
-    // VkDeviceMemory index_buffer_memory;
+    u32 material_type; // index into material layout in SceneManager
+    u32 shader_id;     // index into material list in a the above material layout
+    u32 model_data_index; // index to find the model data in the SceneManager
+    VkBuffer vertex_buffer;
+    VkBuffer index_buffer;
+    VkDeviceMemory vertex_buffer_memory;
+    VkDeviceMemory index_buffer_memory;
     
-    // glm::vec3 pos;
-    // glm::vec3 rot;
-    // glm::vec3 scl;
+    glm::vec3 pos;
+    glm::vec3 rot;
+    glm::vec3 scl;
     
     // Heap allocated:
     ModelData* model_data; // separate data format 
     AABB_3D bounds;
-    size_t material_index;
-    size_t hash_index;
-    size_t model_data_index;
+    // u32 material_index;
+    // u32 hash_index;
 };
 
 // Temporary model used for the Quad tree. Values are currently harcoded
@@ -85,17 +85,18 @@ struct SpatialModel
 {
     AABB_3D aabb;
     u32 model_index;
-    u32 material_index;
+    u32 material_type_idx; // index into material type list
+    u32 material_idx;     // index into material list
 };
 
-struct Material
-{
-    // Material Data for Pipeline -> Not included in this "demo"
+// struct Material
+// {
+//     // Material Data for Pipeline -> Not included in this "demo"
 
-    // List of mod index that use this material
-    Model* model_list = nullptr;
+//     // List of mod index that use this material
+//     Model* model_list = nullptr;
 
-};
+// };
 
 #define OBJECT_H
 #endif

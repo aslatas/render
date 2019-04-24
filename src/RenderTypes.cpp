@@ -233,7 +233,7 @@ Model CreateBox(glm::vec3 pos, glm::vec3 ext, u32 material_type, u32 shader_id)
     return model;
 }
 */
-bool RayIntersectAxisAlignedBox(Ray ray, AxisAlignedBoundingBox box, glm::vec3 *intersection)
+bool RayIntersectAxisAlignedBox(Ray ray, AABB_3D box, glm::vec3 *intersection)
 {
     // general method from https://tavianator.com/fast-branchless-raybounding-box-intersections-part-2-nans
     float t1 = (box.min.x - ray.origin.x) * ray.inverse_direction.x;
@@ -250,7 +250,7 @@ bool RayIntersectAxisAlignedBox(Ray ray, AxisAlignedBoundingBox box, glm::vec3 *
 }
 
 // TODO(Matt): Refactor - this is a prototype.
-bool RaycastAgainstModelBounds(Ray ray, const Model_Separate_Data *model, glm::vec3 *intersection)
+bool RaycastAgainstModelBounds(Ray ray, const Model *model, glm::vec3 *intersection)
 {
     PerDrawUniformObject *ubo = GetPerDrawUniform(model->uniform_index);
     glm::mat4 inverse = glm::inverse(ubo->model);

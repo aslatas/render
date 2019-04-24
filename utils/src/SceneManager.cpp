@@ -63,33 +63,39 @@ size_t SceneManager::LoadMaterial(char* key)
 size_t SceneManager::LoadModel(char* filename, u32 mat_idx)
 {
     // Create a default model
-    Temp* m = (Temp*)malloc(sizeof(Temp));
-    m->material_index = mat_idx;
+    Model * model = new Model;
+    LoadGTLFModel(filename, *model, -1, mat_idx, -1);
+    // Temp* m = (Temp*)malloc(sizeof(Temp));
+    
 
     size_t hashed_key = stbds_hash_string(filename, models->seed);
     models->hash_table;
 
     HashModel hm;
     hm.key = hashed_key;
-    hm.value = (void*)m;
+    hm.value = (void*)model;
 
     // Place the model in the map
     size_t idx = arrlen(models->hash_table);
     arrput(models->hash_table, hm);
     // retrieve its index from the map
+    model->material_index = mat_idx;
+    model->hash_index = idx;
+    // TODO(Dustin): model data idx
+
     return idx;
 }
 
-void SceneManager::AddModel(float* min, float* max, size_t mat_index, int val)
-{
-    Model m;
-    m.aabb = *Create3DAxisAlignedBoundingBox(min, max);
-    m.val = val;
-    m.material_index = mat_index;
-    m.hash_index = -1;
+// void SceneManager::AddModel(size_t model_idx, size_t mat_index)
+// {
+//     Model m = models->hash_table[model_idx];
+//     SpatialModel m;
+//     m.aabb = m->bounds;
+//     m.material_index = mat_index;
+//     m.hash_index = model_idx;
 
-    arrput(model_data, m);
-}
+//     arrput(model_data, m);
+// }
 
 size_t SceneManager::GetModelIndex(char* key)
 {
@@ -129,15 +135,25 @@ void SceneManager::CreateSpatialHeirarchy(float *min, float *max)
 
 void SceneManager::LoadOctTree()
 {
+    printf("LOADING OCT TREE\n");
+    printf("There are %d models in scene.\n", arrlen(models->hash_table));
     if (scene == nullptr)
     {
         printf("Scene Heirarchy not initialized! Please initialize before loading scene data into the heirarchy.\n");
         return;
     }
 
-    for (int i = 0; i < arrlen(model_data); ++i)
+    // What probably should happen instead is we pass the reference of Model through to add.
+    // The tree finds the Bin to add and the SpatialModel is allocated to that Bin.
+    for (int i = 0; i < arrlen(models->hash_table); ++i)
     {
-        scene->Add(&model_data[i]);
+        Model *m = (Model*)models->hash_table[i].value;
+        SpatialModel *sm = (SpatialModel*)malloc(sizeof(SpatialModel));
+        memcpy(&sm->aabb, &m->bounds, sizeof(AABB_3D));
+        sm->model_index = m->hash_index;
+        sm->material_index = m->material_index;
+
+        scene->Add(sm);
     }
 }
 

@@ -73,6 +73,8 @@ using namespace rapidjson;
 #include "VulkanLoader.h"
 #include "Common.h"
 #include "Platform.h"
+#include "Bounds.h"
+#include "Object.h"
 #include "RenderTypes.h"
 #include "RenderBase.h"
 #include "Texture.h"
@@ -80,7 +82,9 @@ using namespace rapidjson;
 #include "Camera.h"
 #include "Main.h"
 #include "VulkanInit.h"
+#include "OctTree.h"
 #include "ModelLoader.h"
+#include "SceneManager.h"
 
 // Platform specific headers.
 #include "Win32PlatformLayer.h"
@@ -94,6 +98,7 @@ using namespace rapidjson;
 // Component source files (unity build).
 #include "VulkanFunctions.cpp"
 #include "VulkanLoader.cpp"
+#include "Object.cpp"
 #include "RenderTypes.cpp"
 #include "RenderBase.cpp"
 #include "Texture.cpp"
@@ -101,7 +106,10 @@ using namespace rapidjson;
 #include "Camera.cpp"
 #include "Main.cpp"
 #include "VulkanInit.cpp"
+#include "Bounds.cpp"
+#include "OctTree.cpp"
 #include "ModelLoader.cpp"
+#include "SceneManager.cpp"
 
 // Platform specific libraries (windows headers).
 #define NOMINMAX

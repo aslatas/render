@@ -6,7 +6,7 @@
 
 BitmapFont font = {};
 Texture *textures = nullptr;
-MaterialLayout *material_types = nullptr;
+// MaterialLayout *material_types = nullptr;
 
 DescriptorLayout descriptor_layout_new = {};
 VkBuffer *uniform_buffers_new = nullptr;
@@ -14,7 +14,9 @@ VkDeviceMemory *uniform_buffers_memory_new = nullptr;
 UniformBuffer uniforms = {};
 VkDescriptorSet *descriptor_sets_new = nullptr;
 
-Model_Separate_Data **selected_models = nullptr;
+SceneManager *scene_manager;
+
+Model **selected_models = nullptr;
 // TODO(Matt): Refactor these.
 Camera::Camera camera = {};
 Camera::Controller controller = {16.0f, 16.0f, 2.0f, 0.25f, glm::vec3(0.0f), glm::vec3(0.0f)};
@@ -49,27 +51,29 @@ void ShutdownRenderer()
 
 void RecordRenderCommands(u32 image_index)
 {
+    RenderSceneMaterial* rsm = scene_manager->GetVisibleData();
+
     CommandBeginRenderPass(image_index);
     // For each material type.
-    for (u32 i = 0; i < arrlen(material_types); ++i) {
-        MaterialLayout *material_type = &material_types[i];
+    for (u32 i = 0; i < arrlen(rsm); ++i) {
+        MaterialLayout *material_type = scene_manager->GetMaterialLayout(rsm[i].mat_layout_idx);
         // For each material of a given type.
-        for (u32 j = 0; j < arrlen(material_type->materials); ++j) {
-            Material *material = &material_type->materials[j];
+        for (u32 j = 0; j < arrlen(rsm[i].scene_materials); ++j) {
+            Material *material = scene_manager->GetMaterial(rsm[i].mat_layout_idx, rsm[i].scene_materials[j].mat_idx);
             // Bind the material pipeline and set dynamic state.
             CommandBindPipeline(material->pipeline, image_index);
             
             // For each model of a given material.
-            for (u32 k = 0; k < arrlen(material->models); ++k) {
+            for (u32 k = 0; k < arrlen(rsm[i].scene_materials[j].model_idx); ++k) {
                 // Model *model = &material->models[k];
-                Model_Separate_Data *model = &material->models[k];
+                Model *model = &material->models[k];
                 
                 // Bind the vertex, index, and uniform buffers.
                 CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, image_index);
                 CommandBindIndexBuffer(model->index_buffer, VK_INDEX_TYPE_UINT32, image_index);
                 PushConstantBlock push_block = {};
                 push_block.draw_index = model->uniform_index;
-                CommandPushConstants(material_types->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
+                CommandPushConstants(material_type->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
                 // Draw the model.
                 CommandDrawIndexed(image_index, model->index_count);
             }
@@ -87,17 +91,18 @@ void RecordRenderCommands(u32 image_index)
         // TODO(Matt): Currently post process stuff is hard-coded. Should
         // maybe use a separate set of materials entirely for post process.
         // Bind the stenciling pipeline.
-        CommandBindPipeline(material_types[0].materials[outline_stage].pipeline, image_index);
+        MaterialLayout *material_type = scene_manager->GetMaterialLayout(0);
+        CommandBindPipeline(material_type->materials[outline_stage].pipeline, image_index);
         // For each selected model.
         for (u32 i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
-            Model_Separate_Data *model = selected_models[i];
+            Model *model = selected_models[i];
             CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, image_index);
             CommandBindIndexBuffer(model->index_buffer, VK_INDEX_TYPE_UINT32, image_index);
             // Bind the vertex, index, and uniform buffers.
             PushConstantBlock push_block = {};
             push_block.draw_index = model->uniform_index;
-            CommandPushConstants(material_types[0].pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
+            CommandPushConstants(material_type->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
             // Draw selected models.
             CommandDrawIndexed(image_index, model->index_count);
         }
@@ -153,22 +158,33 @@ void UpdatePrePhysics(double delta)
     per_pass->sun.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 0.0f);
     // TODO(Matt): hack here until we're using better simulation rules.
     u32 current_index = 0;
-    for (u32 i = 0; i < arrlen(material_types); ++i) {
-        MaterialLayout *material_type = &material_types[i];
-        for (u32 j = 0; j < arrlen(material_type->materials); ++j) {
-            Material *material = &material_type->materials[j];
-            for (u32 k = 0; k < arrlen(material->models); ++k) {
-                Model_Separate_Data *model = &material->models[k];
-                PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
-                ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
-                ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-                ubo->model = glm::rotate(ubo->model, model->rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
-                ubo->model = glm::rotate(ubo->model, model->rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
-                ubo->model = glm::translate(ubo->model, model->pos);
-                current_index++;
-            }
-        }
+    u32 num_models = scene_manager->GetNumberOfModelsInScene();
+    for (u32 i = 0; i < num_models; ++i) {
+        Model* model = scene_manager->GetModelByIndex(i);
+        PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
+        ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
+        ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo->model = glm::rotate(ubo->model, model->rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
+        ubo->model = glm::rotate(ubo->model, model->rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
+        ubo->model = glm::translate(ubo->model, model->pos);
+        current_index++;
     }
+    // for (u32 i = 0; i < arrlen(material_types); ++i) {
+    //     MaterialLayout *material_type = &material_types[i];
+    //     for (u32 j = 0; j < arrlen(material_type->materials); ++j) {
+    //         Material *material = &material_type->materials[j];
+    //         for (u32 k = 0; k < arrlen(material->models); ++k) {
+    //             Model *model = &material->models[k];
+    //             PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
+    //             ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
+    //             ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
+    //             ubo->model = glm::rotate(ubo->model, model->rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
+    //             ubo->model = glm::rotate(ubo->model, model->rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
+    //             ubo->model = glm::translate(ubo->model, model->pos);
+    //             current_index++;
+    //         }
+    //     }
+    // }
 }
 
 // TODO(Matt): Move this out of the rendering component.
@@ -201,36 +217,59 @@ void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
     if (!accumulate) arrfree(selected_models);
     // Initialize the  minimum distance.
     float min_dist = INFINITY;
-    Model_Separate_Data *selection = nullptr;
+    Model *selection = nullptr;
     // Iterate through all objects in the scene.
-    for (u32 i = 0; i < arrlenu(material_types); ++i) {
-        MaterialLayout *material_type = &material_types[i];
-        for (u32 j = 0; j < arrlenu(material_type->materials); ++j) {
-            Material *material = &material_type->materials[j];
-            for (u32 k = 0; k < arrlenu(material->models); ++k) {
-                Model_Separate_Data *model = &material->models[k];
-                // If the model has hit testing disabled, skip it.
-                if (!model->hit_test_enabled) continue;
-                
-                // Otherwise, perform a ray-box test with the object bounds.
-                float hit_dist;
-                PerFrameUniformObject *per_frame = GetPerFrameUniform();
-                u32 width, height;
-                GetSwapchainExtent(&width, &height);
-                Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, width, height, per_frame->view, per_frame->projection, 1000.0f);
-                glm::vec3 intersection;
-                if (RaycastAgainstModelBounds(ray, model, &intersection)) {
-                    hit_dist = glm::distance2(ray.origin, intersection);
-                    // If the raycast hits AND is closer than the previous hit
-                    // we can update the selection.
-                    if (hit_dist < min_dist) {
-                        min_dist = hit_dist;
-                        selection = model;
-                    }
-                }
+    u32 len = scene_manager->GetNumberOfModelsInScene();
+    for (auto i = 0; i < len; ++i)
+    {
+        Model* model = scene_manager->GetModelByIndex(i);
+        // If the model has hit testing disabled, skip it.
+        if (!model->hit_test_enabled) continue;        
+        // Otherwise, perform a ray-box test with the object bounds.
+        float hit_dist;
+        PerFrameUniformObject *per_frame = GetPerFrameUniform();
+        u32 width, height;
+        GetSwapchainExtent(&width, &height);
+        Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, width, height, per_frame->view, per_frame->projection, 1000.0f);
+        glm::vec3 intersection;
+        if (RaycastAgainstModelBounds(ray, model, &intersection)) {
+            hit_dist = glm::distance2(ray.origin, intersection);
+            // If the raycast hits AND is closer than the previous hit
+            // we can update the selection.
+            if (hit_dist < min_dist) {
+                min_dist = hit_dist;
+                selection = model;
             }
         }
     }
+    // for (u32 i = 0; i < arrlenu(material_types); ++i) {
+    //     MaterialLayout *material_type = &material_types[i];
+    //     for (u32 j = 0; j < arrlenu(material_type->materials); ++j) {
+    //         Material *material = &material_type->materials[j];
+    //         for (u32 k = 0; k < arrlenu(material->models); ++k) {
+    //             Model *model = &material->models[k];
+    //             // If the model has hit testing disabled, skip it.
+    //             if (!model->hit_test_enabled) continue;
+                
+    //             // Otherwise, perform a ray-box test with the object bounds.
+    //             float hit_dist;
+    //             PerFrameUniformObject *per_frame = GetPerFrameUniform();
+    //             u32 width, height;
+    //             GetSwapchainExtent(&width, &height);
+    //             Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, width, height, per_frame->view, per_frame->projection, 1000.0f);
+    //             glm::vec3 intersection;
+    //             if (RaycastAgainstModelBounds(ray, model, &intersection)) {
+    //                 hit_dist = glm::distance2(ray.origin, intersection);
+    //                 // If the raycast hits AND is closer than the previous hit
+    //                 // we can update the selection.
+    //                 if (hit_dist < min_dist) {
+    //                     min_dist = hit_dist;
+    //                     selection = model;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
     
     // If any object was hit
     if (selection) {
@@ -259,23 +298,29 @@ void OnWindowResized()
 
 void AddMaterial(MaterialCreateInfo *material_info, u32 material_type, VkRenderPass render_pass, u32 sub_pass)
 {
-    Material material = CreateMaterial(material_info, material_types[material_type].pipeline_layout, material_type, render_pass, sub_pass);
-    arrput(material_types[material.type].materials, material);
+    Material material = CreateMaterial(material_info, scene_manager->GetMaterialLayout(material_type)->pipeline_layout, 
+        material_type, render_pass, sub_pass);
+    
+    scene_manager->AddMaterial(&material, material_type);
+    //arrput(material_types[material.type].materials, material);
 }
 
 void CreateMaterials()
 {
     CreateDescriptorLayout(&descriptor_layout_new);
     MaterialCreateInfo material_info;
-    arrput(material_types, CreateMaterialLayout());
+    
+    u32 layout_idx = scene_manager->AddMaterialType(&CreateMaterialLayout());
+    // arrput(material_types, CreateMaterialLayout());
+
     material_info = CreateDefaultMaterialInfo("resources/shaders/engine_default_vert.spv", "resources/shaders/engine_default_frag.spv");
-    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
-    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
-    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/stencil_vert.spv", nullptr);
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
@@ -287,10 +332,11 @@ void CreateMaterials()
     material_info.depth_stencil.back.failOp = VK_STENCIL_OP_REPLACE;
     material_info.depth_stencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
     material_info.depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
-    material_info.depth_stencil.back.compareMask = 0xff;material_info.depth_stencil.back.writeMask = 0xff;
+    material_info.depth_stencil.back.compareMask = 0xff;
+    material_info.depth_stencil.back.writeMask = 0xff;
     material_info.depth_stencil.back.reference = 1;
     material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/outline_vert.spv", "resources/shaders/outline_frag.spv");
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
@@ -306,7 +352,7 @@ void CreateMaterials()
     material_info.depth_stencil.back.writeMask = 0xff;
     material_info.depth_stencil.back.reference = 1;
     material_info.depth_stencil.front = material_info.depth_stencil.back;
-    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/text_vert.spv", "resources/shaders/text_frag.spv");
     material_info.blend.blendEnable = VK_TRUE;
@@ -316,10 +362,10 @@ void CreateMaterials()
     material_info.blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     material_info.blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     material_info.blend.alphaBlendOp = VK_BLEND_OP_ADD;
-    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
-    AddMaterial(&material_info, 0, GetSwapchainRenderPass(), 0);
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
 }
 
 // offset is the offset into buffer memory the VkBuffer will be written to
@@ -338,6 +384,8 @@ void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* bu
 
 internal void InitializeSceneResources()
 {
+    scene_manager = new SceneManager();
+
     CreateMaterials();
     CreateGlobalUniformBuffers();
     // Load fonts and textures.
@@ -351,7 +399,7 @@ void InitializeScene()
     InitializeSceneResources();
 
     // Load scene config
-    SceneSettings* scene = LoadSceneSettings("../../config/scene/default_scene.json");
+    SceneSettings* scene = LoadSceneSettings("../../config/scene/default_scene.json"); 
 
 
     camera.location = glm::make_vec3(&scene->camera_data[0].position[0]);
@@ -359,11 +407,13 @@ void InitializeScene()
     for (uint32_t i = 0; i < scene->num_models; ++i) 
     {
         SceneModelData* model_data = scene->model_data + i;
-        Model_Separate_Data* model = (Model_Separate_Data*)malloc(sizeof(Model_Separate_Data));
-        EModelLoadResult result = LoadGTLFModel(model_data, *model, GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
+        Model* model = (Model*)malloc(sizeof(Model));
+        EModelLoadResult result = LoadGTLFModel(model_data, *model, 
+            GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
         if (result == MODEL_LOAD_RESULT_SUCCESS) {
             uniforms.object_count++;
             AddToScene(*model);
+            scene_manager->AddModel(model_data->filepath, model);
         } else printf("FAILURE TO LOAD MODEL\n");
     }
     
@@ -378,6 +428,7 @@ void InitializeScene()
     // It should probably live on its own.
 }
 
+// TODO(Dustin): Move to scene manager
 internal void DestroySceneResources()
 {
     // Destroy textures.
@@ -387,15 +438,15 @@ internal void DestroySceneResources()
     arrfree(textures);
     
     // Destroy materials.
-    for (u32 i = 0; i < arrlen(material_types); ++i) {
-        for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
-            DestroyPipeline(material_types[i].materials[j].pipeline);
-        }
+    // for (u32 i = 0; i < arrlen(material_types); ++i) {
+    //     for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
+    //         DestroyPipeline(material_types[i].materials[j].pipeline);
+    //     }
         
-        DestroyPipelineLayout(material_types[i].pipeline_layout);
-        arrfree(material_types[i].materials);
-    }
-    arrfree(material_types);
+    //     DestroyPipelineLayout(material_types[i].pipeline_layout);
+    //     arrfree(material_types[i].materials);
+    // }
+    // arrfree(material_types);
     
     DestroyDescriptorSetLayout(descriptor_layout_new.descriptor_layouts[0]);
     arrfree(descriptor_layout_new.descriptor_layouts);
@@ -405,14 +456,15 @@ internal void DestroySceneResources()
 }
 
 void DestroyScene() {
-    for (u32 i = 0; i < arrlen(material_types); ++i) {
-        for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
-            for (u32 k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
-                DestroyModelSeparateDataTest(&material_types[i].materials[j].models[k]);
-            }
-            arrfree(material_types[i].materials[j].models);
-        }
-    }
+    scene_manager->Shutdown();
+    // for (u32 i = 0; i < arrlen(material_types); ++i) {
+    //     for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
+    //         for (u32 k = 0; k < arrlen(material_types[i].materials[j].models); ++k) {
+    //             DestroyModelSeparateDataTest(&material_types[i].materials[j].models[k]);
+    //         }
+    //         arrfree(material_types[i].materials[j].models);
+    //     }
+    // }
     for (u32 i = 0; i < GetSwapchainImageCount(); ++i) {
         DestroyDeviceBuffer(uniform_buffers_new[i]);
         FreeDeviceMemory(uniform_buffers_memory_new[i]);
@@ -423,13 +475,14 @@ void DestroyScene() {
     DestroySceneResources();
 }
 
-void AddToScene(Model_Separate_Data model)
+void AddToScene(Model model)
 {
     VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(u32) * model.index_count);
     
     CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     CreateModelBuffer(sizeof(u32) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    arrput(material_types[model.material_type].materials[model.shader_id].models, model);
+    // arrput(material_types[model.material_type].materials[model.shader_id].models, model);
+    
 }
 
 void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)

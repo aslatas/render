@@ -48,8 +48,14 @@ Steps for implementation:
 #include <string>
 
 // External Lib Files
+#define STBI_ONLY_PNG
+#define STBI_ONLY_JPEG
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
 #define STB_DS_IMPLEMENTATION
 #define STBDS_SIPHASH_2_4
+#include "stb/stb_truetype.h"
 #include <stb/stb_ds.h>
 
 #define GLM_FORCE_RADIANS
@@ -60,25 +66,39 @@ Steps for implementation:
 #include "glm/glm.hpp"
 #pragma warning(pop)
 
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NOEXCEPTION
+#define JSON_NOEXCEPTION
+#include "tinygltf/tiny_gltf.h"
+
 // Some convientent defines
+typedef uint8_t u8;
 #define u32 unsigned int 
 
 // Header Files
 #include "Bounds.h"
 #include "Object.h"
 #include "Tree.h"
+#include "ModelLoader.h"
 #include "SceneManager.h"
+
+// Config Parser Component headers
+#include "config_parsers/ConfigUtils.h"
+#include "config_parsers/SceneConfig.h"
 
 // SRC Files
 #include "Bounds.cpp"
 #include "Tree.cpp"
 #include "Object.cpp"
+#include "ModelLoader.cpp"
 #include "SceneManager.cpp"
 
 /**
 TODOS
-  Increase Bin size as depth increases?
-
+  Adjust for the renderer:
+     True Model Loading
+     True Material Loading
+     Create the render array
 */
 
 int main(void) 
@@ -89,66 +109,32 @@ int main(void)
     float max[3] = {5, 10, 5};
 
     // Create the heirarchy and load the octtree
-    min[0] = 0;
-    min[1] = 0;
-    min[2] = 0;
+    min[0] = -100;
+    min[1] = -100;
+    min[2] = -100;
     max[0] = 100;
     max[1] = 100;
     max[2] = 100;
     sm->CreateSpatialHeirarchy(min, max);
 
-    for (auto i = 0.0f; i < 100.0f; i += 1.f) {
-        min[0] = i;
-        max[0] = i+.9f;
-        for (auto j = 0.0f; j < 100.0f; j += 1.f) {
-            min[1] = j;
-            max[1] = j+.9f;
-            for (auto k = 0.0f; k < 100.0f; k += 1.f) {
-                min[2] = k;
-                max[2] = k+.9f;
-                sm->AddModel(min, max, -1, i+j+k);
-            }
-        }
-    }
+    // for (auto i = 0.0f; i < 100.0f; i += 1.f) {
+    //     min[0] = i;
+    //     max[0] = i+.9f;
+    //     for (auto j = 0.0f; j < 100.0f; j += 1.f) {
+    //         min[1] = j;
+    //         max[1] = j+.9f;
+    //         for (auto k = 0.0f; k < 100.0f; k += 1.f) {
+    //             min[2] = k;
+    //             max[2] = k+.9f;
+    //             sm->AddModel(min, max, -1, i+j+k);
+    //         }
+    //     }
+    // }
+
+    sm->LoadModel("../../../resources/models/Lantern/glTF-Binary/Lantern.glb", -1);
 
     sm->LoadOctTree();
     sm->PrintScene();
-
-
-    // stbds_rand_seed(174769);
-    //char* test = (char*)malloc(6 * sizeof(char));
-    //char* o = "rtyhg";
-    //strncpy(test, o, 5);
-    //test[5] = '\0';
-
-    //std::string *str = new std::string("this is another test");
-
-    
-    // printf("Model was loaded at index %zd\n", sm->LoadModel("randomfilename", 0));
-    // printf("Model was loaded at index %zd\n", sm->LoadModel("yoyoyoyo", 2));
-    // printf("Model was loaded at index %zd\n", sm->LoadModel("tee", 1));
-
-    // printf("Model was loaded at index %zd\n", sm->LoadModel("filename", 2));
-    // printf("Model was loaded at index %zd\n", sm->LoadModel("name", 3));
-    // printf("Model was loaded at index %zd\n", sm->LoadModel("file", 4));
-
-    // printf("\n");
-    // printf("\n");
-    // printf("\n");
-
-    // printf("Model is string key %s hash the index %zd\n", "file", sm->GetModelIndex("file"));
-    // printf("Model is string key %s hash the index %zd\n", "yoyoyoyo", sm->GetModelIndex("yoyoyoyo"));
-    // printf("Model is string key %s hash the index %zd\n", "randomfilename", sm->GetModelIndex("randomfilename"));
-    // printf("Model is string key %s hash the index %zd\n", "name", sm->GetModelIndex("name"));
-    // printf("Model is string key %s hash the index %zd\n", "tee", sm->GetModelIndex("tee"));
-    // printf("Model is string key %s hash the index %zd\n", "filename", sm->GetModelIndex("filename"));
-
-    // printf("\n");
-    // printf("\n");
-    // printf("\n");
-
-  
-    //sm->PrintModelTable();
 
     sm->Shutdown();
     //delete sm;
