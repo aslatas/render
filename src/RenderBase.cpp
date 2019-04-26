@@ -53,6 +53,8 @@ void RecordRenderCommands(u32 image_index)
 {
     RenderSceneMaterial* rsm = scene_manager->GetVisibleData();
 
+    Model* m = scene_manager->GetModelByIndex(0);
+
     CommandBeginRenderPass(image_index);
     // For each material type.
     for (u32 i = 0; i < arrlen(rsm); ++i) {
@@ -66,7 +68,8 @@ void RecordRenderCommands(u32 image_index)
             // For each model of a given material.
             for (u32 k = 0; k < arrlen(rsm[i].scene_materials[j].model_idx); ++k) {
                 // Model *model = &material->models[k];
-                Model *model = &material->models[k];
+                // rsm[i].scene_materials[j].model_idx[k] <- index into model list
+                Model *model = scene_manager->GetModelByIndex(rsm[i].scene_materials[j].model_idx[k]);
                 
                 // Bind the vertex, index, and uniform buffers.
                 CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, image_index);
@@ -413,14 +416,22 @@ void InitializeScene()
         if (result == MODEL_LOAD_RESULT_SUCCESS) {
             uniforms.object_count++;
             AddToScene(*model);
-            scene_manager->AddModel(model_data->filepath, model);
         } else printf("FAILURE TO LOAD MODEL\n");
     }
+
+    Model* m = scene_manager->GetModelByIndex(0);
+    u32 num =  scene_manager->GetNumberOfModelsInScene();
     
 
     // Delete scene config
     SaveSceneSettings(scene, "../../config/scene/default_scene.json");
     FreeSceneSettings(scene);
+
+    // Load the OctTree
+    float min[3] = {-1000, -1000, -1000};
+    float max[3] = {1000, 1000, 1000};
+    scene_manager->CreateSpatialHeirarchy(min, max);
+    scene_manager->LoadOctTree();
 
     
     // Add screen-space elements.
@@ -482,7 +493,7 @@ void AddToScene(Model model)
     CreateModelBuffer(v_len, model.model_data->position, &model.vertex_buffer, &model.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     CreateModelBuffer(sizeof(u32) * model.index_count, model.model_data->indices, &model.index_buffer, &model.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     // arrput(material_types[model.material_type].materials[model.shader_id].models, model);
-    
+    scene_manager->AddModel("", &model);
 }
 
 void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)

@@ -227,8 +227,9 @@ SpatialModel* OctTree::helper_get_all_visible_data(SpatialModel* list, int posit
     {
         // recursively search for a leaf
         for (int i = 1; i <= TREE_CHILDREN; ++i) {
-            return helper_get_all_visible_data(list, (position * TREE_CHILDREN) + i); 
+            list =  helper_get_all_visible_data(list, (position * TREE_CHILDREN) + i); 
         }
+        return list;
     }
     else
     {

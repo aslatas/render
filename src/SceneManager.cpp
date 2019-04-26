@@ -122,7 +122,8 @@ void SceneManager::AddModel(char* key, Model* model)
     HashModel hm;
     hm.key = stbds_hash_string(key, models->seed);
     hm.value = (void*)model;
-    arrput(models->hash_table, hm);
+    // arrput(models->hash_table, hm);
+    arrput(model_data, *model);
 }
 
 size_t SceneManager::GetModelIndex(char* key)
@@ -163,12 +164,15 @@ Material* SceneManager::GetMaterial(u32 mat_layout_idx, u32 mat_idx)
 
 u32 SceneManager::GetNumberOfModelsInScene()
 {
-    return (u32)arrlen(models);
+    // size_t l = arrlen(models->hash_table);
+    // return (u32)arrlen(models->hash_table);
+    return (u32)arrlen(model_data);
 }
 
 Model* SceneManager::GetModelByIndex(u32 mod_idx)
 {
-    return (Model*)models->hash_table[mod_idx].value;
+    // return (Model*)models->hash_table[mod_idx].value;
+    return &model_data[mod_idx];
 }
 
 //Model* SceneManager::GetModel(const char* key)
@@ -194,9 +198,11 @@ void SceneManager::LoadOctTree()
 
     // What probably should happen instead is we pass the reference of Model through to add.
     // The tree finds the Bin to add and the SpatialModel is allocated to that Bin.
-    for (int i = 0; i < arrlen(models->hash_table); ++i)
+    // for (int i = 0; i < arrlen(models->hash_table); ++i)
+    for (int i = 0; i < arrlen(model_data); ++i)
     {
-        Model *m = (Model*)models->hash_table[i].value;
+        // Model *m = (Model*)models->hash_table[i].value;
+        Model *m = &model_data[i];
         SpatialModel *sm = (SpatialModel*)malloc(sizeof(SpatialModel));
         memcpy(&sm->aabb, &m->bounds, sizeof(AABB_3D));
         sm->model_index = i;
@@ -229,22 +235,37 @@ u32 model_index;
     {
         // check if the material type exists
         bool type_exist = false;
-        for (int j = 0; j < arrlen(material_types); ++j)
+        for (int j = 0; j < arrlen(rsml); ++j)
         {
-            if (j == sm[i].material_type_idx)
+            if (rsml[j].mat_layout_idx == sm[i].material_type_idx)
             {
                 type_exist = true;
 
                 // check if material exists
                 bool mat_exist = false;
-                for (int k = 0; k < arrlen(material_types[j].materials); ++k)
+                for (int k = 0; k < arrlen(rsml[j].scene_materials); ++k)
                 {
                     // add model
+                    if (rsml[j].scene_materials[k].mat_idx == sm[i].material_idx)
+                    {
+                        mat_exist = true;
+                        size_t mat_type = sm[i].material_type_idx;
+                        size_t mat = sm[i].material_idx;
+                        arrput(rsml[j].scene_materials[k].model_idx, sm[i].model_index);
+                        break;
+                    }
                 }
 
                 if (!mat_exist)
                 {
                     // add mat and model
+                    scene_mat mat;
+                    mat.mat_idx = sm[i].material_idx;
+                    mat.model_idx = nullptr;
+                    
+                    size_t idx_mat = arrlen(rsml[j].scene_materials);
+                    arrput(rsml[j].scene_materials, mat);
+                    arrput(rsml[j].scene_materials[idx_mat].model_idx, sm[i].model_index);
                 }
                 break;
             }
@@ -253,6 +274,18 @@ u32 model_index;
         if (!type_exist)
         {
             // add layout, mat, and model
+            size_t idx = arrlen(rsml);
+            RenderSceneMaterial rsm;
+            rsm.mat_layout_idx = sm[i].material_type_idx;
+            rsm.scene_materials = nullptr;
+            scene_mat mat;
+            mat.mat_idx = sm[i].material_idx;
+            mat.model_idx = nullptr;
+            arrput(rsml, rsm);
+
+            size_t idx_mat = arrlen(rsml[idx].scene_materials);
+            arrput(rsml[idx].scene_materials, mat);
+            arrput(rsml[idx].scene_materials[idx_mat].model_idx, sm[i].model_index);
         }
     }
 

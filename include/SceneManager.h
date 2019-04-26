@@ -34,13 +34,14 @@ struct FakeHashTable
 // mat_idx: index into the material list in a given MaterialLayout 
 // scene_models: list of indices into the SceneManager Model list. Each model in this list is attached
 //               to the material pipeline
+struct scene_mat {
+    u32 mat_idx;
+    u32 *model_idx;
+};
 struct RenderSceneMaterial
 {
     u32 mat_layout_idx;       // index into SceneManager Material list for this material
-    struct {
-        u32 mat_idx;
-        u32 *model_idx;
-    } *scene_materials; // list of indices into SceneManager Model List that have this material 
+    scene_mat *scene_materials; // list of indices into SceneManager Model List that have this material 
 };
 
 class SceneManager {
