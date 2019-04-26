@@ -415,7 +415,11 @@ void InitializeScene()
             GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
         if (result == MODEL_LOAD_RESULT_SUCCESS) {
             uniforms.object_count++;
-            AddToScene(*model);
+            // AddToScene(*model);
+            VkDeviceSize v_len = (model->model_data->memory_block_size - sizeof(u32) * model->index_count);
+            CreateModelBuffer(v_len, model->model_data->position, &model->vertex_buffer, &model->vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+            CreateModelBuffer(sizeof(u32) * model->index_count, model->model_data->indices, &model->index_buffer, &model->index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+            scene_manager->AddModel("", model);
         } else printf("FAILURE TO LOAD MODEL\n");
     }
 
@@ -428,8 +432,8 @@ void InitializeScene()
     FreeSceneSettings(scene);
 
     // Load the OctTree
-    float min[3] = {-1000, -1000, -1000};
-    float max[3] = {1000, 1000, 1000};
+    float min[3] = {-100000, -100000, -100000};
+    float max[3] = {100000, 100000, 100000};
     scene_manager->CreateSpatialHeirarchy(min, max);
     scene_manager->LoadOctTree();
 

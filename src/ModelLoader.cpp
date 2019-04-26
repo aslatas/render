@@ -6,6 +6,17 @@
 EModelLoadResult LoadGTLFModel( SceneModelData* model_data, Model &model, PerDrawUniformObject *ubo,
                                 u32 material_type, u32 shader_id, u32 uniform_index)
 {
+
+/*
+REFACTOR:
+- Remove model data from model
+- Return an array of models and model data
+- Every mesh gets its own Model
+- What about primitives?
+  - A primitive is geometry that is to be rendered with a specific material
+    - For now, everything gets the same material
+  - Primitives now get their own Model. Get grouped by Material.
+*/
     
     // TODO(Dustin): Remove this hardcoded nonsense
     model.material_type = material_type;
@@ -33,7 +44,7 @@ EModelLoadResult LoadGTLFModel( SceneModelData* model_data, Model &model, PerDra
     std::string warn;
     
     bool ret = gltf_ctx.LoadBinaryFromFile(&gltf_model, &err, &warn, model_data->filepath);
-    // bool ret = gltf_ctx.LoadASCIIFromFile(&model, &err, &warn, file);
+    // bool ret = gltf_ctx.LoadASCIIFromFile(&gltf_model, &err, &warn, model_data->filepath);
     if (!ret) 
     {
         printf("ERROR READING FILE!\n");
@@ -52,9 +63,18 @@ EModelLoadResult LoadGTLFModel( SceneModelData* model_data, Model &model, PerDra
     {
         if (gltf_model.nodes[i].mesh < 0)
             continue;
-        
-        model.vertex_count += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].attributes.find("POSITION")->second].count;
-        model.index_count  += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[0].indices].count;
+
+        tinygltf::Node node = gltf_model.nodes[i];
+        tinygltf::Mesh mesh = gltf_model.meshes[node.mesh];
+        for (int j = 0; j < mesh.primitives.size(); ++j)
+        {
+            tinygltf::Primitive primitive = mesh.primitives[j];
+            // model.vertex_count += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].attributes.find("POSITION")->second].count;
+            model.vertex_count += (u32)gltf_model.accessors[primitive.attributes.find("POSITION")->second].count;
+
+            // model.index_count  += (u32)gltf_model.accessors[gltf_model.meshes[gltf_model.nodes[i].mesh].primitives[j].indices].count;
+            model.index_count  += (u32)gltf_model.accessors[primitive.indices].count;
+        }
     }
     
     // Allocate memory for the model
