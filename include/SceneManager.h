@@ -112,7 +112,7 @@ public:
     // Render functions
     //--------------------------------------------------------------------------------//
     // Performs frustum culling on the OctTree
-    void FrustumCullOctTree();
+    void FrustumCull(Camera::Frustum *frustum);
     // Performs occlusion culling on the OctTree
     void OcclusionCullOctTree();
     // Retrive all visible data in the Tree

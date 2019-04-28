@@ -20,7 +20,7 @@ TODOs for the QuadTree
 */
 
 #define TREE_CHILDREN 8
-#define INITIAL_BIN_SIZE 50
+#define INITIAL_BIN_SIZE 10
 #define BIN_DEPTH(x) ((x) * 1.4)
 
 //-------------------------------------------------------------------//
@@ -34,6 +34,7 @@ OctTree::Node* OctTree::create_node(AABB_3D* aabb, Node *parent)
     // Not quite a double, but a slow growth based on depth
     n->bin_size = (parent == nullptr) ? INITIAL_BIN_SIZE : ((u32)(BIN_DEPTH(parent->bin_size)));
     n->isLeaf = true;
+    n->isVisible = true;
     n->bin = (Bin *)malloc(sizeof(Bin));
     n->bin->count = 0;
     n->bin->model = nullptr;
@@ -80,54 +81,56 @@ bool OctTree::helper_add(int position, SpatialModel *model)
 
 void OctTree::split(int position)
 {
+    printf("SPLITTT\n");
     Node *node = tree[position];
     
     AABB_3D *aabb = node->bounding_box;
     glm::vec3   min  = aabb->min;
     glm::vec3   max  = aabb->max;
+    glm::vec3   center  = aabb->center;
 
     // half the distance between min and max
-    float ext[3] = {(max[0] - min[0]) / 2, (max[1] - min[1]) / 2, (max[2] - min[2]) / 2};
+    // float ext[3] = {(max[0] - min[0]) / 2, (max[1] - min[1]) / 2, (max[2] - min[2]) / 2};
     
     // Create the AABBs of the children of this node 
     // front top left
-    float ftl_min[3] = {min[0],          min[1] + ext[1], min[2]         };
-    float ftl_max[3] = {min[0] + ext[0], max[1],          min[2] + ext[2]};
+    float ftl_min[3] = {min[0], center[1], center[2]};
+    float ftl_max[3] = {center[0], max[1], max[2]};
     AABB_3D *ftl = Create3DAxisAlignedBoundingBox(ftl_min, ftl_max);
     
     // front bottom left
-    float fbl_min[3] = {min[0],          min[1],          min[2]         };
-    float fbl_max[3] = {min[0] + ext[0], min[1] + ext[1], min[2] + ext[2]};
+    float fbl_min[3] = {min[0], min[1], center[2]};
+    float fbl_max[3] = {center[0], center[1], max[2]};
     AABB_3D *fbl = Create3DAxisAlignedBoundingBox(fbl_min, fbl_max);
 
     // front top right
-    float ftr_min[3] = {min[0] + ext[0], min[1] + ext[1], min[0]         };
-    float ftr_max[3] = {max[0],          max[1],          min[2] + ext[2]};
+    float ftr_min[3] = {center[0], center[1], center[2]};
+    float ftr_max[3] = {max[0], max[1], max[2]};
     AABB_3D *ftr = Create3DAxisAlignedBoundingBox(ftr_min, ftr_max);
 
     // front bottom right
-    float fbr_min[3] = {min[0] + ext[0], min[1],          min[2]};
-    float fbr_max[3] = {max[0],          min[1] + ext[1], min[2] + ext[2]};
+    float fbr_min[3] = {center[0], min[0], center[2]};
+    float fbr_max[3] = {max[0], center[1], max[2]};
     AABB_3D *fbr = Create3DAxisAlignedBoundingBox(fbr_min, fbr_max);
 
     // back top left
-    float btl_min[3] = {min[0],          min[1] + ext[1], min[2] + ext[2]};
-    float btl_max[3] = {min[0] + ext[0], max[1],          max[2]};
+    float btl_min[3] = {min[0], center[1], min[2]};
+    float btl_max[3] = {center[0], max[1], center[2]};
     AABB_3D *btl = Create3DAxisAlignedBoundingBox(btl_min, btl_max);
 
     // back bottom left
-    float bbl_min[3] = {min[0],          min[1],          min[2] + ext[2]};
-    float bbl_max[3] = {min[0] + ext[0], min[1] + ext[1], max[2]};
+    float bbl_min[3] = {min[0], min[1], min[2]};
+    float bbl_max[3] = {center[0], center[1], center[2]};
     AABB_3D *bbl = Create3DAxisAlignedBoundingBox(bbl_min, bbl_max);
 
     // back top right
-    float btr_min[3] = {min[0] + ext[0], min[1] + ext[1], min[2] + ext[2]};
-    float btr_max[3] = {max[0],          max[1],          max[2]};
+    float btr_min[3] = {center[0], center[1], min[2]};
+    float btr_max[3] = {max[0], max[1], center[2]};
     AABB_3D *btr = Create3DAxisAlignedBoundingBox(btr_min, btr_max);
 
     // back bottom right
-    float bbr_min[3] = {min[0] + ext[0], min[1],          min[2] + ext[2]};
-    float bbr_max[3] = {max[0],          min[1] + ext[1], max[2]};
+    float bbr_min[3] = {center[0], min[1], min[2]};
+    float bbr_max[3] = {max[0], center[1], center[2]};
     AABB_3D *bbr = Create3DAxisAlignedBoundingBox(bbr_min, bbr_max);
 
     // grow if necessary
@@ -220,10 +223,37 @@ void OctTree::helper_print_quad_tree(int position)
     printf("\n");
 }
 
+void OctTree::helper_frustum_visibility(int position, Camera::Frustum *frustum)
+{
+    Node *node = tree[position];
+    node->isVisible = AABBFrustumIntersection(frustum, node->bounding_box);
+    if (node->isVisible)
+    {
+
+        if (!node->isLeaf) {
+            // recursively search for a leaf
+            for (int i = 1; i <= TREE_CHILDREN; ++i) {
+                OctTree::helper_frustum_visibility((position * TREE_CHILDREN) + i, frustum); 
+            }
+        }
+        else
+        {
+            for (int j = 0; j < node->bin->count; ++j)
+            {
+                node->bin->model[j]->isVisible = AABBFrustumIntersection(frustum, &node->bin->model[j]->aabb);
+            }
+        }
+    }
+}
+
 SpatialModel* OctTree::helper_get_all_visible_data(SpatialModel* list, int position)
 {
     Node *node = tree[position];
-    if (!node->isLeaf)
+    if (!node->isVisible)
+    {
+        return list;
+    }
+    else if (!node->isLeaf)
     {
         // recursively search for a leaf
         for (int i = 1; i <= TREE_CHILDREN; ++i) {
@@ -236,7 +266,10 @@ SpatialModel* OctTree::helper_get_all_visible_data(SpatialModel* list, int posit
         // put each SpatialModel from the Bin into the list
         for (int j = 0; j < node->bin->count; ++j)
         {
-            arrput(list, *node->bin->model[j]);
+            if (node->bin->model[j]->isVisible)
+            {
+                arrput(list, *node->bin->model[j]);
+            }
         }
         return list;
     }
@@ -299,6 +332,13 @@ bool OctTree::Add(SpatialModel* model)
         } 
         return ret;
     }
+}
+
+void OctTree::UpdateFrustumVisibility(Camera::Frustum *frustum)
+{
+    if (arrlen(tree) < 0)
+        return;
+    OctTree::helper_frustum_visibility(0, frustum);
 }
 
 SpatialModel* OctTree::GetAllVisibleData()

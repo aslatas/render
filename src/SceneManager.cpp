@@ -208,13 +208,15 @@ void SceneManager::LoadOctTree()
         sm->model_index = i;
         sm->material_type_idx = m->material_type; // index into material type
         sm->material_idx = m->shader_id; // index into material
+        sm->isVisible = true;
 
         scene->Add(sm);
     }
 }
 
-void SceneManager::FrustumCullOctTree()
+void SceneManager::FrustumCull(Camera::Frustum *frustum)
 {
+    scene->UpdateFrustumVisibility(frustum);
 }
 void SceneManager::OcclusionCullOctTree()
 {
@@ -295,8 +297,8 @@ u32 model_index;
 
 void SceneManager::PrintScene()
 {
-    size_t len = arrlen(model_data);
-    printf("There are %zu objects in the scene", arrlen(model_data));
+    printf("PRINTG SCENE:\n\n");
+    printf("There are %td models in the scene.\n\n", arrlen(model_data));
     scene->Print();
 }
 

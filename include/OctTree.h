@@ -28,10 +28,11 @@ protected:
     {
         // Bounding Box for this node
         AABB_3D* bounding_box;
-        u32 bin_size = 0;
+        u32 bin_size   = 0;
         Node *parent   = NULL;
         Bin  *bin      = NULL;
         bool isLeaf    = true;
+        bool isVisible = true;
     };
 
 private:
@@ -46,6 +47,7 @@ private:
     Node* create_node(AABB_3D* aabb, Node *parent);
     bool helper_add(int position, SpatialModel *model);
     void helper_print_quad_tree(int position);
+    void OctTree::helper_frustum_visibility(int position, Camera::Frustum *frustum);
     SpatialModel* helper_get_all_visible_data(SpatialModel* list, int position);
     void split(int position);
 
@@ -58,6 +60,7 @@ public:
     void Print();
 
     bool Add(SpatialModel* model);
+    void UpdateFrustumVisibility(Camera::Frustum *frustum);
     SpatialModel* GetAllVisibleData();
     
 

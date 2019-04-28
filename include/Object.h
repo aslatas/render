@@ -61,6 +61,12 @@ struct Model
     // u32 hash_index;
 };
 
+struct LoadedModel {
+    u32 num_models = 0;
+    Model* models = nullptr;
+    ModelData* model_data = nullptr;
+};
+
 // Temporary model used for the Quad tree. Values are currently harcoded
 // into the tree, but this will change in later iterations.
 // struct Model
@@ -87,6 +93,7 @@ struct SpatialModel
     u32 model_index;
     u32 material_type_idx; // index into material type list
     u32 material_idx;     // index into material list
+    bool isVisible;
 };
 
 // struct Material

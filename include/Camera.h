@@ -40,6 +40,59 @@ namespace Camera
     };
     
     void ApplyInput(float delta, Controller *controller, Camera *cam, glm::vec3 axis_input);
+
+    /*
+     * planes: a six element vec4 array containing each of the size planes. Each vec4
+     *         are the normals to the plane (x, y, z, w).
+     *   index | plane
+     *   ------|-------
+     *     0   | left
+     *     1   | right
+     *     2   | bottom
+     *     3   | top
+     *     4   | near
+     *     5   | far
+     *         Planes are returned normalized.
+     * points: 8 points represenenting 4 corners of the near plane and 4 corners of the far plane.
+     *   index | point
+     *   ------|-------
+     *     0   | Near Top Left
+     *     1   | Near Top Right
+     *     2   | Near Bottom Left
+     *     3   | Near Bottom Right
+     *     4   | Far Top Left
+     *     5   | Far Top Right
+     *     6   | Far Bottom Left
+     *     7   | Far Bottom Right
+     */
+    struct Frustum
+    {
+        glm::vec4 planes[6];
+        glm::vec3 points[8];
+    };
+
+    /*
+     * Extracts frustum planes from a camera.
+     * cam: camera to extract the frustum planes from
+     * modelview: optional parameter representing the model-view matrix.
+     * 1. If the modelview is not provided, then only the projection matrix is used. 
+     *    The algorithm gives the clipping planesin view space (i.e., camera space).
+     * 2. If the  modelview  equal  to  the modelview matrices, then  the  algorithm  
+     *    gives  the clipping  planes in model space
+     *
+     * Returns a six element vec4 array containing each of the size planes. Each vec4
+     * are the normals to the plane (x, y, z, w).
+     *   index | plane
+     *   ------|-------
+     *     0   | left
+     *     1   | right
+     *     2   | bottom
+     *     3   | top
+     *     4   | near
+     *     5   | far
+     * Planes are returned normalized.
+     */
+    Frustum *ExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview = nullptr);
 }
 
 #define CAMERA_H

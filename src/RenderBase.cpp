@@ -51,9 +51,16 @@ void ShutdownRenderer()
 
 void RecordRenderCommands(u32 image_index)
 {
+    // Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(camera, &Camera::GetViewTransform(&camera));
+    Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(camera);
+
+    scene_manager->FrustumCull(frustum_planes);
+
     RenderSceneMaterial* rsm = scene_manager->GetVisibleData();
 
     Model* m = scene_manager->GetModelByIndex(0);
+
+    u32 num = 0;
 
     CommandBeginRenderPass(image_index);
     // For each material type.
@@ -67,6 +74,7 @@ void RecordRenderCommands(u32 image_index)
             
             // For each model of a given material.
             for (u32 k = 0; k < arrlen(rsm[i].scene_materials[j].model_idx); ++k) {
+                ++num;
                 // Model *model = &material->models[k];
                 // rsm[i].scene_materials[j].model_idx[k] <- index into model list
                 Model *model = scene_manager->GetModelByIndex(rsm[i].scene_materials[j].model_idx[k]);
@@ -82,6 +90,8 @@ void RecordRenderCommands(u32 image_index)
             }
         }
     }
+
+    printf("Number of models rendered: %d\n", num);
     
     // Do post process for outlines.
     // NOTE(Matt): Outlines are done in two passes - one to draw selected
@@ -407,6 +417,8 @@ void InitializeScene()
 
     camera.location = glm::make_vec3(&scene->camera_data[0].position[0]);
 
+    printf("There are %d models being read from the scene config.\n\n", scene->num_models);
+
     for (uint32_t i = 0; i < scene->num_models; ++i) 
     {
         SceneModelData* model_data = scene->model_data + i;
@@ -436,6 +448,7 @@ void InitializeScene()
     float max[3] = {100000, 100000, 100000};
     scene_manager->CreateSpatialHeirarchy(min, max);
     scene_manager->LoadOctTree();
+    // scene_manager->PrintScene();
 
     
     // Add screen-space elements.

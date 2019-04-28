@@ -10,7 +10,7 @@
  *
  *
  */
-glm::vec4 *ExtractFrustumPlanes(glm::mat4 frustum)
+glm::vec4 *ExtractFrustumPlanes(glm::mat4 frustum) 
 {
     glm::vec4 *planes = (glm::vec4*)malloc(4 * sizeof(glm::vec4));
 

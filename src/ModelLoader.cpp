@@ -23,12 +23,12 @@ REFACTOR:
     model.shader_id = shader_id;
     model.uniform_index = uniform_index;
     
-    glm::vec3 pos = glm::vec3(0.0f, -3.0f, 0.0f);
-    glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
+    // glm::vec3 pos = glm::vec3(0.0f, -3.0f, 0.0f);
+    // glm::vec3 ext = glm::vec3(0.5f, 0.5f, 0.5f);
     
-    model.pos                   = glm::make_vec3(&model_data->position[0]);
-    model.rot                   = glm::make_vec3(&model_data->rotation[0]);
-    model.scl                   = glm::make_vec3(&model_data->scale[0]);
+    model.pos  = glm::make_vec3(&model_data->position[0]);
+    model.rot  = glm::make_vec3(&model_data->rotation[0]);
+    model.scl  = glm::make_vec3(&model_data->scale[0]);
     ubo->model = glm::scale(glm::mat4(1.0f), model.scl);
     ubo->model = glm::rotate(ubo->model, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
     ubo->model = glm::rotate(ubo->model, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -36,7 +36,7 @@ REFACTOR:
     ubo->model = glm::translate(ubo->model, model.pos);
     
     // char *file = "resources/models/BlenderCube.glb";
-    char *file = "resources/models/Lantern/glTF-Binary/Lantern.glb";
+    // char *file = "resources/models/Lantern/glTF-Binary/Lantern.glb";
     
     tinygltf::Model gltf_model;
     tinygltf::TinyGLTF gltf_ctx;
@@ -250,7 +250,13 @@ REFACTOR:
     }
     // model.bounds.min = min;
     // model.bounds.max = max;
-    model.bounds = *Create3DAxisAlignedBoundingBox(&min[0], &max[0]);
+
+    // adjust the bounding box to world position
+    // min = glm::make_vec3(&min[0]);
+    // max = glm::make_vec3(&max[0]);
+    glm::vec3 ext = (max - min) / 2.0f;
+
+    model.bounds = *Create3DAxisAlignedBoundingBoxFromCenter(model_data->position, &ext[0]);
     return MODEL_LOAD_RESULT_SUCCESS;
 }
 
