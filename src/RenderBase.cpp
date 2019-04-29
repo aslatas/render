@@ -17,6 +17,8 @@ VkDescriptorSet *descriptor_sets_new = nullptr;
 SceneManager *scene_manager;
 
 Model **selected_models = nullptr;
+ModelInstanced bounding_boxes = {};
+
 // TODO(Matt): Refactor these.
 Camera::Camera camera = {};
 Camera::Controller controller = {16.0f, 16.0f, 2.0f, 0.25f, glm::vec3(0.0f), glm::vec3(0.0f)};
@@ -53,15 +55,15 @@ void RecordRenderCommands(u32 image_index)
 {
     // Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(camera, &Camera::GetViewTransform(&camera));
     Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(camera);
-
-    scene_manager->FrustumCull(frustum_planes);
-
+    
+    // scene_manager->FrustumCull(frustum_planes);
+    
     RenderSceneMaterial* rsm = scene_manager->GetVisibleData();
-
+    
     Model* m = scene_manager->GetModelByIndex(0);
-
+    
     u32 num = 0;
-
+    
     CommandBeginRenderPass(image_index);
     // For each material type.
     for (u32 i = 0; i < arrlen(rsm); ++i) {
@@ -80,18 +82,24 @@ void RecordRenderCommands(u32 image_index)
                 Model *model = scene_manager->GetModelByIndex(rsm[i].scene_materials[j].model_idx[k]);
                 
                 // Bind the vertex, index, and uniform buffers.
-                CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, image_index);
+                CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, 7, image_index);
                 CommandBindIndexBuffer(model->index_buffer, VK_INDEX_TYPE_UINT32, image_index);
                 PushConstantBlock push_block = {};
                 push_block.draw_index = model->uniform_index;
                 CommandPushConstants(material_type->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
                 // Draw the model.
-                CommandDrawIndexed(image_index, model->index_count);
+                CommandDrawIndexed(image_index, model->index_count, 1);
             }
         }
     }
-
-    printf("Number of models rendered: %d\n", num);
+    
+    Material* material = scene_manager->GetMaterial(bounding_boxes.material_type, bounding_boxes.shader_id);
+    CommandBindPipeline(material->pipeline, image_index);
+    CommandBindVertexBuffer(bounding_boxes.vertex_buffer, bounding_boxes.attribute_offsets, 4, image_index);
+    CommandBindIndexBuffer(bounding_boxes.index_buffer, VK_INDEX_TYPE_UINT32, image_index);
+    CommandDrawIndexed(image_index, bounding_boxes.index_count, bounding_boxes.instance_count);
+    
+    //printf("Number of models rendered: %d\n", num);
     
     // Do post process for outlines.
     // NOTE(Matt): Outlines are done in two passes - one to draw selected
@@ -110,14 +118,14 @@ void RecordRenderCommands(u32 image_index)
         for (u32 i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
             Model *model = selected_models[i];
-            CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, image_index);
+            CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, 7, image_index);
             CommandBindIndexBuffer(model->index_buffer, VK_INDEX_TYPE_UINT32, image_index);
             // Bind the vertex, index, and uniform buffers.
             PushConstantBlock push_block = {};
             push_block.draw_index = model->uniform_index;
             CommandPushConstants(material_type->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
             // Draw selected models.
-            CommandDrawIndexed(image_index, model->index_count);
+            CommandDrawIndexed(image_index, model->index_count, 1);
         }
     }
     CommandEndRenderPass(image_index);
@@ -233,7 +241,7 @@ void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
     Model *selection = nullptr;
     // Iterate through all objects in the scene.
     u32 len = scene_manager->GetNumberOfModelsInScene();
-    for (auto i = 0; i < len; ++i)
+    for (u32 i = 0; i < len; ++i)
     {
         Model* model = scene_manager->GetModelByIndex(i);
         // If the model has hit testing disabled, skip it.
@@ -263,7 +271,7 @@ void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
     //             Model *model = &material->models[k];
     //             // If the model has hit testing disabled, skip it.
     //             if (!model->hit_test_enabled) continue;
-                
+    
     //             // Otherwise, perform a ray-box test with the object bounds.
     //             float hit_dist;
     //             PerFrameUniformObject *per_frame = GetPerFrameUniform();
@@ -312,12 +320,15 @@ void OnWindowResized()
 void AddMaterial(MaterialCreateInfo *material_info, u32 material_type, VkRenderPass render_pass, u32 sub_pass)
 {
     Material material = CreateMaterial(material_info, scene_manager->GetMaterialLayout(material_type)->pipeline_layout, 
-        material_type, render_pass, sub_pass);
+                                       material_type, render_pass, sub_pass);
     
     scene_manager->AddMaterial(&material, material_type);
     //arrput(material_types[material.type].materials, material);
 }
 
+// TODO(Matt): Put materials in a hash table by friendly name. Engine default always goes in slot 0. If
+// we access a non-default material and it isn't there (or is incompatible), return the default and log a warning.
+// It's annoying referring to materials by index - index shifts around all the time.
 void CreateMaterials()
 {
     CreateDescriptorLayout(&descriptor_layout_new);
@@ -325,8 +336,53 @@ void CreateMaterials()
     
     u32 layout_idx = scene_manager->AddMaterialType(&CreateMaterialLayout());
     // arrput(material_types, CreateMaterialLayout());
-
+    
     material_info = CreateDefaultMaterialInfo("resources/shaders/engine_default_vert.spv", "resources/shaders/engine_default_frag.spv");
+    AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
+    
+    material_info = CreateDefaultMaterialInfo("resources/shaders/bounds_box_vert.spv", "resources/shaders/bounds_box_frag.spv");
+    // We only need 4 bindings, although we need 7 attributes, as 4 of them are used for the transform.
+    material_info.input_info.vertexBindingDescriptionCount = 4;
+    // NOTE(Matt): We could fit an extra vec4 in here, because the bottom row of a transform is almost always
+    // (0, 0, 0, 1). We would have to transpose the matrix and send rows 1-3, and transpose again in the shader.
+    
+    // Set up attribute descriptions.
+    material_info.attribute_descriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT; // Color
+    material_info.attribute_descriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT; // User Data
+    material_info.attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT; // Transform (Column 0)
+    material_info.attribute_descriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT; // Transform (Column 1)
+    material_info.attribute_descriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT; // Transform (Column 2)
+    material_info.attribute_descriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT; // Transform (Column 3)
+    
+    // Use four attribute slots to hold the mat4, all tied to the same binding.
+    material_info.attribute_descriptions[3].binding = 3;
+    material_info.attribute_descriptions[4].binding = 3;
+    material_info.attribute_descriptions[5].binding = 3;
+    material_info.attribute_descriptions[6].binding = 3;
+    
+    // Offsets are the location of the column in a mat4.
+    material_info.attribute_descriptions[3].offset = 0 * sizeof(glm::vec4);
+    material_info.attribute_descriptions[4].offset = 1 * sizeof(glm::vec4);
+    material_info.attribute_descriptions[5].offset = 2 * sizeof(glm::vec4);
+    material_info.attribute_descriptions[6].offset = 3 * sizeof(glm::vec4);
+    
+    // Instance Extent (pre-transform)
+    material_info.binding_description[1].stride = sizeof(glm::vec4);
+    material_info.binding_description[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+    // Instance User Params (color, random, fade amount, etc)
+    material_info.binding_description[2].stride = sizeof(glm::vec4);
+    material_info.binding_description[2].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+    // Instance Transform Column 1
+    material_info.binding_description[3].stride = sizeof(glm::mat4);
+    material_info.binding_description[3].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+    
+    // Use line rendering.
+    material_info.assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    material_info.raster_info.polygonMode = VK_POLYGON_MODE_FILL;
+    // TODO(Matt): Update CommandBindPipeline to allow variable dynamic states, so we can pass line width.
+    // material_info.dynamic_stage_count = 3;
+    // material_info.dynamic_states[2] = VK_DYNAMIC_STATE_LINE_WIDTH;
+    
     AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert.spv", "resources/shaders/frag.spv");
@@ -335,6 +391,8 @@ void CreateMaterials()
     material_info = CreateDefaultMaterialInfo("resources/shaders/vert2.spv", "resources/shaders/frag2.spv");
     AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
     
+    // TODO(Matt): Add some static initializers for common material configs, like "stencil test only" or whatever.
+    // That should cut down on boilerplate like this.
     material_info = CreateDefaultMaterialInfo("resources/shaders/stencil_vert.spv", nullptr);
     material_info.raster_info.cullMode = VK_CULL_MODE_NONE;
     material_info.depth_stencil.depthTestEnable = VK_FALSE;
@@ -398,7 +456,7 @@ void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* bu
 internal void InitializeSceneResources()
 {
     scene_manager = new SceneManager();
-
+    
     CreateMaterials();
     CreateGlobalUniformBuffers();
     // Load fonts and textures.
@@ -410,21 +468,21 @@ internal void InitializeSceneResources()
 void InitializeScene()
 {
     InitializeSceneResources();
-
+    
     // Load scene config
     SceneSettings* scene = LoadSceneSettings("../../config/scene/default_scene.json"); 
-
-
+    
+    
     camera.location = glm::make_vec3(&scene->camera_data[0].position[0]);
-
+    
     printf("There are %d models being read from the scene config.\n\n", scene->num_models);
-
+    
     for (uint32_t i = 0; i < scene->num_models; ++i) 
     {
         SceneModelData* model_data = scene->model_data + i;
         Model* model = (Model*)malloc(sizeof(Model));
         EModelLoadResult result = LoadGTLFModel(model_data, *model, 
-            GetPerDrawUniform(uniforms.object_count), 0, 1, uniforms.object_count);
+                                                GetPerDrawUniform(uniforms.object_count), 0, 2, uniforms.object_count);
         if (result == MODEL_LOAD_RESULT_SUCCESS) {
             uniforms.object_count++;
             // AddToScene(*model);
@@ -434,22 +492,105 @@ void InitializeScene()
             scene_manager->AddModel("", model);
         } else printf("FAILURE TO LOAD MODEL\n");
     }
-
+    
     Model* m = scene_manager->GetModelByIndex(0);
     u32 num =  scene_manager->GetNumberOfModelsInScene();
     
-
+    bounding_boxes.vertex_count = 8;
+    bounding_boxes.index_count = 24;
+    bounding_boxes.instance_count = num;
+    bounding_boxes.material_type = 0;
+    bounding_boxes.shader_id = 1;
+    
+    bounding_boxes.attribute_offsets[0] = 0;
+    bounding_boxes.attribute_offsets[1] = sizeof(glm::vec3) * bounding_boxes.vertex_count;
+    bounding_boxes.attribute_offsets[2] = bounding_boxes.attribute_offsets[1] + sizeof(glm::vec4) * bounding_boxes.instance_count;
+    bounding_boxes.attribute_offsets[3] = bounding_boxes.attribute_offsets[2] + sizeof(glm::vec4) * bounding_boxes.instance_count;
+    
+    bounding_boxes.memory_size =
+        bounding_boxes.attribute_offsets[3] + sizeof(glm::mat4) * bounding_boxes.instance_count;
+    bounding_boxes.memory = malloc(bounding_boxes.memory_size);
+    
+    arrsetlen(bounding_boxes.indices, bounding_boxes.index_count);
+    bounding_boxes.locations = (glm::vec3*)bounding_boxes.memory;
+    bounding_boxes.colors = (glm::vec4*)((char*)bounding_boxes.memory + bounding_boxes.attribute_offsets[1]);
+    bounding_boxes.user_data = (glm::vec4*)((char*)bounding_boxes.memory + bounding_boxes.attribute_offsets[2]);
+    bounding_boxes.transforms = (glm::mat4*)((char*)bounding_boxes.memory + bounding_boxes.attribute_offsets[3]);
+    
+    // TODO(Matt): Move this into a static initializer for box primitives.
+    bounding_boxes.indices[0] = 0;
+    bounding_boxes.indices[1] = 1;
+    bounding_boxes.indices[2] = 1;
+    bounding_boxes.indices[3] = 2;
+    bounding_boxes.indices[4] = 2;
+    bounding_boxes.indices[5] = 3;
+    bounding_boxes.indices[6] = 3;
+    bounding_boxes.indices[7] = 0;
+    bounding_boxes.indices[8] = 4;
+    bounding_boxes.indices[9] = 5;
+    bounding_boxes.indices[10] = 5;
+    bounding_boxes.indices[11] = 6;
+    bounding_boxes.indices[12] = 6;
+    bounding_boxes.indices[13] = 7;
+    bounding_boxes.indices[14] = 7;
+    bounding_boxes.indices[15] = 4;
+    bounding_boxes.indices[16] = 0;
+    bounding_boxes.indices[17] = 4;
+    bounding_boxes.indices[18] = 1;
+    bounding_boxes.indices[19] = 5;
+    bounding_boxes.indices[20] = 2;
+    bounding_boxes.indices[21] = 6;
+    bounding_boxes.indices[22] = 3;
+    bounding_boxes.indices[23] = 7;
+    
+    bounding_boxes.locations[0] = glm::vec3(0.0f, 0.0f, 0.0f);
+    bounding_boxes.locations[1] = glm::vec3(1.0f, 0.0f, 0.0f);
+    bounding_boxes.locations[2] = glm::vec3(1.0f, 1.0f, 0.0f);
+    bounding_boxes.locations[3] = glm::vec3(0.0f, 1.0f, 0.0f);
+    bounding_boxes.locations[4] = glm::vec3(0.0f, 0.0f, 1.0f);
+    bounding_boxes.locations[5] = glm::vec3(1.0f, 0.0f, 1.0f);
+    bounding_boxes.locations[6] = glm::vec3(1.0f, 1.0f, 1.0f);bounding_boxes.locations[7] = glm::vec3(0.0f, 1.0f, 1.0f);
+    
+    for (u32 i = 0; i < bounding_boxes.instance_count; ++i) {
+        Model* model = scene_manager->GetModelByIndex(i);
+        glm::vec4 color = glm::vec4(1.0f, 0.1f, 0.5f, 1.0f);
+        glm::vec4 user_data = glm::vec4(1.0f);
+        glm::mat4 transform = glm::mat4(1.0f);
+        
+        glm::vec3 location = model->bounds.min;
+        glm::vec3 rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 scale = 2.0f * model->bounds.ext;
+        
+        transform = glm::scale(transform, scale);
+        transform = glm::rotate(transform, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+        transform = glm::rotate(transform, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+        transform = glm::rotate(transform, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+        transform = glm::translate(transform, location);
+        
+        bounding_boxes.colors[i] = color;
+        bounding_boxes.user_data[i] = user_data;
+        bounding_boxes.transforms[i] = transform;
+    }
+    
+    void *a = bounding_boxes.memory;
+    for (u32 i = 0; i < 8; ++i) {
+        glm::vec3 v = *(glm::vec3*)((char*)a + i * sizeof(glm::vec3));
+        printf("Vertex location was (%f, %f, %f)\n", v.x, v.y, v.z);
+    }
+    CreateModelBuffer(bounding_boxes.memory_size, bounding_boxes.memory, &bounding_boxes.vertex_buffer, &bounding_boxes.vertex_buffer_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    CreateModelBuffer(sizeof(u32) * bounding_boxes.index_count, bounding_boxes.indices, &bounding_boxes.index_buffer, &bounding_boxes.index_buffer_memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    
     // Delete scene config
     SaveSceneSettings(scene, "../../config/scene/default_scene.json");
     FreeSceneSettings(scene);
-
+    
     // Load the OctTree
     float min[3] = {-100000, -100000, -100000};
     float max[3] = {100000, 100000, 100000};
     scene_manager->CreateSpatialHeirarchy(min, max);
     scene_manager->LoadOctTree();
     // scene_manager->PrintScene();
-
+    
     
     // Add screen-space elements.
     // TODO(Matt): Move screen-space drawing out of the "scene" hierarchy.
@@ -470,7 +611,7 @@ internal void DestroySceneResources()
     //     for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
     //         DestroyPipeline(material_types[i].materials[j].pipeline);
     //     }
-        
+    
     //     DestroyPipelineLayout(material_types[i].pipeline_layout);
     //     arrfree(material_types[i].materials);
     // }
