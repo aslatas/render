@@ -15,7 +15,7 @@ namespace Camera
         float near_dist = 0.01f;
         float far_dist = 1000.0f;
         glm::vec3 location = glm::vec3(0.0f);
-        glm::vec3 rotation = glm::vec3(0.0f);
+        glm::vec3 rotation = glm::vec3(0.0f); 
         CameraMode mode = FPS;
     };
     glm::mat4 GetViewTransform(Camera *cam);
@@ -79,20 +79,21 @@ namespace Camera
      *    The algorithm gives the clipping planesin view space (i.e., camera space).
      * 2. If the  modelview  equal  to  the modelview matrices, then  the  algorithm  
      *    gives  the clipping  planes in model space
-     *
-     * Returns a six element vec4 array containing each of the size planes. Each vec4
-     * are the normals to the plane (x, y, z, w).
-     *   index | plane
-     *   ------|-------
-     *     0   | left
-     *     1   | right
-     *     2   | bottom
-     *     3   | top
-     *     4   | near
-     *     5   | far
      * Planes are returned normalized.
      */
     Frustum *ExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview = nullptr);
+
+    /*
+     * Extracts frustum planes from a camera.
+     * cam: camera to extract the frustum planes from
+     * modelview: optional parameter representing the model-view matrix.
+     * 1. If the modelview is not provided, then only the projection matrix is used. 
+     *    The algorithm gives the clipping planesin view space (i.e., camera space).
+     * 2. If the  modelview  equal  to  the modelview matrices, then  the  algorithm  
+     *    gives  the clipping  planes in model space
+     * Planes are NOT returned normalized.
+     */
+    Frustum *UExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview = nullptr);
 }
 
 #define CAMERA_H

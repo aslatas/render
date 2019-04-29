@@ -38,6 +38,9 @@ bool CheckBoundingBoxCollision2D(AABB_2D &boxA, AABB_2D &boxB);
 // TODO(Matt): Is a slab test faster than point-axis tests?
 bool CheckBoundingBoxCollision3D(AABB_3D &boxA, AABB_3D &boxB);
 
+// Determine if a point is between two rays
+bool PointBetweenTwoRays(glm::vec3 ray_min, glm::vec3 ray_max, glm::vec3 origin, glm::vec3 point);
+
 
 // Determine if a point is in Positive/Negative Space or Intersecting
 // the plane.

@@ -23,6 +23,8 @@ TODOs for the QuadTree
 #define INITIAL_BIN_SIZE 10
 #define BIN_DEPTH(x) ((x) * 1.4)
 
+
+
 //-------------------------------------------------------------------//
 // Helper Functions
 //-------------------------------------------------------------------//
@@ -246,6 +248,50 @@ void OctTree::helper_frustum_visibility(int position, Camera::Frustum *frustum)
     }
 }
 
+void OctTree::helper_lazy_occlusion_culling(int position, OcclusionList *list, glm::vec3 *occluder_size)
+{
+    Node *node = tree[position];
+
+    // don't evaluate a branch that is not visible
+    if (!node->isVisible)
+        return;
+
+    // don't care about non-branches
+    if (!node->isLeaf)
+    {
+        // recursively search for a leaf
+        for (int i = 1; i <= TREE_CHILDREN; ++i) {
+            OctTree::helper_lazy_occlusion_culling((position * TREE_CHILDREN) + i, list, occluder_size); 
+        }
+    }
+    else
+    {
+        for (int j = 0; j < node->bin->count; ++j)
+        {
+            SpatialModel sm = *node->bin->model[j];
+            
+            // glm::vec3 is_occluder = (occluder_size = nullptr) ? sm.aabb.ext : (sm.aabb.ext - *occluder_size); 
+            glm::vec3 is_occluder = sm.aabb.ext;
+            if (occluder_size != nullptr)
+            {
+                is_occluder -= *occluder_size;
+            }
+
+            // the model ext is smaller than the set occluder ext, so put in the occludee list
+            if (is_occluder[0] < 0 && is_occluder[1] < 0 && is_occluder[2] < 0)
+            {
+                arrput(list->occludee, sm);
+            }
+            // the model ext is greater than the set occluder ext, so put in the occluder list
+            else
+            {
+                // TODO(Dustin): Check to see if this model occludes other objects in the list or is occluded
+                arrput(list->occluder, sm);
+            }
+        }
+    }
+}
+
 SpatialModel* OctTree::helper_get_all_visible_data(SpatialModel* list, int position)
 {
     Node *node = tree[position];
@@ -339,6 +385,180 @@ void OctTree::UpdateFrustumVisibility(Camera::Frustum *frustum)
     if (arrlen(tree) < 0)
         return;
     OctTree::helper_frustum_visibility(0, frustum);
+}
+
+SpatialModel* OctTree::UpdateOcclusionVisibility( glm::vec3 *camera_position,
+                                                 glm::vec3 *occluder_size,
+                                                 ECullingSettings type)
+{
+    if (arrlen(tree) < 0)
+        return nullptr;
+
+    OcclusionList *ol = (OcclusionList*)malloc(sizeof(OcclusionList));
+    ol->occluder = nullptr;
+    ol->occludee = nullptr;
+
+    OctTree::helper_lazy_occlusion_culling(0, ol, occluder_size);
+    
+    
+
+    // Sort the occluder list by distance from camera (?) - not right now, would have to implement a merge sort
+
+    // (ray_min[0] * (-1 * point_ray[1]) + ray_min[1] * point_ray[0] >= 0) &&
+    // (ray_max[0] * (-1 * point_ray[1]) + ray_max[1] * point_ray[0] <= 0);
+    // glm::vec3 camera_position = camera.location;
+
+    // if (arrlen(ol->occluder) == 0)
+    // {
+
+    // }
+    // else if ()
+    // {
+
+    // } 
+
+    // Check for occlusion
+    SpatialModel *visible_models = nullptr;
+    printf("There are %td occluders\n", arrlen(ol->occluder));
+    printf("There are %td occludees\n", arrlen(ol->occludee));
+    for (int i = 0; i < arrlen(ol->occludee); ++i)
+    {
+        SpatialModel occludee = ol->occludee[i];
+
+        // glm::mat4 oem = occludee.aabb.max * camera->GetViewTransform(camera);
+        // Model occludee_model = models[occluder.model_index];
+        
+
+        bool isOccluded = false;
+        for (int j = 0; j < arrlen(ol->occluder); ++j)
+        {
+            SpatialModel occluder = ol->occluder[j];
+
+            // get the model
+            
+
+            // used for the other two types of occlusion: mild and aggressive only check if there
+            // is a full overlap between AABBs. 
+            bool isFullOverlap = false;
+
+            if (type == OCCLUSION_LAZY)
+            {
+                // Check bounding box overlap
+                // glm::vec3 max_ray = (occluder.aabb.max - *camera_position);
+                // glm::vec3 point_max_ray = (occludee.aabb.max - *camera_position);
+
+                // // assume the occludee is in front of the occluder
+                // if (length(point_max_ray) <= length(max_ray))
+                // {
+                //     continue;
+                // }
+
+                // // now that we have confirmed the occludee is farther back than the 
+                // // occluder continue creating rays
+                // max_ray = normalize(max_ray);
+                // point_max_ray = normalize(point_max_ray);
+                // glm::vec3 min_ray = normalize(occluder.aabb.min - *camera_position);
+                // glm::vec3 point_min_ray = normalize(occludee.aabb.min - *camera_position);
+
+                // float ray_angle = abs(dot(max_ray, min_ray));
+                // float min_ray_angle = abs(dot(min_ray, point_min_ray));
+                // float max_ray_angle = abs(dot(min_ray, point_max_ray));
+
+                // if((ray_angle >= 0.99998f && ray_angle <= 1.0f) || 
+                //    ((min_ray_angle <= ray_angle && min_ray_angle > 0) && 
+                //    (max_ray_angle <= ray_angle && max_ray_angle > 0) ) )
+                // {
+                //     isOccluded = true;
+                //     isFullOverlap = true;
+                // } 
+
+                glm::vec3 er_max = occluder.aabb.max;
+                glm::vec3 ee_max = occludee.aabb.max;
+
+                glm::vec3 max_ray = (occluder.aabb.max - *camera_position);
+                glm::vec3 point_max_ray = (occludee.aabb.max - *camera_position);
+
+                // Z is up, so y is depth
+                // TODO(Dustin): what if they are in opposite directions?
+                if (abs(max_ray[1]) <= abs(point_max_ray[1]))
+                {
+                    max_ray = normalize(max_ray);
+                    point_max_ray = normalize(point_max_ray);
+                    glm::vec3 point_min_ray = normalize(occludee.aabb.min - *camera_position);
+                    glm::vec3 min_ray = normalize(occluder.aabb.min - *camera_position);
+                    bool retmin = PointBetweenTwoRays(min_ray, max_ray, *camera_position, occludee.aabb.min);
+                    bool retmax = PointBetweenTwoRays(min_ray, max_ray, *camera_position, occludee.aabb.max);
+
+                    glm::vec3 er_min = occluder.aabb.min; // A
+                    glm::vec3 ee_min = occludee.aabb.min; // B
+                    // bool testA = ;
+
+                    bool l=false;
+                    bool ll=false;
+                    if (l && ll) 
+                    {
+                        printf("this is stupid!\n");
+                    }
+
+                    // between the min/max rays
+                    if (retmin && retmax)
+                    {
+                        /*
+                        b = er
+                        a = ee
+                        (er_min[0] >= ee_min[0] && er_min[1] >= ee_min[1]) &&
+                        (er_min[0])
+                        */
+                        glm::vec3 vis_ray_max = *camera_position + 1.0f * max_ray;
+                        glm::vec3 vis_ray_min = *camera_position + 1.0f * min_ray;
+                        glm::vec3 vis_box_max = *camera_position + 1.0f * point_max_ray;
+                        glm::vec3 vis_box_min = *camera_position + 1.0f * point_min_ray;
+
+                        bool vis_max = vis_ray_max[0] >= vis_box_max[0] && vis_ray_max[2] >= vis_box_max[2];
+                        bool vis_min = vis_ray_min[0] <= vis_box_min[0] && vis_ray_min[2] <= vis_box_min[2];
+
+                        
+                        if (vis_max && vis_min)
+                        {
+                            isOccluded = true;
+                            isFullOverlap = true;
+                        }
+                        
+                    }
+
+                }
+
+                
+            }
+
+            // it is the responsibility of these two functions to change isOccluded
+            // back to false
+            if (type == OCCLUSION_MILD && isFullOverlap)
+            {
+
+            }
+
+            if (type == OCCLUSION_AGGRESSIVE && isFullOverlap)
+            {
+
+            }
+            
+            if (isOccluded)
+                break;
+        }
+
+        if (!isOccluded)
+        {
+            arrput(visible_models, occludee);
+        }
+    }
+
+    for (int i = 0; i < arrlen(ol->occluder); ++i)
+    {
+        arrput(visible_models, ol->occluder[i]);
+    }
+
+    return visible_models;
 }
 
 SpatialModel* OctTree::GetAllVisibleData()

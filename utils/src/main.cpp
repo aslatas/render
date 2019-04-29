@@ -76,22 +76,22 @@ typedef uint8_t u8;
 #define u32 unsigned int 
 
 // Header Files
-#include "Bounds.h"
-#include "Object.h"
-#include "Tree.h"
-#include "ModelLoader.h"
-#include "SceneManager.h"
+// #include "Bounds.h"
+// #include "Object.h"
+// #include "Tree.h"
+// #include "ModelLoader.h"
+// #include "SceneManager.h"
 
 // Config Parser Component headers
-#include "config_parsers/ConfigUtils.h"
-#include "config_parsers/SceneConfig.h"
+// #include "config_parsers/ConfigUtils.h"
+// #include "config_parsers/SceneConfig.h"
 
 // SRC Files
-#include "Bounds.cpp"
-#include "Tree.cpp"
-#include "Object.cpp"
-#include "ModelLoader.cpp"
-#include "SceneManager.cpp"
+// #include "Bounds.cpp"
+// #include "Tree.cpp"
+// #include "Object.cpp"
+// #include "ModelLoader.cpp"
+// #include "SceneManager.cpp"
 
 /**
 TODOS
@@ -101,46 +101,37 @@ TODOS
      Create the render array
 */
 
+bool CalculateBetween(glm::vec3 ray_max, glm::vec3 ray_min, glm::vec3 point_ray)
+{
+    float c = abs(dot(ray_max, ray_min));
+    float res = abs(dot(ray_min, point_ray));
+
+    // c == 1 is edge case where the ray_min/max are parallel to each other
+    // there are rounding point errors
+    bool b = c >= 0.99998f && c <= 1.0f || res <= c && res > 0;
+
+    return (ray_min[0] * (-1 * point_ray[1]) + ray_min[1] * point_ray[0] >= 0) &&
+           (ray_max[0] * (-1 * point_ray[1]) + ray_max[1] * point_ray[0] <= 0);
+}
+
 int main(void) 
 {
-    SceneManager* sm = new SceneManager();
 
-    float min[3] = {0, 5, 0};
-    float max[3] = {5, 10, 5};
+    glm::vec3 ray_m = normalize(glm::vec3(-1, -1, 1));
+    glm::vec3 ray_a = normalize(glm::vec3(1, 1, -1));
 
-    // Create the heirarchy and load the octtree
-    min[0] = -100;
-    min[1] = -100;
-    min[2] = -100;
-    max[0] = 100;
-    max[1] = 100;
-    max[2] = 100;
-    sm->CreateSpatialHeirarchy(min, max);
+    glm::vec3 test1 = normalize(glm::vec3(0, 1, 1));
+    glm::vec2 test2 = normalize(glm::vec2(1, 1));
+    glm::vec2 test3 = normalize(glm::vec2(-1, 1));
+    glm::vec2 test4 = normalize(glm::vec2(-1, -1));
 
-    // for (auto i = 0.0f; i < 100.0f; i += 1.f) {
-    //     min[0] = i;
-    //     max[0] = i+.9f;
-    //     for (auto j = 0.0f; j < 100.0f; j += 1.f) {
-    //         min[1] = j;
-    //         max[1] = j+.9f;
-    //         for (auto k = 0.0f; k < 100.0f; k += 1.f) {
-    //             min[2] = k;
-    //             max[2] = k+.9f;
-    //             sm->AddModel(min, max, -1, i+j+k);
-    //         }
-    //     }
-    // }
+    assert(CalculateBetween(ray_a, ray_m, test1));
+    // assert(CalculateBetween(ray_a, ray_m, test2));
+    // assert(CalculateBetween(ray_a, ray_m, test3));
+    // assert(!CalculateBetween(ray_a, ray_m, test4));
 
-    sm->LoadModel("../../../resources/models/Lantern/glTF-Binary/Lantern.glb", -1);
 
-    sm->LoadOctTree();
-    sm->PrintScene();
-
-    sm->Shutdown();
-    //delete sm;
-
-    //free(test);
-    //delete str;
+    
 
     return(0);
 }

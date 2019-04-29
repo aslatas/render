@@ -15,10 +15,11 @@ UniformBuffer uniforms = {};
 VkDescriptorSet *descriptor_sets_new = nullptr;
 
 SceneManager *scene_manager;
+char *scene_file = "../../config/scene/simple_occlusion_test.json";
 
 Model **selected_models = nullptr;
 // TODO(Matt): Refactor these.
-Camera::Camera camera = {};
+Camera::Camera *cameras = nullptr;
 Camera::Controller controller = {16.0f, 16.0f, 2.0f, 0.25f, glm::vec3(0.0f), glm::vec3(0.0f)};
 
 // TODO(Matt): Move this to the platform layer.
@@ -51,14 +52,16 @@ void ShutdownRenderer()
 
 void RecordRenderCommands(u32 image_index)
 {
-    // Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(camera, &Camera::GetViewTransform(&camera));
-    Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(camera);
+    // this first call is how it is supposed to be. I think I am missing an edge case for the collision
+    Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[1], &Camera::GetViewTransform(&cameras[1]));
+    // Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[1]);
 
     scene_manager->FrustumCull(frustum_planes);
+    scene_manager->OcclusionCullOctTree();
 
-    RenderSceneMaterial* rsm = scene_manager->GetVisibleData();
+    RenderSceneMaterial* rsm = scene_manager->GetVisibleData(&cameras[1].location);
 
-    Model* m = scene_manager->GetModelByIndex(0);
+    // Model* m = scene_manager->GetModelByIndex(0);
 
     u32 num = 0;
 
@@ -144,7 +147,7 @@ void UpdatePrePhysics(double delta)
         float forward_axis = GetForwardAxis();
         float right_axis = GetRightAxis();
         float up_axis = GetUpAxis();
-        Camera::ApplyInput((float)delta, &controller, &camera, glm::vec3(forward_axis, right_axis, up_axis));
+        Camera::ApplyInput((float)delta, &controller, &cameras[0], glm::vec3(forward_axis, right_axis, up_axis));
         s32 x, y;
         float x_delta, y_delta;
         PlatformGetCursorDelta(&x, &y);
@@ -153,16 +156,16 @@ void UpdatePrePhysics(double delta)
         y_delta = (float)y;
         float yaw = x_delta * -0.005f;
         float pitch = y_delta * -0.005f;
-        Camera::AddYaw(&camera, yaw);
-        Camera::AddPitch(&camera, pitch);
+        Camera::AddYaw(&cameras[0], yaw);
+        Camera::AddPitch(&cameras[0], pitch);
     } else {
-        Camera::ApplyInput((float)delta, &controller, &camera, glm::vec3(0.0f));
+        Camera::ApplyInput((float)delta, &controller, &cameras[0], glm::vec3(0.0f));
     }
     
     PerFrameUniformObject *per_frame = GetPerFrameUniform();
-    per_frame->view_position = glm::vec4(camera.location, 1.0f);
-    per_frame->view = Camera::GetViewTransform(&camera);
-    per_frame->projection = Camera::GetProjectionTransform(&camera);
+    per_frame->view_position = glm::vec4(cameras[0].location, 1.0f);
+    per_frame->view = Camera::GetViewTransform(&cameras[0]);
+    per_frame->projection = Camera::GetProjectionTransform(&cameras[0]);
     
     PerPassUniformObject *per_pass = GetPerPassUniform();
     per_pass->sun.direction = glm::vec4(0.7f, -0.2f, -1.0f, 0.0f);
@@ -412,10 +415,21 @@ void InitializeScene()
     InitializeSceneResources();
 
     // Load scene config
-    SceneSettings* scene = LoadSceneSettings("../../config/scene/default_scene.json"); 
+    SceneSettings* scene = LoadSceneSettings(scene_file); 
+
+    // Force camera at location 0 to be player camera
+    for (u32 i = 0; i < scene->num_cameras; ++i)
+    {
+        Camera::Camera cam;
+        cam.location = glm::make_vec3(&scene->camera_data[i].position[0]);
+        Camera::AddPitch(&cam, scene->camera_data[i].pitch);
+        Camera::AddYaw(&cam, scene->camera_data[i].yaw);
+        arrput(cameras, cam);
+    }
 
 
-    camera.location = glm::make_vec3(&scene->camera_data[0].position[0]);
+
+    // camera.location = glm::make_vec3(&scene->camera_data[0].position[0]);
 
     printf("There are %d models being read from the scene config.\n\n", scene->num_models);
 

@@ -80,6 +80,7 @@ void Camera::ApplyInput(float delta, Controller *controller, Camera *cam, glm::v
     cam->location += controller->velocity * delta;
 }
 
+// Returns the planes normalized
 Camera::Frustum *Camera::ExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview)
 {
     glm::mat4 proj = GetProjectionTransform(&cam);
@@ -88,7 +89,7 @@ Camera::Frustum *Camera::ExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview)
     Frustum* f = (Frustum *)malloc(sizeof(Frustum)); 
     // glm::vec4 *planes = (glm::vec4*)malloc(6 * sizeof(glm::vec4));
 
-    glm::mat4 frustum = (modelview == nullptr) ? proj : proj * *modelview;
+    glm::mat4 frustum = (modelview == nullptr) ? proj : *modelview * proj;
     frustum = inverse(frustum);
 
     // left
@@ -142,24 +143,6 @@ Camera::Frustum *Camera::ExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview)
     }
 
     // Now get the four corners of the near and far plane
-/*
-Near Top Left = Cnear + (up * (Hnear / 2)) - (w * (Wnear / 2))
-
-Near Top Right = Cnear + (up * (Hnear / 2)) + (w * (Wnear / 2))
-
-Near Bottom Left = Cnear - (up * (Hnear / 2)) - (w * (Wnear /2))
-
-Near Bottom Right = Cnear - (up * (Hnear / 2)) + (w * (Wnear / 2))
-
-Far Top Left = Cfar + (up * (Hfar / 2)) - (w * Wfar / 2))
-
-Far Top Right = Cfar + (up * (Hfar / 2)) + (w * Wfar / 2))
-
-Far Bottom Left = Cfar - (up * (Hfar / 2)) - (w * Wfar / 2))
-
-Far Bottom Right = Cfar - (up * (Hfar / 2)) + (w * Wfar / 2))
-*/
-    // different vectors from the camera
     glm::vec3 forward = GetForwardVector(&cam);
     glm::vec3 w   = GetRightVector(&cam);
     glm::vec3 up      = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -169,6 +152,83 @@ Far Bottom Right = Cfar - (up * (Hfar / 2)) + (w * Wfar / 2))
     float wnear = hnear * cam.aspect_ratio;
 
     float hfar = 2 * tan(cam.fov / 2) * cam.far_dist;
+    float wfar = hfar * cam.aspect_ratio;
+
+    // centers for each plane
+    glm::vec3 cnear = cam.location + forward * cam.near_dist;
+    glm::vec3 cfar = cam.location + forward * cam.far_dist;
+
+    // let's get the point
+    f->points[0] = cnear + (up * (hnear / 2.0f)) - (w * (wnear / 2.0f));
+    f->points[1] = cnear + (up * (hnear / 2.0f)) + (w * (wnear / 2.0f));
+    f->points[2] = cnear - (up * (hnear / 2.0f)) - (w * (wnear /2.0f));
+    f->points[3] = cnear - (up * (hnear / 2.0f)) + (w * (wnear / 2.0f));
+    f->points[4] = cfar + (up * (hfar / 2.0f)) - (w * wfar / 2.0f);
+    f->points[5] = cfar + (up * (hfar / 2.0f)) + (w * wfar / 2.0f);
+    f->points[6] = cfar - (up * (hfar / 2.0f)) - (w * wfar / 2.0f);
+    f->points[7] = cfar - (up * (hfar / 2.0f)) + (w * wfar / 2.0f);
+
+    return f;
+}
+
+// Does not return normalized planes
+Camera::Frustum *Camera::UExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview)
+{
+        glm::mat4 proj = GetProjectionTransform(&cam);
+    // glm::mat4 proj = glm::perspective(cam.fov, cam.aspect_ratio, cam.near_dist, cam.far_dist);
+
+    Frustum* f = (Frustum *)malloc(sizeof(Frustum)); 
+    // glm::vec4 *planes = (glm::vec4*)malloc(6 * sizeof(glm::vec4));
+
+    glm::mat4 frustum = (modelview == nullptr) ? proj : *modelview * proj;
+    frustum = inverse(frustum);
+
+    // left
+    f->planes[0][0] = 1*(frustum[3][0] + frustum[0][0]);
+    f->planes[0][1] = 1*(frustum[3][1] + frustum[0][1]);
+    f->planes[0][2] = 1*(frustum[3][2] + frustum[0][2]);
+    f->planes[0][3] = 1*(frustum[3][3] + frustum[0][3]);
+
+    // right
+    f->planes[1][0] = 1*(frustum[3][0] - frustum[0][0]);
+    f->planes[1][1] = 1*(frustum[3][1] - frustum[0][1]);
+    f->planes[1][2] = 1*(frustum[3][2] - frustum[0][2]);
+    f->planes[1][3] = 1*(frustum[3][3] - frustum[0][3]);
+
+    // bottom
+    f->planes[2][0] = 1*(frustum[3][0] + frustum[1][0]);
+    f->planes[2][1] = 1*(frustum[3][1] + frustum[1][1]);
+    f->planes[2][2] = 1*(frustum[3][2] + frustum[1][2]);
+    f->planes[2][3] = 1*(frustum[3][3] + frustum[1][3]);
+    
+    // top
+    f->planes[3][0] = 1*(frustum[3][0] - frustum[1][0]);
+    f->planes[3][1] = 1*(frustum[3][1] - frustum[1][1]);
+    f->planes[3][2] = 1*(frustum[3][2] - frustum[1][2]);
+    f->planes[3][3] = 1*(frustum[3][3] - frustum[1][3]);
+
+    // near
+    f->planes[4][0] = 1*(frustum[3][0] + frustum[2][0]);
+    f->planes[4][1] = 1*(frustum[3][1] + frustum[2][1]);
+    f->planes[4][2] = 1*(frustum[3][2] + frustum[2][2]);
+    f->planes[4][3] = 1*(frustum[3][3] + frustum[2][3]);
+    
+    // far
+    f->planes[5][0] = 1*(frustum[3][0] - frustum[2][0]);
+    f->planes[5][1] = 1*(frustum[3][1] - frustum[2][1]);
+    f->planes[5][2] = 1*(frustum[3][2] - frustum[2][2]);
+    f->planes[5][3] = 1*(frustum[3][3] - frustum[2][3]);
+
+    // Now get the four corners of the near and far plane
+    glm::vec3 forward = GetForwardVector(&cam);
+    glm::vec3 w   = GetRightVector(&cam);
+    glm::vec3 up      = glm::vec3(0.0f, 0.0f, 1.0f);
+
+    // near poin
+    float hnear = 2.0f * tan(cam.fov / 2.0f) * cam.near_dist;
+    float wnear = hnear * cam.aspect_ratio;
+
+    float hfar = 2.0f * tan(cam.fov / 2.0f) * cam.far_dist;
     float wfar = hfar * cam.aspect_ratio;
 
     // centers for each plane

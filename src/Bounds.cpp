@@ -64,6 +64,9 @@ HalfSpace ClassifyPoint(glm::vec4 plane, glm::vec3 point)
 
 bool AABBFrustumIntersection(Camera::Frustum *frustum, AABB_3D *aabb)
 {
+    glm::vec4 *frustum_planes = frustum->planes;
+    glm::vec3 *frustum_points = frustum->points;
+    
     // unsigned char intersection_min = 0x03; // assume inside
     // unsigned char intersection_max = 0x03; // assume inside
     // for (int i = 0; i < 6; ++i)
@@ -76,8 +79,7 @@ bool AABBFrustumIntersection(Camera::Frustum *frustum, AABB_3D *aabb)
     //     intersection_min &= ClassifyPoint(frustum_planes[i], aabb->min);
     //     intersection_max &= ClassifyPoint(frustum_planes[i], aabb->max);
     // }
-    glm::vec4 *frustum_planes = frustum->planes;
-    glm::vec3 *frustum_points = frustum->points;
+    
 
     glm::vec3 min = aabb->min;
     glm::vec3 max = aabb->max;
@@ -111,4 +113,16 @@ bool AABBFrustumIntersection(Camera::Frustum *frustum, AABB_3D *aabb)
     // true.
     return true;
     // return intersection_min|intersection_max;
+}
+
+
+bool PointBetweenTwoRays(glm::vec3 ray_min, glm::vec3 ray_max, glm::vec3 origin, glm::vec3 point)
+{
+    glm::vec3 point_ray = normalize(point - origin);
+
+    float m = (ray_min[0] * (-1 * point_ray[2]) + ray_min[2] * point_ray[0]);
+    float a = (ray_max[0] * (-1 * point_ray[2]) + ray_max[2] * point_ray[0]);
+
+    return (ray_min[0] * (-1 * point_ray[2]) + ray_min[2] * point_ray[0] >= 0) &&
+           (ray_max[0] * (-1 * point_ray[2]) + ray_max[2] * point_ray[0] <= 0);
 }

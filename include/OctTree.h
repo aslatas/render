@@ -35,6 +35,19 @@ protected:
         bool isVisible = true;
     };
 
+    struct OcclusionList
+    {
+        SpatialModel* occluder; // a list of objects that can potentially occlude other object
+        SpatialModel* occludee; // a list of objects that can be occluded by larger objects
+    };
+
+    enum ECullingSettings
+    {
+        OCCLUSION_AGGRESSIVE,  // everything is checked, down to the tri
+        OCCLUSION_MILD,        // not sure yet
+        OCCLUSION_LAZY         // Just Bounding Box is checked
+    };
+
 private:
     // some nifty state
     // size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
@@ -48,6 +61,7 @@ private:
     bool helper_add(int position, SpatialModel *model);
     void helper_print_quad_tree(int position);
     void OctTree::helper_frustum_visibility(int position, Camera::Frustum *frustum);
+    void OctTree::helper_lazy_occlusion_culling(int position, OcclusionList *list, glm::vec3 *occluder_size = nullptr);
     SpatialModel* helper_get_all_visible_data(SpatialModel* list, int position);
     void split(int position);
 
@@ -61,6 +75,13 @@ public:
 
     bool Add(SpatialModel* model);
     void UpdateFrustumVisibility(Camera::Frustum *frustum);
+
+    
+
+    // If no occluder size is given then it is assumed everythings can be an Occluder
+    SpatialModel* OctTree::UpdateOcclusionVisibility(glm::vec3 *camera_position,
+                                            glm::vec3 *occluder_size = nullptr,
+                                            ECullingSettings type = OCCLUSION_LAZY);
     SpatialModel* GetAllVisibleData();
     
 

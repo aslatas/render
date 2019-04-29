@@ -220,12 +220,24 @@ void SceneManager::FrustumCull(Camera::Frustum *frustum)
 }
 void SceneManager::OcclusionCullOctTree()
 {
+
 }
 
-RenderSceneMaterial* SceneManager::GetVisibleData()
+RenderSceneMaterial* SceneManager::GetVisibleData(glm::vec3 *camera_position)
 {
     // list of visible spatial models
-    SpatialModel *sm = scene->GetAllVisibleData();
+    bool isOcclusion = true;
+
+    SpatialModel *sm;
+    if (isOcclusion && camera_position != nullptr)
+    {
+        glm::vec3 *size = new glm::vec3(1.0f, 1.0f, 1.0f);
+        sm = scene->UpdateOcclusionVisibility(camera_position, size);
+        delete size;
+    }
+    else {
+        sm = scene->GetAllVisibleData();
+    }
 
     /*
 u32 model_index;
