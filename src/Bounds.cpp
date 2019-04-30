@@ -102,12 +102,27 @@ bool AABBFrustumIntersection(Camera::Frustum *frustum, AABB_3D *aabb)
 
     // check frustum outside/inside box
     int out;
-    out=0; for( int i=0; i<8; i++ ) { out += ((frustum_points[i][0] > max[0])?1:0); } if( out==8 ) return false;
+    out=0; 
+    for( int i=0; i<8; i++ ) 
+    { 
+        out += ((frustum_points[i][0] > max[0])?1:0); 
+    } if( out==8 ) return false;
     out=0; for( int i=0; i<8; i++ ) { out += ((frustum_points[i][0] < min[0])?1:0); } if( out==8 ) return false;
     out=0; for( int i=0; i<8; i++ ) { out += ((frustum_points[i][1] > max[1])?1:0); } if( out==8 ) return false;
     out=0; for( int i=0; i<8; i++ ) { out += ((frustum_points[i][1] < min[1])?1:0); } if( out==8 ) return false;
     out=0; for( int i=0; i<8; i++ ) { out += ((frustum_points[i][2] > max[2])?1:0); } if( out==8 ) return false;
     out=0; for( int i=0; i<8; i++ ) { out += ((frustum_points[i][2] < min[2])?1:0); } if( out==8 ) return false;
+
+    float radius = distance(aabb->center, max);
+    for (int i = 0; i < 6; ++i)
+    {
+        int out = 0;
+        out += ((dot( frustum_planes[i], glm::vec4(aabb->center, 1.0f) ) < -radius )?1:0);
+        if( out==1 ) {
+            printf("Failing plane: %d\n", i);
+            return false;
+        }
+    }
 
     // If either the min/max point was found to be in the Frustum, return
     // true.

@@ -15,7 +15,7 @@ UniformBuffer uniforms = {};
 VkDescriptorSet *descriptor_sets_new = nullptr;
 
 SceneManager *scene_manager;
-char *scene_file = "../../config/scene/simple_occlusion_test.json";
+char *scene_file = "../../config/scene/frustum_camera_test.json";
 
 Model **selected_models = nullptr;
 // TODO(Matt): Refactor these.
@@ -53,13 +53,13 @@ void ShutdownRenderer()
 void RecordRenderCommands(u32 image_index)
 {
     // this first call is how it is supposed to be. I think I am missing an edge case for the collision
-    Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[1], &Camera::GetViewTransform(&cameras[1]));
-    // Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[1]);
+    Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[0], &Camera::GetViewTransform(&cameras[0]));
+    // Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[0]);
 
     scene_manager->FrustumCull(frustum_planes);
-    scene_manager->OcclusionCullOctTree();
-
-    RenderSceneMaterial* rsm = scene_manager->GetVisibleData(&cameras[1].location);
+    // scene_manager->OcclusionCullOctTree();
+    // &cameras[1].location
+    RenderSceneMaterial* rsm = scene_manager->GetVisibleData(&cameras[0], &cameras[0].location);
 
     // Model* m = scene_manager->GetModelByIndex(0);
 
@@ -458,8 +458,8 @@ void InitializeScene()
     FreeSceneSettings(scene);
 
     // Load the OctTree
-    float min[3] = {-100000, -100000, -100000};
-    float max[3] = {100000, 100000, 100000};
+    float min[3] = {-50, -50, -50};
+    float max[3] = {50, 50, 50};
     scene_manager->CreateSpatialHeirarchy(min, max);
     scene_manager->LoadOctTree();
     // scene_manager->PrintScene();

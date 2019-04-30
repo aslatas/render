@@ -101,6 +101,25 @@ TODOS
      Create the render array
 */
 
+struct Triangle
+{
+    glm::vec2 vertA;
+    glm::vec2 vertB;
+    glm::vec2 vertC;
+};
+
+struct Mask
+{
+    uint32_t mask; // 2D array
+    float depth_0;
+    float depth_1;
+};
+
+/*
+
+*/
+
+
 bool CalculateBetween(glm::vec3 ray_max, glm::vec3 ray_min, glm::vec3 point_ray)
 {
     float c = abs(dot(ray_max, ray_min));
@@ -116,19 +135,10 @@ bool CalculateBetween(glm::vec3 ray_max, glm::vec3 ray_min, glm::vec3 point_ray)
 
 int main(void) 
 {
-
-    glm::vec3 ray_m = normalize(glm::vec3(-1, -1, 1));
-    glm::vec3 ray_a = normalize(glm::vec3(1, 1, -1));
-
-    glm::vec3 test1 = normalize(glm::vec3(0, 1, 1));
-    glm::vec2 test2 = normalize(glm::vec2(1, 1));
-    glm::vec2 test3 = normalize(glm::vec2(-1, 1));
-    glm::vec2 test4 = normalize(glm::vec2(-1, -1));
-
-    assert(CalculateBetween(ray_a, ray_m, test1));
-    // assert(CalculateBetween(ray_a, ray_m, test2));
-    // assert(CalculateBetween(ray_a, ray_m, test3));
-    // assert(!CalculateBetween(ray_a, ray_m, test4));
+    int s = 1920*1080;
+    // Mask* m l[1920*1080];
+    printf("Size: %td\n", sizeof(Mask) * (1920 * 1080));
+    printf("Size in kilo: %td\n", (sizeof(Mask) * (1920 * 1080)) / 1024);
 
 
     

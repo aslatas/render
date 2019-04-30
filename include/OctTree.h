@@ -61,7 +61,8 @@ private:
     bool helper_add(int position, SpatialModel *model);
     void helper_print_quad_tree(int position);
     void OctTree::helper_frustum_visibility(int position, Camera::Frustum *frustum);
-    void OctTree::helper_lazy_occlusion_culling(int position, OcclusionList *list, glm::vec3 *occluder_size = nullptr);
+    void OctTree::helper_lazy_occlusion_culling(int position, OcclusionList *list, 
+        Camera::Camera *camera, glm::vec3 *occluder_size);
     SpatialModel* helper_get_all_visible_data(SpatialModel* list, int position);
     void split(int position);
 
@@ -80,6 +81,7 @@ public:
 
     // If no occluder size is given then it is assumed everythings can be an Occluder
     SpatialModel* OctTree::UpdateOcclusionVisibility(glm::vec3 *camera_position,
+                                            Camera::Camera *camera,
                                             glm::vec3 *occluder_size = nullptr,
                                             ECullingSettings type = OCCLUSION_LAZY);
     SpatialModel* GetAllVisibleData();

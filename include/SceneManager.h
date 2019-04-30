@@ -116,7 +116,7 @@ public:
     // Performs occlusion culling on the OctTree
     void OcclusionCullOctTree();
     // Retrive all visible data in the Tree
-    RenderSceneMaterial* GetVisibleData(glm::vec3 *camera_position = nullptr);
+    RenderSceneMaterial* GetVisibleData(Camera::Camera *camera, glm::vec3 *camera_position = nullptr);
 
 
     //--------------------------------------------------------------------------------//
