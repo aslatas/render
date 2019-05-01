@@ -228,44 +228,44 @@ RenderSceneMaterial* SceneManager::GetVisibleData(Camera::Camera *camera, glm::v
     // list of visible spatial models
     bool isOcclusion = true;
 
-    for (auto i = 0; i < arrlen(model_data); ++i)
-    {
-        Model model = model_data[i];
-    glm::mat4 model_mat = glm::mat4(1.0f);
-    model_mat = glm::rotate(model_mat, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-    model_mat = glm::rotate(model_mat, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
-    model_mat = glm::rotate(model_mat, model.rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
-    // model_mat = glm::translate(model_mat, model.pos);
+    // for (auto i = 0; i < arrlen(model_data); ++i)
+    // {
+    //     Model model = model_data[i];
+    // glm::mat4 model_mat = glm::mat4(1.0f);
+    // model_mat = glm::rotate(model_mat, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
+    // model_mat = glm::rotate(model_mat, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
+    // model_mat = glm::rotate(model_mat, model.rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
+    // // model_mat = glm::translate(model_mat, model.pos);
 
-    glm::mat4 clip = glm::mat4(1.0f); 
-    clip = GetProjectionTransform(camera) * GetViewTransform(camera);
+    // glm::mat4 clip = glm::mat4(1.0f); 
+    // clip = GetProjectionTransform(camera) * GetViewTransform(camera);
 
-    AABB_3D aabb = model.bounds;
+    // AABB_3D aabb = model.bounds;
 
-    glm::vec4 minb = clip * glm::vec4(aabb.min, 1.0f);
-    glm::vec4 maxb = clip * glm::vec4(aabb.max, 1.0f);
+    // glm::vec4 minb = clip * glm::vec4(aabb.min, 1.0f);
+    // glm::vec4 maxb = clip * glm::vec4(aabb.max, 1.0f);
 
-    minb = minb / minb[3];
-    maxb = maxb / maxb[3];
+    // minb = minb / minb[3];
+    // maxb = maxb / maxb[3];
 
-        minb[0] = fmin(fmax(-1.0f, minb[0]), 1.0f);
-        minb[1] = fmin(fmax(-1.0f, minb[1]), 1.0f);
-        minb[2] = fmin(fmax(-1.0f, minb[2]), 1.0f);
+    //     minb[0] = fmin(fmax(-1.0f, minb[0]), 1.0f);
+    //     minb[1] = fmin(fmax(-1.0f, minb[1]), 1.0f);
+    //     minb[2] = fmin(fmax(-1.0f, minb[2]), 1.0f);
 
-        maxb[0] = fmin(fmax(-1.0f, maxb[0]), 1.0f);
-        maxb[1] = fmin(fmax(-1.0f, maxb[1]), 1.0f);
-        maxb[2] = fmin(fmax(-1.0f, maxb[2]), 1.0f);
+    //     maxb[0] = fmin(fmax(-1.0f, maxb[0]), 1.0f);
+    //     maxb[1] = fmin(fmax(-1.0f, maxb[1]), 1.0f);
+    //     maxb[2] = fmin(fmax(-1.0f, maxb[2]), 1.0f);
 
 
-        float distx = abs(maxb[0] - minb[0]);
-        float disty = abs(maxb[1] - minb[1]);
-        float distz = abs(maxb[2] - minb[2]);
-        float area = distx * disty;
-        if (distx > 1)
-        {
-            printf("");
-        }
-    }
+    //     float distx = abs(maxb[0] - minb[0]);
+    //     float disty = abs(maxb[1] - minb[1]);
+    //     float distz = abs(maxb[2] - minb[2]);
+    //     float area = distx * disty;
+    //     if (distx > 1)
+    //     {
+    //         printf("");
+    //     }
+    // }
 
     
 

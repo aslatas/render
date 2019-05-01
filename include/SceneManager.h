@@ -57,15 +57,18 @@ private:
     // Internal State
     //---------------//
     // Scene Assets
-    MaterialLayout* material_types  = nullptr; // HashTable
+    
     FakeHashTable* models     = nullptr; // HashTable
-    Model*     model_data = nullptr; // ArrayList
+
 
     // Spatial Heirarchies
     // ESpatialHeirarchy scene_active_spatial_heirarchy;
-    OctTree* scene = nullptr;
+    
 
 public:
+    MaterialLayout* material_types  = nullptr; // HashTable
+    Model*     model_data = nullptr; // ArrayList
+    OctTree* scene = nullptr;
     // Remove the copy constructors
     // SceneManager(const SceneManager&)            = delete;
     // SceneManager& operator=(const SceneManager&) = delete;

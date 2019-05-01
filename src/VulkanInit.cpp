@@ -1389,8 +1389,8 @@ void CommandBeginRenderPass(u32 image_index)
     // TODO(Matt): Should contain offsets of each descriptor in the buffer.
     u32 offsets[] = {0};
     vkCmdBindDescriptorSets(swapchain_info.primary_command_buffers[image_index], 
-        VK_PIPELINE_BIND_POINT_GRAPHICS, scene_manager->GetMaterialLayout(0)->pipeline_layout, 0, 1, 
-        &swapchain_info.descriptor_sets[image_index], 1, offsets);
+                            VK_PIPELINE_BIND_POINT_GRAPHICS, scene_manager->GetMaterialLayout(0)->pipeline_layout, 0, 1, 
+                            &swapchain_info.descriptor_sets[image_index], 1, offsets);
 }
 
 void CommandBindPipeline(VkPipeline pipeline, u32 image_index)
@@ -1404,10 +1404,10 @@ void CommandBindPipeline(VkPipeline pipeline, u32 image_index)
     vkCmdSetScissor(swapchain_info.primary_command_buffers[image_index], 0, 1, &scissor);
 }
 
-void CommandBindVertexBuffer(VkBuffer buffer, size_t *offsets, u32 image_index)
+void CommandBindVertexBuffer(VkBuffer buffer, size_t *offsets, u32 offset_count, u32 image_index)
 {
     VkBuffer buffers[7] = {buffer, buffer, buffer, buffer, buffer, buffer, buffer};
-    vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, 7, buffers, offsets);
+    vkCmdBindVertexBuffers(swapchain_info.primary_command_buffers[image_index], 0, offset_count, buffers, offsets);
 }
 
 void CommandBindIndexBuffer(VkBuffer buffer, VkIndexType type, u32 image_index)
@@ -1420,9 +1420,9 @@ void CommandPushConstants(VkPipelineLayout pipeline_layout, u32 stages, const Pu
     vkCmdPushConstants(swapchain_info.primary_command_buffers[image_index], pipeline_layout, stages, 0, sizeof(PushConstantBlock), (void *)push_block);
 }
 
-void CommandDrawIndexed(u32 image_index, u32 index_count)
+void CommandDrawIndexed(u32 image_index, u32 index_count, u32 instance_count)
 {
-    vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], index_count, 1, 0, 0, 0);
+    vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], index_count, instance_count, 0, 0, 0);
 }
 
 void CommandEndRenderPass(u32 image_index)
@@ -1445,6 +1445,11 @@ u32 GetSwapchainImageCount()
 VkRenderPass GetSwapchainRenderPass()
 {
     return swapchain_info.renderpass;
+}
+
+VulkanInfo GetVulkanInfo()
+{
+    return vulkan_info;
 }
 
 void WaitDeviceIdle()

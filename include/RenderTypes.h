@@ -25,6 +25,8 @@ struct VulkanInfo
     VkSemaphore *render_finished_semaphores;
 };
 
+VulkanInfo GetVulkanInfo();
+
 struct DirectionalLight
 {
     glm::vec4 direction;

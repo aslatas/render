@@ -91,7 +91,7 @@ Camera::Frustum *Camera::ExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview)
 
     glm::mat4 invproj = inverse(proj);
     glm::mat4 invview = (modelview == nullptr) ? glm::mat4(1.0f) : inverse(*modelview);
-    glm::mat4 frustum = invproj * invview;
+    glm::mat4 frustum = invview * invproj;
     // frustum = inverse(frustum);
 
     // left
@@ -147,7 +147,7 @@ Camera::Frustum *Camera::ExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview)
     // Now get the four corners of the near and far plane
     glm::vec3 forward = GetForwardVector(&cam);
     glm::vec3 w   = GetRightVector(&cam);
-    glm::vec3 up      = glm::vec3(0.0f, 0.0f, 1.0f);
+    glm::vec3 up      = cross(w, forward);
 
     // near poin
     float hnear = 2.0f * tan(cam.fov / 2.0f) * cam.near_dist;
@@ -182,8 +182,9 @@ Camera::Frustum *Camera::UExtractFrustumPlanes(Camera &cam, glm::mat4 *modelview
     Frustum* f = (Frustum *)malloc(sizeof(Frustum)); 
     // glm::vec4 *planes = (glm::vec4*)malloc(6 * sizeof(glm::vec4));
 
-    glm::mat4 frustum = (modelview == nullptr) ? proj : proj * *modelview;
-    frustum = inverse(frustum);
+    glm::mat4 invproj = inverse(proj);
+    glm::mat4 invview = (modelview == nullptr) ? glm::mat4(1.0f) : inverse(*modelview);
+    glm::mat4 frustum = invview;
 
     // left
     f->planes[0][0] = 1*(frustum[3][0] + frustum[0][0]);

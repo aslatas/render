@@ -95,7 +95,7 @@ bool AABBFrustumIntersection(Camera::Frustum *frustum, AABB_3D *aabb)
         out += ((dot( frustum_planes[i], glm::vec4(min[0], max[1], max[2], 1.0f) ) < 0.0 )?1:0);
         out += ((dot( frustum_planes[i], glm::vec4(max[0], max[1], max[2], 1.0f) ) < 0.0 )?1:0);
         if( out==8 ) {
-            printf("Failing plane: %d\n", i);
+            // printf("Failing plane: %d\n", i);
             return false;
         }
     }
@@ -114,15 +114,15 @@ bool AABBFrustumIntersection(Camera::Frustum *frustum, AABB_3D *aabb)
     out=0; for( int i=0; i<8; i++ ) { out += ((frustum_points[i][2] < min[2])?1:0); } if( out==8 ) return false;
 
     float radius = distance(aabb->center, max);
-    for (int i = 0; i < 6; ++i)
-    {
-        int out = 0;
-        out += ((dot( frustum_planes[i], glm::vec4(aabb->center, 1.0f) ) < -radius )?1:0);
-        if( out==1 ) {
-            printf("Failing plane: %d\n", i);
-            return false;
-        }
-    }
+    // for (int i = 0; i < 6; ++i)
+    // {
+    //     int out = 0;
+    //     out += ((dot( frustum_planes[i], glm::vec4(aabb->center, 1.0f) ) < -radius )?1:0);
+    //     if( out==1 ) {
+    //         printf("Failing plane: %d\n", i);
+    //         return false;
+    //     }
+    // }
 
     // If either the min/max point was found to be in the Frustum, return
     // true.
