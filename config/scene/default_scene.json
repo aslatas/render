@@ -1,0 +1,598 @@
+{
+    "models": [
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -2.0,
+                0.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -2.0,
+                0.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -4.0,
+                0.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                2.0,
+                0.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                4.0,
+                0.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                0.0,
+                2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                0.0,
+                4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                0.0,
+                -2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                0.0,
+                -4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                2.0,
+                2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                4.0,
+                2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                4.0,
+                4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                2.0,
+                4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -2.0,
+                2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -2.0,
+                4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -4.0,
+                2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -4.0,
+                4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                2.0,
+                -2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                4.0,
+                -2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                2.0,
+                -4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                4.0,
+                -4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -2.0,
+                -2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -2.0,
+                -4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -4.0,
+                -2.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "filepath": "resources/models/Box/glTF-Binary/Box.glb",
+            "id": -1,
+            "position": [
+                -4.0,
+                -4.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        }
+    ],
+    "cameras": [
+        {
+            "position": [
+                -2.3766539096832277,
+                0.8170890212059021,
+                0.8291680216789246
+            ],
+            "up_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "look_at_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "pitch": 0.0,
+            "yaw": -1.154924988746643,
+            "roll": 0.0,
+            "zoom": 0.0
+        },
+        {
+            "position": [
+                -2.3766539096832277,
+                0.8170890212059021,
+                0.8291680216789246
+            ],
+            "up_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "look_at_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "pitch": 0.0,
+            "yaw": -1.154924988746643,
+            "roll": 0.0,
+            "zoom": 0.0
+        },
+        {
+            "position": [
+                0.0,
+                -3.0,
+                5.0
+            ],
+            "up_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "look_at_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "pitch": -0.785398006439209,
+            "yaw": 1.600000023841858,
+            "roll": 0.0,
+            "zoom": 0.0
+        },
+        {
+            "position": [
+                2.799999952316284,
+                4.0,
+                1.0
+            ],
+            "up_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "look_at_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "pitch": 0.0,
+            "yaw": -2.0,
+            "roll": 0.0,
+            "zoom": 0.0
+        }
+    ],
+    "lights": [
+        {
+            "type": "DIRECTIONAL",
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "color": {
+                "diffuse": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "specular": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "direction": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        }
+    ]
+}

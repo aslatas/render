@@ -1,1 +1,7 @@
 build
+.vscode
+
+ext/glTF-Sample-Models/
+utils/build
+config/build
+resources/models

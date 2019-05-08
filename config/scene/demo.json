@@ -1,0 +1,79 @@
+{
+    "models": [
+        {
+            "filepath": "resources/models/Demo/demo2.glb",
+            "id": -1,
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        }
+    ],
+    "cameras": [
+        {
+            "position": [
+                0.0,
+                9.0,
+                0.0
+            ],
+            "up_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "look_at_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "pitch": 0.0,
+            "yaw": -1.6,
+            "roll": 0.0,
+            "zoom": 0.0
+        }
+    ],
+    "lights": [
+        {
+            "type": "DIRECTIONAL",
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "color": {
+                "diffuse": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "specular": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "direction": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        }
+    ]
+}
