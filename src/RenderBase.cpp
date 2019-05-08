@@ -31,13 +31,6 @@ ModelInstanced bounding_boxes = {};
 Camera::Camera *cameras = nullptr;
 Camera::Controller controller = {16.0f, 16.0f, 2.0f, 0.25f, glm::vec3(0.0f), glm::vec3(0.0f)};
 
-// Pool that stores all occlusion queries, not a good place for this, but oh well
-global VkQueryPool queryPool;
-global bool use_queries = true; 
-global size_t node_count = 0;
-global size_t last_count = 0;
-global uint64_t *samples;
-
 // TODO(Matt): Move this to the platform layer.
 char *ReadShaderFile(const char *path, u32 *length)
 {
@@ -66,118 +59,9 @@ void ShutdownRenderer()
     ShutdownVulkan();
 }
 
-// void CreateQueryPool(int size)
-// {
-//     VkQueryPoolCreateInfo queryPoolInfo = {};
-//     queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-//     queryPoolInfo.queryType = VK_QUERY_TYPE_OCCLUSION;
-// 	queryPoolInfo.queryCount = size;
-//     vkCreateQueryPool(GetVulkanInfo().logical_device, &queryPoolInfo, NULL, =);
-// }
-
-// void GetQueryResults(uint64_t num_samples)
-// {
-//     vkGetQueryResults(GetVulkanInfo().logical_device, queryPool, 0, node_count, sizeof(uint64_t) * num_samples, sizeof(uint64_t), 
-//         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
-// }
-
-// void helper_tree_search(int pos, int &count)
-// {
-//     Node *node = tree[position];
-//     count++;
-//     if (!node->isLeaf) {
-//         // recursively search for a leaf
-//         for (int i = 1; i <= TREE_CHILDREN; ++i) {
-//             OctTree::helper_frustum_visibility((position * TREE_CHILDREN) + i, frustum); 
-//         }
-//     }
-// }
-
-// void SetUpOcclusionQueries()
-// {
-//     int count = 0;
-//     OctTree* tree = scene_manager->scene->tree;
-//     if (arrlen(tree) <= 0)
-//     {
-//         return;
-//     }
-
-//     helper_tree_search(0, count);
-//     printf("Scene Manager Tree has %d nodes\n", ++count);
-
-//     CreateQueryPool(count);
-//     node_count = count;
-// }
-
-// void query_submission(int tree_position, int &query_position, int image_idx)
-// {
-//     Node *node = tree[tree_position];
-
-//     if (node->isVisible)
-//     {
-//         if (!node->isLeaf) {
-//             // recursively search for a leaf
-//             for (int i = 1; i <= TREE_CHILDREN; ++i) {
-//                 OctTree::helper_frustum_visibility((tree_position * TREE_CHILDREN) + i, frustum); 
-//             }
-//         }
-//         else
-//         {
-//             for (int j = 0; j < node->bin->count; ++j)
-//             {
-//                 SpatialModel sm = ode->bin->model[j];
-//                 Model model = scene_manager->GetModelByIndex(sm.model_index);
-//                 Material mat = scene_manager->GetMaterial(sm.material_type_idx, sm.material_idx);
-
-//                 CommandBindPipeline(mat->pipeline, image_index); // bind the 
-
-//                 vkCmdBeginQuery(swapchain_info.primary_command_buffers[image_index], queryPool, query_position, VK_FLAGS_NONE);
-
-//                 // Bind the vertex, index, and uniform buffers.
-//                 CommandBindVertexBuffer(model->vertex_buffer, model->model_data->attribute_offsets, 7, image_index);
-//                 CommandBindIndexBuffer(model->index_buffer, VK_INDEX_TYPE_UINT32, image_index);
-//                 PushConstantBlock push_block = {};
-//                 push_block.draw_index = model->uniform_index;
-//                 CommandPushConstants(material_type->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &push_block, image_index);
-//                 // Draw the model.
-//                 CommandDrawIndexed(image_index, model->index_count, 1);
-
-//                 ++query_position;
-
-//                 // node->bin->model[j]->isVisible = AABBFrustumIntersection(frustum, &node->bin->model[j]->aabb);
-//             }
-//         }
-//     }
-
-// }
-
-// void SubmitOcclusionQueries()
-// {
-//     OctTree* tree = scene_manager->scene->tree;
-//     if (arrlen(tree) <= 0)
-//     {
-//         return;
-//     }
-    
-//     query_submission(0, 0);
-// }
-
 void RecordRenderCommands(u32 image_index)
 {
-    // this first call is how it is supposed to be. I think I am missing an edge case for the collision
-    Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[0], &Camera::GetViewTransform(&cameras[0]));
-    // Camera::Frustum *frustum_planes = Camera::ExtractFrustumPlanes(cameras[0]);
-
-    scene_manager->FrustumCull(frustum_planes);
-    // scene_manager->OcclusionCullOctTree();
-    // &cameras[1].location
-    // RenderSceneMaterial* rsm = scene_manager->GetVisibleData(&cameras[0], &cameras[0].location); 
     RenderSceneMaterial* rsm = scene_manager->GetVisibleData(&cameras[0]); 
-
-    printf("Camera position (%f, %f, %f)\n", cameras[0].location.x, cameras[0].location.y, cameras[0].location.z);
-    printf("Camera yaw: %f\n", cameras[0].rotation.z);
-
-    // Model* m = scene_manager->GetModelByIndex(0);
 
     u32 num = 0;
     
@@ -194,8 +78,6 @@ void RecordRenderCommands(u32 image_index)
             // For each model of a given material.
             for (u32 k = 0; k < arrlen(rsm[i].scene_materials[j].model_idx); ++k) {
                 ++num;
-                // Model *model = &material->models[k];
-                // rsm[i].scene_materials[j].model_idx[k] <- index into model list
                 Model *model = scene_manager->GetModelByIndex(rsm[i].scene_materials[j].model_idx[k]);
                 
                 // Bind the vertex, index, and uniform buffers.
@@ -215,8 +97,6 @@ void RecordRenderCommands(u32 image_index)
     CommandBindVertexBuffer(bounding_boxes.vertex_buffer, bounding_boxes.attribute_offsets, 4, image_index);
     CommandBindIndexBuffer(bounding_boxes.index_buffer, VK_INDEX_TYPE_UINT32, image_index);
     CommandDrawIndexed(image_index, bounding_boxes.index_count, bounding_boxes.instance_count);
-    
-    // printf("Number of models rendered: %d\n", num);
     
     // Do post process for outlines.
     // NOTE(Matt): Outlines are done in two passes - one to draw selected
@@ -307,22 +187,6 @@ void UpdatePrePhysics(double delta)
         ubo->model = glm::translate(ubo->model, model->pos);
         current_index++;
     }
-    // for (u32 i = 0; i < arrlen(material_types); ++i) {
-    //     MaterialLayout *material_type = &material_types[i];
-    //     for (u32 j = 0; j < arrlen(material_type->materials); ++j) {
-    //         Material *material = &material_type->materials[j];
-    //         for (u32 k = 0; k < arrlen(material->models); ++k) {
-    //             Model *model = &material->models[k];
-    //             PerDrawUniformObject *ubo = GetPerDrawUniform(current_index);
-    //             ubo->model = glm::scale(glm::mat4(1.0f), model->scl);
-    //             ubo->model = glm::rotate(ubo->model, model->rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-    //             ubo->model = glm::rotate(ubo->model, model->rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
-    //             ubo->model = glm::rotate(ubo->model, model->rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
-    //             ubo->model = glm::translate(ubo->model, model->pos);
-    //             current_index++;
-    //         }
-    //     }
-    // }
 }
 
 // TODO(Matt): Move this out of the rendering component.
@@ -380,35 +244,7 @@ void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
             }
         }
     }
-    // for (u32 i = 0; i < arrlenu(material_types); ++i) {
-    //     MaterialLayout *material_type = &material_types[i];
-    //     for (u32 j = 0; j < arrlenu(material_type->materials); ++j) {
-    //         Material *material = &material_type->materials[j];
-    //         for (u32 k = 0; k < arrlenu(material->models); ++k) {
-    //             Model *model = &material->models[k];
-    //             // If the model has hit testing disabled, skip it.
-    //             if (!model->hit_test_enabled) continue;
-    
-    //             // Otherwise, perform a ray-box test with the object bounds.
-    //             float hit_dist;
-    //             PerFrameUniformObject *per_frame = GetPerFrameUniform();
-    //             u32 width, height;
-    //             GetSwapchainExtent(&width, &height);
-    //             Ray ray = ScreenPositionToWorldRay(mouse_x, mouse_y, width, height, per_frame->view, per_frame->projection, 1000.0f);
-    //             glm::vec3 intersection;
-    //             if (RaycastAgainstModelBounds(ray, model, &intersection)) {
-    //                 hit_dist = glm::distance2(ray.origin, intersection);
-    //                 // If the raycast hits AND is closer than the previous hit
-    //                 // we can update the selection.
-    //                 if (hit_dist < min_dist) {
-    //                     min_dist = hit_dist;
-    //                     selection = model; 
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    
+
     // If any object was hit
     if (selection) {
         // Check if this box is already selected.
@@ -598,12 +434,6 @@ void InitializeScene()
         Camera::AddYaw(&cam, scene->camera_data[i].yaw);
         arrput(cameras, cam);
     }
-
-
-
-    // camera.location = glm::make_vec3(&scene->camera_data[0].position[0]);
-
-    printf("There are %d models being read from the scene config.\n\n", scene->num_models);
     
     for (uint32_t i = 0; i < scene->num_models; ++i) 
     {

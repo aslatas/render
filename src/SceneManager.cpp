@@ -9,9 +9,6 @@
  * Make SceneManager a Singleton instance?
  */
 
-//-------------------------------------------------------------------//
-// SINGLETON
-//-------------------------------------------------------------------//
 SceneManager::SceneManager()
 {
     
@@ -29,14 +26,6 @@ SceneManager::SceneManager()
 
     scene = nullptr;
 }
-
-// const SceneManager* SceneManager::GetInstance()                                              
-// {
-//     if (manager == nullptr)   
-//         manager = new SceneManager();                                                                       
-                                                                                 
-//     return manager;                                                            
-// }    
 
 void SceneManager::Shutdown()
 {
@@ -89,32 +78,6 @@ u32 SceneManager::AddMaterial(Material* mat, u32 layout_idx)
     arrput(material_types[layout_idx].materials, *mat);
     return (u32)arrlen(material_types[layout_idx].materials) - 1;
 }
-
-// size_t SceneManager::LoadModel(char* filename, u32 mat_idx)
-// {
-//     // Create a default model
-//     Model * model = new Model;
-//     LoadGTLFModel(filename, *model, -1, mat_idx, -1);
-//     // Temp* m = (Temp*)malloc(sizeof(Temp));
-    
-
-//     size_t hashed_key = stbds_hash_string(filename, models->seed);
-//     models->hash_table;
-
-//     HashModel hm;
-//     hm.key = hashed_key;
-//     hm.value = (void*)model;
-
-//     // Place the model in the map
-//     size_t idx = arrlen(models->hash_table);
-//     arrput(models->hash_table, hm);
-//     // retrieve its index from the map
-//     model->material_index = mat_idx;
-//     model->hash_index = idx;
-//     // TODO(Dustin): model data idx
-
-//     return idx;
-// }
 
 // anything else?
 void SceneManager::AddModel(char* key, Model* model)
@@ -227,47 +190,6 @@ RenderSceneMaterial* SceneManager::GetVisibleData(Camera::Camera *camera, glm::v
 {
     // list of visible spatial models
     bool isOcclusion = true;
-
-    // for (auto i = 0; i < arrlen(model_data); ++i)
-    // {
-    //     Model model = model_data[i];
-    // glm::mat4 model_mat = glm::mat4(1.0f);
-    // model_mat = glm::rotate(model_mat, model.rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-    // model_mat = glm::rotate(model_mat, model.rot.y, glm::vec3(0.0f, 1.0f, 0.0f));
-    // model_mat = glm::rotate(model_mat, model.rot.x, glm::vec3(1.0f, 0.0f, 0.0f));
-    // // model_mat = glm::translate(model_mat, model.pos);
-
-    // glm::mat4 clip = glm::mat4(1.0f); 
-    // clip = GetProjectionTransform(camera) * GetViewTransform(camera);
-
-    // AABB_3D aabb = model.bounds;
-
-    // glm::vec4 minb = clip * glm::vec4(aabb.min, 1.0f);
-    // glm::vec4 maxb = clip * glm::vec4(aabb.max, 1.0f);
-
-    // minb = minb / minb[3];
-    // maxb = maxb / maxb[3];
-
-    //     minb[0] = fmin(fmax(-1.0f, minb[0]), 1.0f);
-    //     minb[1] = fmin(fmax(-1.0f, minb[1]), 1.0f);
-    //     minb[2] = fmin(fmax(-1.0f, minb[2]), 1.0f);
-
-    //     maxb[0] = fmin(fmax(-1.0f, maxb[0]), 1.0f);
-    //     maxb[1] = fmin(fmax(-1.0f, maxb[1]), 1.0f);
-    //     maxb[2] = fmin(fmax(-1.0f, maxb[2]), 1.0f);
-
-
-    //     float distx = abs(maxb[0] - minb[0]);
-    //     float disty = abs(maxb[1] - minb[1]);
-    //     float distz = abs(maxb[2] - minb[2]);
-    //     float area = distx * disty;
-    //     if (distx > 1)
-    //     {
-    //         printf("");
-    //     }
-    // }
-
-    
 
     SpatialModel *sm;
     if (isOcclusion && camera_position != nullptr)

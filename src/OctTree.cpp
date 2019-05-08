@@ -302,24 +302,7 @@ void OctTree::helper_lazy_occlusion_culling(int position, OcclusionList *list, C
             glm::vec3 loc = camera->location;
             float dist = distance(loc, sm.aabb.max);
             dist = fmin(dist, distance(loc, sm.aabb.max));
-            // bool found = false;
-            // for (int i = 0; i < arrlen(list->occludee); ++i)
-            // {
-            //     SpatialModel sme = list->occludee[i];
-            //     float exist_dist = fmin(distance(loc, sme.aabb.max), distance(loc, sme.aabb.max));
-            //     if (dist < exist_dist)
-            //     {
-            //         found = true;
-            //         arrins(list->occludee, i, sm);
-            //         brea
-            //     }
-            // }
-
-            // if (!found)
-            // {
-            //     arrput(list->occludee, sm);
-            // }
-
+           
             if (ext > 1.0f)
             {
                 arrput(list->occludee, sm);
@@ -332,249 +315,6 @@ void OctTree::helper_lazy_occlusion_culling(int position, OcclusionList *list, C
         }
     }
 }
-
-// void OctTree::helper_lazy_occlusion_culling(int position, OcclusionList *list, Camera::Camera *camera, glm::vec3 *occluder_size)
-// {
-//     Node *node = tree[position];
-
-//     // don't evaluate a branch that is not visible
-//     if (!node->isVisible)
-//         return;
-
-//     // don't care about non-branches
-//     if (!node->isLeaf)
-//     {
-//         // recursively search for a leaf
-//         for (int i = 1; i <= TREE_CHILDREN; ++i) {
-//             OctTree::helper_lazy_occlusion_culling((position * TREE_CHILDREN) + i, list, camera, occluder_size); 
-//         }
-//     }
-//     else
-//     {
-//         for (int j = 0; j < node->bin->count; ++j)
-//         {
-//             SpatialModel sm = *node->bin->model[j];
-//             if (!sm.isVisible) continue;
-            
-//             // glm::vec3 is_occluder = (occluder_size = nullptr) ? sm.aabb.ext : (sm.aabb.ext - *occluder_size); 
-//             glm::vec3 is_occluder = sm.aabb.ext;
-//             if (occluder_size != nullptr)
-//             {
-//                 is_occluder -= *occluder_size;
-//             }
-
-//             glm::mat4 screen = GetProjectionTransform(camera) * GetViewTransform(camera);
-//             // screen = screen / screen[3][3];
-//             // screen[3][3] = 1.0f;
-
-//             glm::vec4 min_screen = glm::vec4(sm.aabb.min, 1.0f) * screen;
-//             glm::vec4 max_screen = screen * glm::vec4(sm.aabb.max, 1.0f);
-
-//             min_screen /= min_screen[3];
-//             max_screen /= max_screen[3];
-
-//             min_screen[0] = (fmin(fmax(-1.0f, min_screen[0]), 1.0f) + 1) / 2;
-//             min_screen[1] = (fmin(fmax(-1.0f, min_screen[1]), 1.0f) + 1) / 2;
-//             min_screen[2] = (fmin(fmax(-1.0f, min_screen[2]), 1.0f) + 1) / 2;
-
-//             max_screen[0] = (fmin(fmax(-1.0f, max_screen[0]), 1.0f) + 1) / 2;
-//             max_screen[1] = (fmin(fmax(-1.0f, max_screen[1]), 1.0f) + 1) / 2;
-//             max_screen[2] = (fmin(fmax(-1.0f, max_screen[2]), 1.0f) + 1) / 2;
-
-//             float distx = abs(max_screen[0] - min_screen[0]);
-//             float disty = abs(max_screen[1] - min_screen[1]);
-//             float distz = abs(max_screen[2] - min_screen[2]);
-//             float ext = distx * disty;
-//             if (ext >= -0.001 && ext <= 0.001) continue;
-
-//             // glm::vec3 ext = max_screen - min_screen;
-//             // float ext = sqrt((max_screen[0] - min_screen[0]) * (max_screen[0] - min_screen[0]) + 
-//             //     // (max_screen[1] - min_screen[1]) * (max_screen[1] - min_screen[1]) +
-//             //     (max_screen[1] - min_screen[1]) * (max_screen[1] - min_screen[1]));
-//             // float percent_screen = ext / 2.0f;
-//             // glm::vec3 percent_screen = abs(ext) / 2.0f;
-
-//             glm::vec4 op_occ_max = screen * glm::vec4(sm.aabb.max, 1.0f); 
-//             op_occ_max /= op_occ_max[3];
-
-//             // the model ext is smaller than the set occluder ext, so put in the occludee list
-//             // printf("give me output nowwwww\n");
-//             // printf("Ext: %lf\n", ext);`
-//             if (ext < 0.3f)
-//             {
-//                 bool isFullyOccluded = false;
-//                 // min_screen = glm::vec4(sm.aabb.min, 1.0f) * screen;
-//                 // max_screen = screen * glm::vec4(sm.aabb.max, 1.0f);
-
-//                 // min_screen /= min_screen[3];
-//                 // max_screen /= max_screen[3];
-//                 // osm_max /= osm_max[3];
-//                 // osm_min /= osm_min[3];
-
-//                     // if (osm_min[0] > 1.1 && osm_max[0] > 1.1 || (osm_min[0] < -1.1 && osm_max[0] < -1.1))
-//                     // {
-//                     //     isFullyOccluded = true;
-//                     //     // break;
-//                     // }
-//                     // if ((osm_min[1] > 1 && osm_max[1] > 1) || (osm_min[1] < -1 && osm_max[1] < -1))
-//                     // {
-//                     //     isFullyOccluded = true;
-//                     //     // break;
-//                     // }
-//                     // if (osm_min[2] > 1 && osm_max[2] > 1 || (osm_min[2] < -1 && osm_max[2] < -1))
-//                     // {
-//                     //     isFullyOccluded = true;
-//                     //     // break;
-//                     // } 
-//                 if (!isFullyOccluded) arrput(list->occludee, sm);
-//             }
-//             // the model ext is greater than the set occluder ext, so put in the occluder list
-//             else
-//             {
-//                 // TODO(Dustin): Check to see if this model occludes other objects in the list or is occluded
-//                 bool isFullyOccluded = false;
-//                 int idx = 0;
-//                 u32 len = arrlen(list->occluder);
-//                 for (int i = 0; i < len; ++i)
-//                 {
-//                     SpatialModel p_occ = list->occluder[idx];
-
-//                     // glm::vec3 er_max = p_occ.aabb.max; // potential occluder/occludee
-//                     // glm::vec3 ee_max = sm.aabb.max;    // object attemtping to add
-
-//                     glm::vec3 *occluder_max;
-//                     glm::vec3 *occluder_min;
-//                     glm::vec3 *occludee_max;
-//                     glm::vec3 *occludee_min;
-
-//                     // if p_occ is closer to the camera - it is the occluder
-//                     bool add_p_occ_back = true;
-//                     glm::vec3 vp = abs((p_occ.aabb.max - camera->location));
-//                     glm::vec3 sp = abs((sm.aabb.max - camera->location));
-// /*
-// glm::vec3 adj_max_ray = glm::vec3(screen * glm::vec4(max_ray, 1.0f));
-//                         glm::vec3 adj_min_ray = glm::vec3(screen * glm::vec4(min_ray, 1.0f));
-//                         glm::vec3 adj_point_max_ray = glm::vec3(screen * glm::vec4(point_max_ray, 1.0f));
-//                         glm::vec3 adj_point_min_ray = glm::vec3(screen * glm::vec4(point_min_ray, 1.0f));
-
-// */
-                    
-//                     // glm::vec4 op_occ_min = glm::vec3(screen * glm::vec4(sm.aabb.min, 1.0f)); 
-//                     // glm::vec4 osm_max = screen * glm::vec4(sm.aabb.max, 1.0f); 
-//                     // glm::vec4 osm_min = screen * glm::vec4(sm.aabb.min, 1.0f);
-//                     // osm_max /= (osm_max[3] != 0.0f) ? osm_max[3] : 1.0f;
-//                     // osm_min /= (osm_min[3] != 0.0f) ? osm_min[3] : 1.0f;
-//                     // if (osm_min[0] > 1 && osm_max[0] > 1 || (osm_min[0] < -1 && osm_max[0] < -1))
-//                     // {
-//                     //     isFullyOccluded = true;
-//                     //     break;
-//                     // }
-//                     // if ((osm_min[1] > 1 && osm_max[1] > 1) || (osm_min[1] < -1 && osm_max[1] < -1))
-//                     // {
-//                     //     isFullyOccluded = true;
-//                     //     break;
-//                     // }
-//                     // if (osm_min[2] > 1 && osm_max[2] > 1 || (osm_min[2] < -1 && osm_max[2] < -1))
-//                     // {
-//                     //     isFullyOccluded = true;
-//                     //     break;
-//                     // }
-
-//                     // glm::vec3 ocamera_p = glm::vec3(screen * glm::vec4(camera->location, 1.0f)); 
-//                     glm::vec3 p_occ_max = glm::vec3(glm::vec4(p_occ.aabb.max, 1.0f)); 
-//                     glm::vec3 p_occ_min = glm::vec3(glm::vec4(p_occ.aabb.min, 1.0f)); 
-//                     glm::vec3 sm_max = glm::vec3(glm::vec4(sm.aabb.max, 1.0f)); 
-//                     glm::vec3 sm_min = glm::vec3(glm::vec4(sm.aabb.min, 1.0f)); 
-//                     glm::vec3 camera_p = glm::vec3(glm::vec4(camera->location, 1.0f)); 
-
-//                     float depth_p_occ = abs(p_occ_max - camera_p)[1];
-//                     float depth_sm = abs(sm_max - camera_p)[1];
-
-//                     if (depth_p_occ > depth_sm)
-//                     {
-//                         add_p_occ_back = false;
-
-//                         occluder_max = &sm_max;
-//                         occluder_min = &sm_min;
-                        
-//                         occludee_max = &p_occ_max;
-//                         occludee_min = &p_occ_min;
-//                     }
-//                     else 
-//                     {
-//                         occluder_max = &p_occ_max;
-//                         occluder_min = &p_occ_min;
-                        
-//                         occludee_max = &sm_max;
-//                         occludee_min = &sm_min;
-//                         // occluder = &p_occ;
-//                         // occludee = &sm;
-//                     }
-
-//                     // glm::vec3 max_ray = (occluder->aabb.max - camera->location);
-//                     // glm::vec3 point_max_ray = (occludee->aabb.max - camera->location);
-
-//                     glm::vec3 max_ray = normalize(*occluder_max - camera_p);
-//                     glm::vec3 min_ray = normalize(*occluder_min - camera_p);
-//                     glm::vec3 point_max_ray = normalize(*occludee_max - camera_p);
-//                     glm::vec3 point_min_ray = normalize(*occludee_min - camera_p);
-                    
-
-//                     // between the min/max rays
-//                     bool retmin = PointBetweenTwoRays(min_ray, max_ray, camera_p, *occludee_min);
-//                     bool retmax = PointBetweenTwoRays(min_ray, max_ray, camera_p, *occludee_max);
-//                     if (retmin && retmax)
-//                     {
-//                             glm::vec3 vis_ray_max = camera_p + 1.0f * max_ray;
-//                             glm::vec3 vis_ray_min = camera_p + 1.0f * min_ray;
-//                             glm::vec3 vis_box_max = camera_p + 1.0f * point_max_ray;
-//                             glm::vec3 vis_box_min = camera_p + 1.0f * point_min_ray;
-
-//                             // Fully occluded
-//                             bool vis_max = vis_ray_max[0] >= vis_box_max[0] && vis_ray_max[2] >= vis_box_max[2];
-//                             bool vis_min = vis_ray_min[0] <= vis_box_min[0] && vis_ray_min[2] <= vis_box_min[2];
-//                             if (vis_max && vis_min)
-//                             {
-//                                 isFullyOccluded = true;
-//                                 // isFullOverlap = true;
-
-//                                 // test element was the occluder, so add it back
-//                                 // and make sure the new element is not added
-//                                 if (add_p_occ_back)
-//                                 {
-//                                     // arrput(list->occluder, p_occ);
-//                                     break;
-//                                 }
-//                             }
-//                             else 
-//                             {
-//                                 add_p_occ_back = true;
-//                             }
-//                     }
-//                     else 
-//                     {
-//                         add_p_occ_back = true;
-//                     }
-//                     // }
-
-//                     // p_occ was not occluded so add it back to the list
-//                     if (!add_p_occ_back) 
-//                     {
-//                         arrdel(list->occluder, idx);
-//                         // arrput(list->occluder, p_occ);
-//                     }
-//                     else 
-//                     {
-//                         ++idx;
-//                     }
-//                 }
-
-//                 if (!isFullyOccluded)
-//                     arrput(list->occluder, sm);
-//             }
-//         }
-//     }
-// }
 
 SpatialModel* OctTree::helper_get_all_visible_data(SpatialModel* list, int position)
 {
@@ -684,24 +424,7 @@ SpatialModel* OctTree::UpdateOcclusionVisibility( glm::vec3 *camera_position,
     ol->occludee = nullptr;
 
     OctTree::helper_lazy_occlusion_culling(0, ol, camera, occluder_size);
-    
-    
-
-    // Sort the occluder list by distance from camera (?) - not right now, would have to implement a merge sort
-
-    // (ray_min[0] * (-1 * point_ray[1]) + ray_min[1] * point_ray[0] >= 0) &&
-    // (ray_max[0] * (-1 * point_ray[1]) + ray_max[1] * point_ray[0] <= 0);
-    // glm::vec3 camera_position = camera.location;
-
-    // if (arrlen(ol->occluder) == 0)
-    // {
-
-    // }
-    // else if ()
-    // {
-
-    // } 
-
+ 
     // Check for occlusion
     SpatialModel *visible_models = nullptr;
     printf("There are %td occluders\n", arrlen(ol->occluder));
@@ -709,22 +432,6 @@ SpatialModel* OctTree::UpdateOcclusionVisibility( glm::vec3 *camera_position,
     for (int i = 0; i < arrlen(ol->occludee); ++i)
     {
         SpatialModel occludee = ol->occludee[i];
-
-        // glm::mat4 oem = occludee.aabb.max * camera->GetViewTransform(camera);
-        // Model occludee_model = models[
-
-/*
-
- glm::vec4(min[0], min[1], min[2], 1.0f) ) < 0.0 )?1:0);
-        out += ((dot( frustum_planes[i], glm::vec4(max[0], min[1], min[2], 1.0f) ) < 0.0 )?1:0);
-        out += ((dot( frustum_planes[i], glm::vec4(min[0], max[1], min[2], 1.0f) ) < 0.0 )?1:0);
-        out += ((dot( frustum_planes[i], glm::vec4(max[0], max[1], min[2], 1.0f) ) < 0.0 )?1:0);
-        out += ((dot( frustum_planes[i], glm::vec4(min[0], min[1], max[2], 1.0f) ) < 0.0 )?1:0);
-        out += ((dot( frustum_planes[i], glm::vec4(max[0], min[1], max[2], 1.0f) ) < 0.0 )?1:0);
-        out += ((dot( frustum_planes[i], glm::vec4(min[0], max[1], max[2], 1.0f) ) < 0.0 )?1:0);
-        out += ((dot( frustum_planes[i], glm::vec4(max[0], max[1], max[2], 1.0f) ) < 0.0 )?1:0);
-
-*/
 
         glm::vec3 min = occludee.aabb.min;
         glm::vec3 max = occludee.aabb.max;
@@ -760,75 +467,35 @@ SpatialModel* OctTree::UpdateOcclusionVisibility( glm::vec3 *camera_position,
             // is a full overlap between AABBs. 
             bool isFullOverlap = false;
 
-            if (type == OCCLUSION_LAZY)
-            {
-                glm::vec3 i;
-                bool ret = false;
-                if (!is_occ[0]) is_occ[0] = RayIntersectAxisAlignedBox(rftl, occluder.aabb, &i); if (is_occ[0]) ++count;
-                if (!is_occ[1]) is_occ[1] = RayIntersectAxisAlignedBox(rftr, occluder.aabb, &i); if (is_occ[1]) ++count;
-                if (!is_occ[2]) is_occ[2] = RayIntersectAxisAlignedBox(rfbl, occluder.aabb, &i); if (is_occ[2]) ++count;
-                if (!is_occ[3]) is_occ[3] = RayIntersectAxisAlignedBox(rfbr, occluder.aabb, &i); if (is_occ[3]) ++count;
-                if (!is_occ[4]) is_occ[4] = RayIntersectAxisAlignedBox(rbtl, occluder.aabb, &i); if (is_occ[4]) ++count;
-                if (!is_occ[5]) is_occ[5] = RayIntersectAxisAlignedBox(rbtr, occluder.aabb, &i); if (is_occ[5]) ++count;
-                if (!is_occ[6]) is_occ[6] = RayIntersectAxisAlignedBox(rbbl, occluder.aabb, &i); if (is_occ[6]) ++count;
-                if (!is_occ[7]) is_occ[7] = RayIntersectAxisAlignedBox(rbbr, occluder.aabb, &i); if (is_occ[7]) ++count;
-                if (!is_occ[8]) is_occ[8] = RayIntersectAxisAlignedBox(rcenter, occluder.aabb, &i); if (is_occ[8]) ++count;
+            // if (type == OCCLUSION_LAZY)
+            // {
+            //     glm::vec3 i;
+            //     bool ret = false;
+            //     if (!is_occ[0]) is_occ[0] = RayIntersectAxisAlignedBox(rftl, occluder.aabb, &i); if (is_occ[0]) ++count;
+            //     if (!is_occ[1]) is_occ[1] = RayIntersectAxisAlignedBox(rftr, occluder.aabb, &i); if (is_occ[1]) ++count;
+            //     if (!is_occ[2]) is_occ[2] = RayIntersectAxisAlignedBox(rfbl, occluder.aabb, &i); if (is_occ[2]) ++count;
+            //     if (!is_occ[3]) is_occ[3] = RayIntersectAxisAlignedBox(rfbr, occluder.aabb, &i); if (is_occ[3]) ++count;
+            //     if (!is_occ[4]) is_occ[4] = RayIntersectAxisAlignedBox(rbtl, occluder.aabb, &i); if (is_occ[4]) ++count;
+            //     if (!is_occ[5]) is_occ[5] = RayIntersectAxisAlignedBox(rbtr, occluder.aabb, &i); if (is_occ[5]) ++count;
+            //     if (!is_occ[6]) is_occ[6] = RayIntersectAxisAlignedBox(rbbl, occluder.aabb, &i); if (is_occ[6]) ++count;
+            //     if (!is_occ[7]) is_occ[7] = RayIntersectAxisAlignedBox(rbbr, occluder.aabb, &i); if (is_occ[7]) ++count;
+            //     if (!is_occ[8]) is_occ[8] = RayIntersectAxisAlignedBox(rcenter, occluder.aabb, &i); if (is_occ[8]) ++count;
 
-                if (count == 9) 
-                {
-                    printf("Occludee Mode;:\n");
-                    printf("    Bounding Box:\n      Minimum: (%f, %f, %f)\n      Maximum: (%f, %f, %f)\n      Center: (%f, %f, %f)\n      Extent: (%f, %f, %f)\n", 
-                    occludee.aabb.min[0], occludee.aabb.min[1], occludee.aabb.min[2],
-                    occludee.aabb.max[0], occludee.aabb.max[1], occludee.aabb.max[2],
-                    occludee.aabb.center[0], occludee.aabb.center[1], occludee.aabb.center[2], 
-                    occludee.aabb.ext[0], occludee.aabb.ext[1], occludee.aabb.ext[2]);
+            //     if (count == 9) 
+            //     {
+            //         occludee.aabb.min[0], occludee.aabb.min[1], occludee.aabb.min[2],
+            //         occludee.aabb.max[0], occludee.aabb.max[1], occludee.aabb.max[2],
+            //         occludee.aabb.center[0], occludee.aabb.center[1], occludee.aabb.center[2], 
+            //         occludee.aabb.ext[0], occludee.aabb.ext[1], occludee.aabb.ext[2]);
 
-                    printf("Occluder Model:\n");
-                    printf("    Bounding Box:\n      Minimum: (%f, %f, %f)\n      Maximum: (%f, %f, %f)\n      Center: (%f, %f, %f)\n      Extent: (%f, %f, %f)\n", 
-                    occluder.aabb.min[0], occluder.aabb.min[1], occluder.aabb.min[2],
-                    occluder.aabb.max[0], occluder.aabb.max[1], occluder.aabb.max[2],
-                    occluder.aabb.center[0], occluder.aabb.center[1], occluder.aabb.center[2], 
-                    occluder.aabb.ext[0], occluder.aabb.ext[1], occluder.aabb.ext[2]);
-                    isOccluded = true;
-                    break;
-                }
-
-                // glm::vec3 er_max = occluder.aabb.max;
-                // glm::vec3 ee_max = occludee.aabb.max;
-
-                // glm::vec3 max_ray = (occluder.aabb.max - *camera_position);
-                // glm::vec3 point_max_ray = (occludee.aabb.max - *camera_position);
-
-                // // Z is up, so y is depth
-                // // TODO(Dustin): what if they are in opposite directions?
-                // if (abs(max_ray[1]) <= abs(point_max_ray[1]))
-                // {
-                //     max_ray = normalize(max_ray);
-                //     point_max_ray = normalize(point_max_ray);
-                //     glm::vec3 point_min_ray = normalize(occludee.aabb.min - *camera_position);
-                //     glm::vec3 min_ray = normalize(occluder.aabb.min - *camera_position);
-
-                //     // between the min/max rays
-                //     bool retmin = PointBetweenTwoRays(min_ray, max_ray, *camera_position, occludee.aabb.min);
-                //     bool retmax = PointBetweenTwoRays(min_ray, max_ray, *camera_position, occludee.aabb.max);
-                //     if (retmin && retmax)
-                //     {
-                //         glm::vec3 vis_ray_max = *camera_position + 1.0f * max_ray;
-                //         glm::vec3 vis_ray_min = *camera_position + 1.0f * min_ray;
-                //         glm::vec3 vis_box_max = *camera_position + 1.0f * point_max_ray;
-                //         glm::vec3 vis_box_min = *camera_position + 1.0f * point_min_ray;
-
-                //         // Fully occluded
-                //         bool vis_max = vis_ray_max[0] >= vis_box_max[0] && vis_ray_max[2] >= vis_box_max[2];
-                //         bool vis_min = vis_ray_min[0] <= vis_box_min[0] && vis_ray_min[2] <= vis_box_min[2];
-                //         if (vis_max && vis_min)
-                //         {
-                //             isOccluded = true;
-                //             isFullOverlap = true;
-                //         }
-                //     }
-                // }
-            }
+            //         occluder.aabb.min[0], occluder.aabb.min[1], occluder.aabb.min[2],
+            //         occluder.aabb.max[0], occluder.aabb.max[1], occluder.aabb.max[2],
+            //         occluder.aabb.center[0], occluder.aabb.center[1], occluder.aabb.center[2], 
+            //         occluder.aabb.ext[0], occluder.aabb.ext[1], occluder.aabb.ext[2]);
+            //         isOccluded = true;
+            //         break;
+            //     }
+            // }
 
             // it is the responsibility of these two functions to change isOccluded
             // back to false
