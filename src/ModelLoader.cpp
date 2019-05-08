@@ -256,10 +256,10 @@ REFACTOR:
     // max = glm::make_vec3(&max[0]);
     glm::vec3 ext = (max - min) / 2.0f;
 
-    model.bounds = *Create3DAxisAlignedBoundingBoxFromCenter(model_data->position, &ext[0]);
-    model.bounds.max = model.bounds.max * model.scl;
-    model.bounds.min = model.bounds.min * model.scl;
-    model.bounds.ext = model.bounds.ext * model.scl;
+    model.bounds = *Create3DAxisAlignedBoundingBoxFromCenter(model_data->position, &(ext * model.scl)[0]);
+    // model.bounds.max = model.bounds.max * model.scl;
+    // model.bounds.min = model.bounds.min * model.scl;
+    // model.bounds.ext = model.bounds.ext * model.scl;
     return MODEL_LOAD_RESULT_SUCCESS;
 }
 

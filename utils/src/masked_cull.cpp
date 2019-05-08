@@ -67,40 +67,42 @@ Steps for implementation:
 #include "glm/glm.hpp"
 #pragma warning(pop)
 
-#define CGLTF_IMPLEMENTATION
-#include "cgltf.h"
-
 // Some convientent defines
 typedef uint8_t u8;
 #define u32 unsigned int
 #define M_PI 3.14159
 
+float GetSpeedMultiplier();
 
 // Header Files
-#include "Mesh.h"
-#include "GLTF.h"
-#include "Scene.h"
+#include "Bounds.h"
+// #include "Object.h"
+// #include "Tree.h"
+// #include "ModelLoader.h"
+// #include "SceneManager.h"
+#include "Camera.h"
 
 // Config Parser Component headers
 // #include "config_parsers/ConfigUtils.h"
 // #include "config_parsers/SceneConfig.h"
 
 // SRC Files
-#include "Mesh.cpp"
-#include "GLTF.cpp"
-#include "Scene.cpp"
+// #include "Tree.cpp"
+// #include "Object.cpp"
+// #include "ModelLoader.cpp"
+// #include "SceneManager.cpp"
+#include "Camera.cpp"
 
-// TEST Files
-#include "test/scene_test.cpp"
+/**
+TODOS
+  Adjust for the renderer:
+     True Model Loading
+     True Material Loading
+     Create the render array
+*/
 
 int main(void) 
 {
-    //-----------------------------------//
-    // SCENE TESTING
-    //-----------------------------------//
-    test_add_one_mesh();
-    test_add_many_meshes();
-    test_load_simple_mesh_from_file();
-
+    
     return(0);
 }

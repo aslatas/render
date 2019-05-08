@@ -3,11 +3,7 @@
 // Check bounding box-bounding box collisions. Return true if there was a collision, false otherwise 
 // bool CheckBoundingBoxCollision2D(AABB_2D& boxA, AABB_2D& boxB);
 // bool CheckBoundingBoxCollision3D(AABB_3D& boxA, AABB_3D& boxB);
-
-class OctTree 
-{
-protected:
-    // Bins contain a list of models.
+// Bins contain a list of models.
     //   model: an array of models utilizing the header only library, stb_ds.h.
     //   count: number of models located in the bin.
     struct Bin
@@ -33,6 +29,8 @@ protected:
         Bin  *bin      = NULL;
         bool isLeaf    = true;
         bool isVisible = true;
+        bool lastFrameVisible = false;
+        uint64_t query_idx = -1;
     };
 
     struct OcclusionList
@@ -48,14 +46,15 @@ protected:
         OCCLUSION_LAZY         // Just Bounding Box is checked
     };
 
+class OctTree 
+{
 private:
     // some nifty state
     // size_t size_element_per_bin; // keep? Helps to determine the required space for a bin element
     // u32 current_max_depth = 0; // depth of the tree, default is 0
     // u32 bin_size = 0;
     // u32 max_depth = 30;
-    Node** tree = NULL; // array representation of the tree
-
+    
     // Private helper functions
     Node* create_node(AABB_3D* aabb, Node *parent);
     bool helper_add(int position, SpatialModel *model);
@@ -68,6 +67,10 @@ private:
 
 
 public:
+    
+
+    Node** tree = NULL; // array representation of the tree
+
     OctTree(float* min, float* max);
     ~OctTree();
 
