@@ -24,4 +24,7 @@ glslc ..\text.frag -o text_frag.spv
 glslc ..\fill_vcolor.vert -o fill_vcolor_vert.spv
 glslc ..\fill_vcolor.frag -o fill_vcolor_frag.spv
 
+glslc ..\bounds_box.vert -o bounds_box_vert.spv
+glslc ..\bounds_box.frag -o bounds_box_frag.spv
+
 popd

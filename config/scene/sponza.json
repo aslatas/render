@@ -1,0 +1,79 @@
+{
+    "models": [
+        {
+            "filepath": "resources/models/sponza/glTF/Sponza.glb",
+            "id": -1,
+            "position": [
+                0.0,
+                -3.0,
+                0.0
+            ],
+            "scale": [
+                0.009999999776482582,
+                0.009999999776482582,
+                0.009999999776482582
+            ],
+            "rotation": [
+                3.141590118408203,
+                0.0,
+                0.0
+            ]
+        }
+    ],
+    "cameras": [
+        {
+            "position": [
+                -2.0,
+                0.0,
+                0.0
+            ],
+            "up_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "look_at_vector": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "pitch": 0.0,
+            "yaw": 0.0,
+            "roll": 0.0,
+            "zoom": 0.0
+        }
+    ],
+    "lights": [
+        {
+            "type": "DIRECTIONAL",
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "color": {
+                "diffuse": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "specular": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "direction": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ]
+        }
+    ]
+}

@@ -25,6 +25,8 @@ struct VulkanInfo
     VkSemaphore *render_finished_semaphores;
 };
 
+VulkanInfo GetVulkanInfo();
+
 struct DirectionalLight
 {
     glm::vec4 direction;
@@ -75,44 +77,44 @@ struct Ray
     float length;
 };
 
-struct ModelData {
-    void*    memory_block;
-    size_t   memory_block_size;
+// struct ModelData {
+//     void*    memory_block;
+//     size_t   memory_block_size;
     
-    u32* indices;
-    glm::vec3* position; // 12
-    glm::vec3* normal;   // 24
-    glm::vec4* tangent;  // 40
-    glm::vec4* color;    // 56
-    glm::vec2* uv0;      // 64
-    glm::vec2* uv1;      // 72
-    glm::vec2* uv2;      // 80
+//     u32* indices;
+//     glm::vec3* position; // 12
+//     glm::vec3* normal;   // 24
+//     glm::vec4* tangent;  // 40
+//     glm::vec4* color;    // 56
+//     glm::vec2* uv0;      // 64
+//     glm::vec2* uv1;      // 72
+//     glm::vec2* uv2;      // 80
     
-    size_t attribute_offsets[7];
-};
+//     size_t attribute_offsets[7];
+// };
 
-struct Model_Separate_Data
-{
-    u32 vertex_count;
-    u32 index_count;
-    u32 uniform_index;
-    AxisAlignedBoundingBox bounds;
-    bool hit_test_enabled;
+// struct Model_Separate_Data
+// {
+//     u32 vertex_count;
+//     u32 index_count;
+//     u32 uniform_index;
+//     AxisAlignedBoundingBox bounds;
+//     bool hit_test_enabled;
     
-    u32 material_type;
-    u32 shader_id;
-    VkBuffer vertex_buffer;
-    VkBuffer index_buffer;
-    VkDeviceMemory vertex_buffer_memory;
-    VkDeviceMemory index_buffer_memory;
+//     u32 material_type;
+//     u32 shader_id;
+//     VkBuffer vertex_buffer;
+//     VkBuffer index_buffer;
+//     VkDeviceMemory vertex_buffer_memory;
+//     VkDeviceMemory index_buffer_memory;
     
-    glm::vec3 pos;
-    glm::vec3 rot;
-    glm::vec3 scl;
+//     glm::vec3 pos;
+//     glm::vec3 rot;
+//     glm::vec3 scl;
     
-    // Heap allocated:
-    ModelData* model_data; // separate data format 
-};
+//     // Heap allocated:
+//     ModelData* model_data; // separate data format 
+// };
 
 /*
 struct Model
@@ -157,7 +159,7 @@ Ray CreateRay(glm::vec3 origin, glm::vec3 direction, float length);
 // then performing an axis-aligned bounding box test. 
 // Returns true if there was an intersection, false otherwise.
 // Fills the intersection parameter with the intersection point if there was one.
-bool RaycastAgainstModelBounds(const Ray ray, const Model_Separate_Data *model, glm::vec3 *intersection);
+bool RaycastAgainstModelBounds(const Ray ray, const Model *model, glm::vec3 *intersection);
 
 // Tests a ray against an axis-aligned bounding box, assuming both are in the same coordinate space.
 // For each axis, tests the ray against both planes of the box. If the minimum distance in one axis exceeds the
