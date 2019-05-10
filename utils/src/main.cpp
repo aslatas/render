@@ -47,6 +47,7 @@ Steps for implementation:
 #include <assert.h>
 #include <string>
 #include <iostream>
+#include <exception>
 
 // External Lib Files
 #define STBI_ONLY_PNG
@@ -67,8 +68,11 @@ Steps for implementation:
 #include "glm/glm.hpp"
 #pragma warning(pop)
 
-#define CGLTF_IMPLEMENTATION
-#include "cgltf.h"
+// #define CGLTF_IMPLEMENTATION
+// #include "cgltf.h"
+
+#include <nlohmann/json.hpp>
+#include <gltf.h>
 
 // Some convientent defines
 typedef uint8_t u8;
@@ -78,16 +82,16 @@ typedef uint8_t u8;
 
 // Header Files
 #include "Mesh.h"
-#include "GLTF.h"
+#include "GLTFParser.h"
 #include "Scene.h"
 
 // Config Parser Component headers
-// #include "config_parsers/ConfigUtils.h"
-// #include "config_parsers/SceneConfig.h"
+#include "config_parsers/ConfigUtils.h"
+#include "config_parsers/SceneConfig.h"
 
 // SRC Files
 #include "Mesh.cpp"
-#include "GLTF.cpp"
+#include "GLTFParser.cpp"
 #include "Scene.cpp"
 
 // TEST Files

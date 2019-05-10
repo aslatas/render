@@ -42,10 +42,13 @@
 #include "stb/stb_truetype.h"
 #include "stb/stb_ds.h"
 
-#define TINYGLTF_IMPLEMENTATION
-#define TINYGLTF_NOEXCEPTION
-#define JSON_NOEXCEPTION
-#include "tinygltf/tiny_gltf.h"
+// #define TINYGLTF_IMPLEMENTATION
+// #define TINYGLTF_NOEXCEPTION
+// #define JSON_NOEXCEPTION
+// #include "tinygltf/tiny_gltf.h"
+
+#include <nlohmann/json.hpp>
+#include <gltf.h>
 
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
@@ -76,6 +79,7 @@ using namespace rapidjson;
 #include "Camera.h"
 #include "Bounds.h"
 #include "Object.h"
+#include "Mesh.h"
 #include "RenderTypes.h"
 #include "RenderBase.h"
 #include "Texture.h"
@@ -83,7 +87,7 @@ using namespace rapidjson;
 #include "Main.h"
 #include "VulkanInit.h"
 #include "OctTree.h"
-#include "ModelLoader.h"
+#include "GLTFParser.h"
 #include "SceneManager.h"
 
 // Platform specific headers.
@@ -100,6 +104,7 @@ using namespace rapidjson;
 #include "VulkanLoader.cpp"
 #include "Camera.cpp"
 #include "Object.cpp"
+#include "Mesh.cpp"
 #include "RenderTypes.cpp"
 #include "RenderBase.cpp"
 #include "Texture.cpp"
@@ -108,7 +113,7 @@ using namespace rapidjson;
 #include "VulkanInit.cpp"
 #include "Bounds.cpp"
 #include "OctTree.cpp"
-#include "ModelLoader.cpp"
+#include "GLTFParser.cpp"
 #include "SceneManager.cpp"
 
 // Platform specific libraries (windows headers).

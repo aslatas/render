@@ -19,10 +19,6 @@ struct Primitive
     u32 index_count;
     u32 uniform_index;
 
-    // Material information
-    u32 material_type;
-    u32 material_id;
-
     // Descriptor Set information
     glm::vec3 pos;
     glm::vec3 rot;
@@ -35,7 +31,8 @@ struct Primitive
 
 struct Mesh
 {
-    
+    u32       material_type;
+    u32       *material_ids = nullptr;
     u32       *texture_ids  = nullptr;
     Primitive *primitives   = nullptr;
 

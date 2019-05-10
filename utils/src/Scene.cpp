@@ -51,14 +51,17 @@ Scene::~Scene()
 //-----------------------------------------------------------------------//
 // Mesh related functions
 //-----------------------------------------------------------------------//
-
+#define LEN(x) (sizeof((x)) / sizeof((x[0])))
 size_t Scene::LoadMeshFromFile(EMeshFileType type, char *filename)
 {
+    size_t first_id = arrlen(meshes);
+
+    Mesh *meshes;
     switch(type)
     {
         case GLTF:
         {
-            glTF::LoadMesh(filename);
+            meshes = glTF::LoadMesh(filename);
         } break;
         case OBJ:
         case FBX:
@@ -68,6 +71,28 @@ size_t Scene::LoadMeshFromFile(EMeshFileType type, char *filename)
             return -1;
         } break;
     }
+
+    
+
+    // This will be placed in Scene.cpp
+    // Determine the file format and the friendly name
+    int counter = 0;
+    char *cp = (char*)malloc(strlen(filename) + 1); // make a copy, just in case
+    for (int i = 0; i < arrlen(meshes); ++i)
+    {
+        char friendly[50];
+        char *temp;
+        char *format;
+        strcpy(cp, filename); // just in case strrchr destryos the copy
+        temp = strrchr(cp, '/') + 1; // the + 1 removes the special character
+        snprintf(friendly, 50, "%s%d", temp, counter++);
+        printf("Friendly name given to model %d is: %s\n", counter, friendly);
+
+        this->AddMesh(&meshes[i], filename, friendly);
+    }
+    free(cp);
+
+    return first_id;
 }
 
 // Returns the index into the mesh array

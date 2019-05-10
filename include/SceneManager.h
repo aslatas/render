@@ -1,24 +1,22 @@
 #ifndef SCENE_MANAGER_H
 
-struct HashModel 
+struct MaterialElement
 {
-    size_t key;    // hashed key 
-    void* value; // struct containing the data
+    size_t type_id;
+    size_t mat_id;
 };
 
-/*
- * Here is what I want: 
- *   An Array of Key-Object struct
- *     Hashed Key
- *     void* object -> some other struct containing the data
- *   
- *   Return the index of th
- */
-struct FakeHashTable
+struct MeshElement
 {
-    long seed = -1;
-    HashModel* hash_table = nullptr;
+    size_t filename_idx; // hashed index for filename
+    size_t friendly_idx; // hashed index for friendly name     
+    Mesh   *mesh;
+};
 
+struct HashElement
+{
+    char *key;
+    void *value;
 };
 
 // Probably unnecessary right now, but there is a possibility we use other 
@@ -47,27 +45,32 @@ struct RenderSceneMaterial
 class SceneManager {
 
 private:
-    //---------------//
-    // SINGLETON
-    //---------------//
-    // SceneManager();
-    // static SceneManager* manager;
+    // MaterialLayout  *material_types  = nullptr; // array
+    MeshElement        *meshes          = nullptr; // array
 
-    //---------------//
-    // Internal State
-    //---------------//
-    // Scene Assets
-    
-    FakeHashTable* models     = nullptr; // HashTable
+    // Seed for the hash table
+    size_t seed         = -1; // seed given to hash table
+    size_t scene_id     = -1; // hashed id of scene filename (settings)
+    size_t bin_scene_id = -1; // hashed id of the binary scene filename (data)
 
+    // Friendly names for the material and mesh
+    HashElement *friendly_mat  = nullptr; // key is engine friendly name
+                                          // value is MaterialElement, contains 
+                                          // index into material array.
+    HashElement *friendly_mesh = nullptr; // 
 
-    // Spatial Heirarchies
-    // ESpatialHeirarchy scene_active_spatial_heirarchy;
+    // Filenames for material and mesh
+    HashElement *filename_mat  = nullptr; // Key is the filename,
+                                          // value is index into material array. 
+                                          // Mesh.materialType gives the material type
+    HashElement *filename_mesh = nullptr; // key is the filename, 
+                                          // value is MaterialElement, contains index into
+                                          // mat type and mat array
     
 
 public:
     MaterialLayout* material_types  = nullptr; // HashTable
-    Model*     model_data = nullptr; // ArrayList
+    // Model*     model_data = nullptr; // ArrayList
     OctTree* scene = nullptr;
     // Remove the copy constructors
     // SceneManager(const SceneManager&)            = delete;
@@ -89,12 +92,29 @@ public:
     // Given the index into the MaterialLayout list, add a material to that type. Return
     // The index into the material list that material was added to.
     u32 AddMaterial(Material* mat, u32 layout_idx);
-    // Does not really load from a file
-    // Note: filename is the hashed key for the HashTable
-    size_t LoadModel(char* filename, u32 mat_idx);
 
-    void AddModel(char* key, Model* model);
+    //-----------------------------------------------------------------------//
+    // Mesh related functions
+    //-----------------------------------------------------------------------//
+    // Only gltf is supported
+    enum EMeshFileType
+    {
+        GLTF,
+        OBJ,
+        FBX
+    };
+    // Returns the index into the mesh array
+    size_t LoadMeshFromFile(EMeshFileType type, char *filename);
+    size_t AddMesh(Mesh *mesh, char* filename, char *friendly);
+    Mesh *GetMeshByFriendlyName(char *friendly);
+    Mesh *GetMeshByFilename(char *filename);
+    u32 ChangeMeshFriendlyName(char *old_name, char *new_name);
+    u32 ChangeMeshFilename(char *old_name, char *new_name);
+    Mesh *GetAllMeshes();
 
+    //-----------------------------------------------------------------------//
+    // OctTree related functions
+    //-----------------------------------------------------------------------//
     // OctTree is not populated by default. Uses the Model HashTable
     // to populate the HashTable.
     void CreateSpatialHeirarchy(float *min, float *max);

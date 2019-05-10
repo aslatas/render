@@ -9,11 +9,8 @@
  * Make SceneManager a Singleton instance?
  */
 
-SceneManager::SceneManager()
+SceneManager::SceneManager() 
 {
-    
-
-
     material_types = nullptr;
 
     models = (FakeHashTable*)malloc(sizeof(FakeHashTable));
@@ -282,4 +279,201 @@ void SceneManager::PrintModelTable()
     //for (unsigned int i = 0; i < shlen(models); ++i) {
     //    printf("Index %d has the key %s\n", i, models[i].key);
     //}
+}
+
+
+//-----------------------------------------------------------------------//
+// New stuff
+//-----------------------------------------------------------------------//
+//-----------------------------------------------------------------------//
+// Mesh related functions
+//-----------------------------------------------------------------------//
+size_t SceneManager::LoadMeshFromFile(EMeshFileType type, char *filename)
+{
+    size_t first_id = arrlen(meshes);
+
+    Mesh *meshes;
+    switch(type)
+    {
+        case GLTF:
+        {
+            meshes = glTF::LoadMesh(filename);
+        } break;
+        case OBJ:
+        case FBX:
+        default:
+        {
+            printf("Model file type not supported!\n");
+            return -1;
+        } break;
+    }
+
+    // This will be placed in Scene.cpp
+    // Determine the file format and the friendly name
+    int counter = 0;
+    char *cp = (char*)malloc(strlen(filename) + 1); // make a copy, just in case
+    for (int i = 0; i < arrlen(meshes); ++i)
+    {
+        char friendly[50];
+        char *temp;
+        char *format;
+        strcpy(cp, filename); // just in case strrchr destryos the copy
+        temp = strrchr(cp, '/') + 1; // the + 1 removes the special character
+        snprintf(friendly, 50, "%s%d", temp, counter++);
+        printf("Friendly name given to model %d is: %s\n", counter, friendly);
+
+        this->AddMesh(&meshes[i], filename, friendly);
+    }
+    free(cp);
+
+    return first_id;
+}
+
+// Returns the index into the mesh array
+size_t SceneManager::AddMesh(Mesh *mesh, char* filename, char *friendly)
+{
+    size_t mesh_id = arrlen(meshes);
+    size_t mesh_file_id = (filename_mesh != nullptr) ? shlen(filename_mesh) : 0;
+    size_t mesh_friend_id = (friendly_mesh != nullptr) ? shlen(friendly_mesh) : 0;
+
+    // Insert into mesh list
+    MeshElement me;
+    me.filename_idx = mesh_file_id;
+    me.friendly_idx = mesh_friend_id;
+    me.mesh = mesh;
+    arrput(meshes, me);
+
+    // Insert into friendly hash list
+    HashElement hefr;
+    hefr.key = friendly;
+    hefr.value = (void*)mesh_friend_id;
+    shputs(friendly_mesh, hefr);
+
+    // Insert into filename hash list
+    HashElement hefi;
+    hefi.key = filename;
+    hefi.value = (void*)mesh_file_id;
+    shputs(filename_mesh, hefi);
+
+    return mesh_id;
+}
+
+Mesh *SceneManager::GetMeshByFriendlyName(char *friendly)
+{
+    HashElement he = shgets(friendly_mesh, friendly);
+    return meshes[(size_t)he.value].mesh;
+}
+
+Mesh *SceneManager::GetMeshByFilename(char *filename)
+{
+    HashElement he = shgets(filename_mesh, filename);
+    return meshes[(size_t)he.value].mesh;
+}
+
+u32 SceneManager::ChangeMeshFriendlyName(char *old_name, char *new_name)
+{
+    return 0;
+}
+
+u32 SceneManager::ChangeMeshFilename(char *old_name, char *new_name)
+{
+    return 0;
+}
+
+Mesh *SceneManager::GetAllMeshes()
+{
+    RenderSceneMaterial* rsml = nullptr;
+    for (int i = 0; i < arrlen(meshes); ++i)
+    {
+        Mesh m = meshes[i];
+        for (int j = 0; j < arrlen(m.primitives); ++j)
+        {
+            Primitive prim = m.primitives[j];
+
+            // check if the material type exists
+            bool type_exist = false;
+            for (int j = 0; j < arrlen(rsml); ++j)
+            {
+                if (rsml[j].mat_layout_idx == prim.material_type)
+                {
+                }
+            }
+
+            if (!type_exist)
+            {
+                // add layout, mat, and model
+                size_t idx = arrlen(rsml);
+                RenderSceneMaterial rsm;
+                rsm.mat_layout_idx = prim.material_type;
+                rsm.scene_materials = nullptr;
+                scene_mat mat;
+                mat.mat_idx = prim.material_id;
+                mat.model_idx = nullptr;
+                arrput(rsml, rsm);
+
+                size_t idx_mat = arrlen(rsml[idx].scene_materials);
+                arrput(rsml[idx].scene_materials, mat);
+            }
+        }
+    }
+    
+    for (int i = 0; i < arrlen(meshes); ++i)
+    {
+        // check if the material type exists
+        bool type_exist = false;
+        for (int j = 0; j < arrlen(rsml); ++j)
+        {
+            if (rsml[j].mat_layout_idx == sm[i].material_type_idx)
+            {
+                type_exist = true;
+
+                // check if material exists
+                bool mat_exist = false;
+                for (int k = 0; k < arrlen(rsml[j].scene_materials); ++k)
+                {
+                    // add model
+                    if (rsml[j].scene_materials[k].mat_idx == sm[i].material_idx)
+                    {
+                        mat_exist = true;
+                        size_t mat_type = sm[i].material_type_idx;
+                        size_t mat = sm[i].material_idx;
+                        arrput(rsml[j].scene_materials[k].model_idx, sm[i].model_index);
+                        break;
+                    }
+                }
+
+                if (!mat_exist)
+                {
+                    // add mat and model
+                    scene_mat mat;
+                    mat.mat_idx = sm[i].material_idx;
+                    mat.model_idx = nullptr;
+                    
+                    size_t idx_mat = arrlen(rsml[j].scene_materials);
+                    arrput(rsml[j].scene_materials, mat);
+                    arrput(rsml[j].scene_materials[idx_mat].model_idx, sm[i].model_index);
+                }
+                break;
+            }
+        }
+
+        if (!type_exist)
+        {
+            // add layout, mat, and model
+            size_t idx = arrlen(rsml);
+            RenderSceneMaterial rsm;
+            rsm.mat_layout_idx = sm[i].material_type_idx;
+            rsm.scene_materials = nullptr;
+            scene_mat mat;
+            mat.mat_idx = sm[i].material_idx;
+            mat.model_idx = nullptr;
+            arrput(rsml, rsm);
+
+            size_t idx_mat = arrlen(rsml[idx].scene_materials);
+            arrput(rsml[idx].scene_materials, mat);
+            arrput(rsml[idx].scene_materials[idx_mat].model_idx, sm[i].model_index);
+        }
+    }
+
+    return mesh;
 }
