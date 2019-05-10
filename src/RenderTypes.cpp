@@ -252,7 +252,7 @@ bool RayIntersectAxisAlignedBox(Ray ray, AABB_3D box, glm::vec3 *intersection)
 // TODO(Matt): Refactor - this is a prototype.
 bool RaycastAgainstModelBounds(Ray ray, const Model *model, glm::vec3 *intersection)
 {
-    PerDrawUniformObject *ubo = GetPerDrawUniform(model->uniform_index);
+    PerDrawUniformObject *ubo = Renderer::GetPerDrawUniform(model->uniform_index);
     glm::mat4 inverse = glm::inverse(ubo->model);
     Ray local_ray = CreateRay(inverse * glm::vec4(ray.origin, 1.0f), inverse * glm::vec4(ray.direction, 0.0f), ray.length);
     bool intersect = RayIntersectAxisAlignedBox(local_ray, model->bounds, intersection);

@@ -1,7 +1,7 @@
 
 #include "Main.h"
 
-#define MAX_PHYSICS_DELTA 0.03
+#define MAX_PHYSICS_DELTA 0.03f
 #define MAX_PHYSICS_STEPS 4
 
 // TODO(Matt): Better input mapping (array of mappings, where a mapping
@@ -22,7 +22,7 @@ global PlatformGlobalTimer global_timer;
 
 internal void ResizeCallback(const PlatformWindow *window, u32 width, u32 height)
 {
-    OnWindowResized();
+    Renderer::OnWindowResized();
 }
 
 internal void KeyCallback(const PlatformWindow *window, EKeyCode key, EButtonState state)
@@ -48,7 +48,7 @@ internal void MouseButtonCallback(const PlatformWindow *window, u32 button, EBut
     if (button == 1 && state == PRESSED && editor_input_mode == UI) {
         s32 x, y;
         PlatformGetCursorLocation(window, &x, &y);
-        SelectObject(x, y, is_ctrl_held);
+        Renderer::SelectObject(x, y, is_ctrl_held);
     }
     if (button == 2 && state == PRESSED) {
         is_rmb_held = true;
@@ -72,24 +72,24 @@ internal void MouseWheelCallback(const PlatformWindow *window, s32 amount)
 
 void RunMainLoop()
 {
-    double frame_delta_max = MAX_PHYSICS_DELTA * MAX_PHYSICS_STEPS;
+    float frame_delta_max = MAX_PHYSICS_DELTA * MAX_PHYSICS_STEPS;
     while (PlatformPeekEvents() >= 0) {
-        double frame_delta = PlatformGetTimerDelta(&global_timer);
+        float frame_delta = (float)PlatformGetTimerDelta(&global_timer);
         if (frame_delta > frame_delta_max) frame_delta = frame_delta_max;
         // Pre-physics update here.
-        UpdatePrePhysics(frame_delta);
+        Renderer::UpdatePrePhysics(frame_delta);
         u32 steps = ((u32)(frame_delta / MAX_PHYSICS_DELTA)) + 1;
         if (steps > MAX_PHYSICS_STEPS) steps = MAX_PHYSICS_STEPS;
-        double step_delta = frame_delta / steps;
+        float step_delta = frame_delta / steps;
         for (u32 i = 0; i < steps; ++i) {
             // Physics update here (expensive, multiple steps per frame).
-            UpdatePhysics(step_delta);
+            Renderer::UpdatePhysics(step_delta);
         }
         // Post-physics update here.
-        UpdatePostPhysics(frame_delta);
-        DrawFrame();
+        Renderer::UpdatePostPhysics(frame_delta);
+        Renderer::DrawFrame();
         // Post-render update.
-        UpdatePostRender(frame_delta);
+        Renderer::UpdatePostRender(frame_delta);
     }
 }
 
@@ -101,7 +101,7 @@ s32 Main()
     PlatformRegisterKeyCallback(&global_window, KeyCallback);
     PlatformRegisterMouseButtonCallback(&global_window, MouseButtonCallback);
     PlatformRegisterMouseWheelCallback(&global_window, MouseWheelCallback);
-    InitializeRenderer();
+    Renderer::Initialize();
     PlatformShowWindow(&global_window);
     PlatformInitializeGlobalTimer(&global_timer);
     RunMainLoop();
@@ -119,7 +119,7 @@ void ExitWithError(const char *message)
 
 void Shutdown()
 {
-    ShutdownRenderer();
+    Renderer::Shutdown();
 }
 
 EInputMode GetInputMode()

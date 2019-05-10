@@ -1,68 +1,57 @@
-// TODO(Matt): Use a texture list, and have models which use textures
-// specify which textures belong in which samplers.
-// TODO(Matt): Re-handle the way that uniforms are updated. It's hacky.
 
-/*
-Hardware Occlusion Queries
--> Set up a query pool
--> Array of results for updating the next frame
-
-*/
-
-#include "RenderBase.h"
+#include "Renderer.h"
 
 BitmapFont font = {};
-Texture *textures = nullptr;
-// MaterialLayout *material_types = nullptr;
+Texture* textures = nullptr;
 
 DescriptorLayout descriptor_layout_new = {};
-VkBuffer *uniform_buffers_new = nullptr;
-VkDeviceMemory *uniform_buffers_memory_new = nullptr;
+VkBuffer* uniform_buffers_new = nullptr;
+VkDeviceMemory* uniform_buffers_memory_new = nullptr;
+VkDescriptorSet* descriptor_sets_new = nullptr;
 UniformBuffer uniforms = {};
-VkDescriptorSet *descriptor_sets_new = nullptr;
 
-SceneManager *scene_manager;
-char *scene_file = "../../config/scene/frustum_camera_test.json";
+SceneManager* scene_manager;
+char* scene_file = "../../config/scene/frustum_camera_test.json";
 
-Model **selected_models = nullptr;
+Model** selected_models = nullptr;
 ModelInstanced bounding_boxes = {};
 
-// TODO(Matt): Refactor these.
-Camera::Camera *cameras = nullptr;
+Camera::Camera* cameras = nullptr;
 Camera::Controller controller = {16.0f, 16.0f, 2.0f, 0.25f, glm::vec3(0.0f), glm::vec3(0.0f)};
 
+
 // TODO(Matt): Move this to the platform layer.
-char *ReadShaderFile(const char *path, u32 *length)
+char* Renderer::ReadShaderFile(const char *path, u32 *length)
 {
-    FILE *file = fopen(path, "rb");
+    FILE* file = fopen(path, "rb");
     if (!file)
         return nullptr;
     fseek(file, 0, SEEK_END);
     *length = ftell(file);
     fseek(file, 0, SEEK_SET);
-    char *buffer = (char *)malloc(*length);
+    char* buffer = (char*)malloc(*length);
     fread(buffer, 1, *length, file);
     fclose(file);
     return buffer;
 }
 
-void InitializeRenderer()
+void Renderer::Initialize()
 {
     InitializeVulkan();
     InitializeScene();
 }
 
-void ShutdownRenderer()
+void Renderer::Shutdown()
 {
     WaitDeviceIdle();
     DestroyScene();
     ShutdownVulkan();
 }
 
-void RecordRenderCommands(u32 image_index)
+void Renderer::RecordCommands(u32 image_index)
 {
     RenderSceneMaterial* rsm = scene_manager->GetVisibleData(&cameras[0]); 
-
+    
     u32 num = 0;
     
     CommandBeginRenderPass(image_index);
@@ -73,7 +62,7 @@ void RecordRenderCommands(u32 image_index)
         for (u32 j = 0; j < arrlen(rsm[i].scene_materials); ++j) {
             Material *material = scene_manager->GetMaterial(rsm[i].mat_layout_idx, rsm[i].scene_materials[j].mat_idx);
             // Bind the material pipeline and set dynamic state.
-            CommandBindPipeline(material->pipeline, image_index);
+            CommandBindMaterial(material, image_index);
             
             // For each model of a given material.
             for (u32 k = 0; k < arrlen(rsm[i].scene_materials[j].model_idx); ++k) {
@@ -93,7 +82,7 @@ void RecordRenderCommands(u32 image_index)
     }
     
     Material* material = scene_manager->GetMaterial(bounding_boxes.material_type, bounding_boxes.shader_id);
-    CommandBindPipeline(material->pipeline, image_index);
+    CommandBindMaterial(material, image_index);
     CommandBindVertexBuffer(bounding_boxes.vertex_buffer, bounding_boxes.attribute_offsets, 4, image_index);
     CommandBindIndexBuffer(bounding_boxes.index_buffer, VK_INDEX_TYPE_UINT32, image_index);
     CommandDrawIndexed(image_index, bounding_boxes.index_count, bounding_boxes.instance_count);
@@ -110,7 +99,7 @@ void RecordRenderCommands(u32 image_index)
         // maybe use a separate set of materials entirely for post process.
         // Bind the stenciling pipeline.
         MaterialLayout *material_type = scene_manager->GetMaterialLayout(0);
-        CommandBindPipeline(material_type->materials[outline_stage].pipeline, image_index);
+        CommandBindMaterial(&material_type->materials[outline_stage], image_index);
         // For each selected model.
         for (u32 i = 0; i < arrlen(selected_models); ++i) {
             // Bind vertex and index buffers, and uniforms.
@@ -128,7 +117,7 @@ void RecordRenderCommands(u32 image_index)
     CommandEndRenderPass(image_index);
 }
 
-void DrawFrame()
+void Renderer::DrawFrame()
 {
     u32 image_index = WaitForNextImage();
     // Update uniforms to reflect new state of all scene objects.
@@ -136,20 +125,20 @@ void DrawFrame()
     // geometry won't change.
     UpdateUniforms(image_index);
     // Record draw calls and other work for this frame.
-    RecordRenderCommands(image_index);
+    RecordCommands(image_index);
     
     SubmitRenderCommands(image_index);
     PresentNextFrame(image_index);
 }
 
 // TODO(Matt): Move this out of the rendering component.
-void UpdatePrePhysics(double delta)
+void Renderer::UpdatePrePhysics(float delta)
 {
     if (GetInputMode() == VIEWPORT) {
         float forward_axis = GetForwardAxis();
         float right_axis = GetRightAxis();
         float up_axis = GetUpAxis();
-        Camera::ApplyInput((float)delta, &controller, &cameras[0], glm::vec3(forward_axis, right_axis, up_axis));
+        Camera::ApplyInput(delta, &controller, &cameras[0], glm::vec3(forward_axis, right_axis, up_axis));
         s32 x, y;
         float x_delta, y_delta;
         PlatformGetCursorDelta(&x, &y);
@@ -161,7 +150,7 @@ void UpdatePrePhysics(double delta)
         Camera::AddYaw(&cameras[0], yaw);
         Camera::AddPitch(&cameras[0], pitch);
     } else {
-        Camera::ApplyInput((float)delta, &controller, &cameras[0], glm::vec3(0.0f));
+        Camera::ApplyInput(delta, &controller, &cameras[0], glm::vec3(0.0f));
     }
     
     PerFrameUniformObject *per_frame = GetPerFrameUniform();
@@ -190,30 +179,30 @@ void UpdatePrePhysics(double delta)
 }
 
 // TODO(Matt): Move this out of the rendering component.
-void UpdatePhysics(double frame_delta)
+void Renderer::UpdatePhysics(float frame_delta)
 {
     
 }
 
 // TODO(Matt): Move this out of the rendering component.
-void UpdatePostPhysics(double delta)
+void Renderer::UpdatePostPhysics(float delta)
 {
     
 }
 
 // TODO(Matt): Move this out of the rendering component.
-void UpdatePostRender(double delta)
+void Renderer::UpdatePostRender(float delta)
 {
     
 }
 
 // TODO(Matt): Figure out uniforms in general.
-void UpdateUniforms(u32 image_index)
+void Renderer::UpdateUniforms(u32 image_index)
 {
     UpdateDeviceMemory(uniforms.buffer, uniforms.buffer_size, uniform_buffers_memory_new[image_index]);
 }
 
-void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
+void Renderer::SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
 {
     // If we are not doing multi-select, reset selected count to zero.
     if (!accumulate) arrfree(selected_models);
@@ -244,7 +233,7 @@ void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
             }
         }
     }
-
+    
     // If any object was hit
     if (selection) {
         // Check if this box is already selected.
@@ -265,12 +254,12 @@ void SelectObject(s32 mouse_x, s32 mouse_y, bool accumulate)
     }
 }
 
-void OnWindowResized()
+void Renderer::OnWindowResized()
 {
     RecreateSwapchain();
 }
 
-void AddMaterial(MaterialCreateInfo *material_info, u32 material_type, VkRenderPass render_pass, u32 sub_pass)
+void Renderer::AddMaterial(MaterialCreateInfo *material_info, u32 material_type, VkRenderPass render_pass, u32 sub_pass)
 {
     Material material = CreateMaterial(material_info, scene_manager->GetMaterialLayout(material_type)->pipeline_layout, 
                                        material_type, render_pass, sub_pass);
@@ -282,7 +271,7 @@ void AddMaterial(MaterialCreateInfo *material_info, u32 material_type, VkRenderP
 // TODO(Matt): Put materials in a hash table by friendly name. Engine default always goes in slot 0. If
 // we access a non-default material and it isn't there (or is incompatible), return the default and log a warning.
 // It's annoying referring to materials by index - index shifts around all the time.
-void CreateMaterials()
+void Renderer::CreateMaterials()
 {
     CreateDescriptorLayout(&descriptor_layout_new);
     MaterialCreateInfo material_info;
@@ -394,7 +383,7 @@ void CreateMaterials()
 
 // offset is the offset into buffer memory the VkBuffer will be written to
 // flags will probably be either VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-void CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory, VkBufferUsageFlagBits flags)
+void Renderer::CreateModelBuffer(VkDeviceSize buffer_size, void* buffer_data, VkBuffer* buffer, VkDeviceMemory* buffer_memory, VkBufferUsageFlagBits flags)
 {
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
@@ -410,21 +399,21 @@ internal void InitializeSceneResources()
 {
     scene_manager = new SceneManager();
     
-    CreateMaterials();
-    CreateGlobalUniformBuffers();
+    Renderer::CreateMaterials();
+    Renderer::CreateGlobalUniformBuffers();
     // Load fonts and textures.
     arrput(textures, LoadTexture("resources/textures/proto.jpg", 4, true));
     //font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
     //arrput(textures, font.texture);
     CreateDescriptorSets(uniform_buffers_new);
 }
-void InitializeScene()
+void Renderer::InitializeScene()
 {
     InitializeSceneResources();
     
     // Load scene config
     SceneSettings* scene = LoadSceneSettings(scene_file); 
-
+    
     // Force camera at location 0 to be player camera
     for (u32 i = 0; i < scene->num_cameras; ++i)
     {
@@ -582,7 +571,7 @@ internal void DestroySceneResources()
     }
 }
 
-void DestroyScene() {
+void Renderer::DestroyScene() {
     scene_manager->Shutdown();
     // for (u32 i = 0; i < arrlen(material_types); ++i) {
     //     for (u32 j = 0; j < arrlen(material_types[i].materials); ++j) {
@@ -602,7 +591,7 @@ void DestroyScene() {
     DestroySceneResources();
 }
 
-void AddToScene(Model model)
+void Renderer::AddToScene(Model model)
 {
     VkDeviceSize v_len = (model.model_data->memory_block_size - sizeof(u32) * model.index_count);
     
@@ -612,7 +601,7 @@ void AddToScene(Model model)
     scene_manager->AddModel("", &model);
 }
 
-void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
+void Renderer::UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
 {
     VkDescriptorImageInfo image_infos[MAX_TEXTURES];
     for (u32 i = 0; i < MAX_TEXTURES; ++i) {
@@ -634,7 +623,7 @@ void UpdateTextureDescriptors(VkDescriptorSet descriptor_set)
 
 // TODO(Matt): This should put one descriptor per render pass into the same
 // buffer. Currently there's only one render pass.
-void CreateGlobalUniformBuffers()
+void Renderer::CreateGlobalUniformBuffers()
 {
     // NOTE(Matt): We don't yet need to worry about buffer alignment,
     // because we're only using one render pass ATM.
@@ -654,18 +643,18 @@ void CreateGlobalUniformBuffers()
     }
 }
 
-PerDrawUniformObject *GetPerDrawUniform(u32 object_index)
+PerDrawUniformObject* Renderer::GetPerDrawUniform(u32 object_index)
 {
     char *object = uniforms.buffer + uniforms.per_draw_offset + object_index * sizeof(PerDrawUniformObject);
     return (PerDrawUniformObject *)object;
 }
 
-PerFrameUniformObject *GetPerFrameUniform()
+PerFrameUniformObject* Renderer::GetPerFrameUniform()
 {
     return (PerFrameUniformObject *)uniforms.buffer;
 }
 
-PerPassUniformObject *GetPerPassUniform()
+PerPassUniformObject* Renderer::GetPerPassUniform()
 {
     return (PerPassUniformObject *)(uniforms.buffer + uniforms.per_pass_offset);
 }

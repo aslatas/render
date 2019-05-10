@@ -67,11 +67,28 @@ struct DescriptorLayout
     VkDescriptorSetLayout *descriptor_layouts;
 };
 
+// Dynamic state to be bound for a given pipeline.
+enum class EPipelineDynamicStates
+{
+    VIEWPORT = 0x01,
+    SCISSOR = 0x02,
+    LINE_WIDTH = 0x04,
+    DEPTH_BIAS = 0x08,
+    BLEND_CONSTANTS = 0x10,
+    DEPTH_BOUNDS = 0x20,
+    STENCIL = 0x40,
+};
+
+// TODO(Matt): Refactor to represent a Mesh batch, for clarity.
 // Holds info about a material, and the list of models that use it.
 struct Material
 {
     VkPipeline pipeline; // Pipeline object.
     u32 type; // Material type (by index).
+    EPipelineDynamicStates dynamic_states; // Bitfield of dynamic states.
+    float line_width; // Line width, unused unless specified in dynamic states.
+    // TODO(Matt): Add support for depth bias/bounds, blend constatns, and stencil.
+    
     Model *models; // Model list.
 };
 
@@ -205,7 +222,7 @@ void DestroyImage(VkImage image);
 VkFormatProperties GetFormatProperties(VkFormat format);
 void UpdateDescriptorSet(VkWriteDescriptorSet descriptor_write);
 void CommandBeginRenderPass(u32 image_index);
-void CommandBindPipeline(VkPipeline pipeline, u32 image_index);
+void CommandBindMaterial(const Material* material, u32 image_index);
 void CommandBindVertexBuffer(VkBuffer buffer, size_t *offsets, u32 offset_count, u32 image_index);
 void CommandBindIndexBuffer(VkBuffer buffer, VkIndexType type, u32 image_index);
 void CommandPushConstants(VkPipelineLayout pipeline_layout, u32 stages, const PushConstantBlock *push_block, u32 image_index);

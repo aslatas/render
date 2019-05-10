@@ -929,7 +929,7 @@ void CreateDescriptorSets(VkBuffer *buffers)
         uniform_write.descriptorCount = 1;
         uniform_write.pBufferInfo = &descriptor_info;
         vkUpdateDescriptorSets(vulkan_info.logical_device, 1, &uniform_write, 0, nullptr);
-        UpdateTextureDescriptors(swapchain_info.descriptor_sets[i]);
+        Renderer::UpdateTextureDescriptors(swapchain_info.descriptor_sets[i]);
     }
 }
 
@@ -1106,7 +1106,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.shader_stages = (VkPipelineShaderStageCreateInfo *)malloc(sizeof(VkPipelineShaderStageCreateInfo) * result.stage_count);
     result.shader_modules = (VkShaderModule *)malloc(sizeof(VkShaderModule) * result.stage_count);
     u32 vert_length = 0;
-    char *vert_code = ReadShaderFile(vert_file, &vert_length);
+    char *vert_code = Renderer::ReadShaderFile(vert_file, &vert_length);
     if (!vert_code) {
         printf("Failed to read shader file: \"%s\"\n", vert_file);
         exit(EXIT_FAILURE);
@@ -1121,7 +1121,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.shader_stages[0] = vert_create_info;
     if (frag_file) {
         u32 frag_length = 0;
-        char *frag_code = ReadShaderFile(frag_file, &frag_length);
+        char *frag_code = Renderer::ReadShaderFile(frag_file, &frag_length);
         if (!frag_code) {
             printf("Failed to read shader file: \"%s\"\n", frag_file);
             exit(EXIT_FAILURE);
@@ -1302,6 +1302,16 @@ Material CreateMaterial(MaterialCreateInfo *material_info, VkPipelineLayout layo
     
     Material material = {};
     material.type = type;
+    u32 dynamic_states = 0;
+    for (u32 i = 0; i < material_info->dynamic_state_count; ++i) {
+        if (material_info->dynamic_states[i] == VK_DYNAMIC_STATE_VIEWPORT) {
+            dynamic_states |= (u32)EPipelineDynamicStates::VIEWPORT;
+        }
+        if (material_info->dynamic_states[i] == VK_DYNAMIC_STATE_SCISSOR) {
+            dynamic_states |= (u32)EPipelineDynamicStates::SCISSOR;
+        }
+    }
+    material.dynamic_states = (EPipelineDynamicStates)dynamic_states;
     VK_CHECK_RESULT(vkCreateGraphicsPipelines(vulkan_info.logical_device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &material.pipeline));
     for (u32 i = 0; i < material_info->stage_count; ++i) {
         vkDestroyShaderModule(vulkan_info.logical_device, material_info->shader_modules[i], nullptr);
@@ -1393,15 +1403,18 @@ void CommandBeginRenderPass(u32 image_index)
                             &swapchain_info.descriptor_sets[image_index], 1, offsets);
 }
 
-void CommandBindPipeline(VkPipeline pipeline, u32 image_index)
+void CommandBindMaterial(const Material* material, u32 image_index)
 {
-    vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    
-    
-    VkViewport viewport = {0.0f, 0.0f, (float)swapchain_info.extent.width, (float)swapchain_info.extent.height, 0.0f, 1.0f};
-    VkRect2D scissor = {{0, 0}, swapchain_info.extent};
-    vkCmdSetViewport(swapchain_info.primary_command_buffers[image_index], 0, 1, &viewport);
-    vkCmdSetScissor(swapchain_info.primary_command_buffers[image_index], 0, 1, &scissor);
+    vkCmdBindPipeline(swapchain_info.primary_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, material->pipeline);
+    u32 states = (u32)material->dynamic_states;
+    if (states & (u32)EPipelineDynamicStates::VIEWPORT) {
+        VkViewport viewport = {0.0f, 0.0f, (float)swapchain_info.extent.width, (float)swapchain_info.extent.height, 0.0f, 1.0f};
+        vkCmdSetViewport(swapchain_info.primary_command_buffers[image_index], 0, 1, &viewport);
+    }
+    if (states & (u32)EPipelineDynamicStates::SCISSOR) {
+        VkRect2D scissor = {{0, 0}, swapchain_info.extent};
+        vkCmdSetScissor(swapchain_info.primary_command_buffers[image_index], 0, 1, &scissor);
+    }
 }
 
 void CommandBindVertexBuffer(VkBuffer buffer, size_t *offsets, u32 offset_count, u32 image_index)
