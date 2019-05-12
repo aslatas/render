@@ -32,6 +32,22 @@
 	}                                                                  \
 }
 
+struct FramebufferAttachment
+{
+    VkImage image;
+    VkImageView view;
+    VkFormat format;
+    VkDeviceMemory memory;
+};
+
+struct GBuffer
+{
+    FramebufferAttachment albedo;
+    FramebufferAttachment position;
+    FramebufferAttachment normal;
+    FramebufferAttachment depth;
+};
+
 // Stores vulkan information that must be recreated with the swapchain.
 struct SwapchainInfo
 {
@@ -44,13 +60,16 @@ struct SwapchainInfo
     u32 current_frame; // Current image being processed.
     
     // TODO(Matt): Extract image, memory, and view to a struct.
-    VkImage color_image; // Color attachment.
-    VkDeviceMemory color_image_memory; // Color attachment memory.
-    VkImageView color_image_view; // Color image view.
-    VkImage depth_image; // Depth attachment.
-    VkDeviceMemory depth_image_memory; // Depth attachment memory.
-    VkImageView depth_image_view; // Depth image view.
-    VkFormat depth_format; // Format of the depth buffer (uses stencil).
+    FramebufferAttachment color_attachment;
+    FramebufferAttachment depth_attachment;
+    GBuffer gbuffer;
+    //VkImage color_image; // Color attachment.
+    //VkDeviceMemory color_image_memory; // Color attachment memory.
+    //VkImageView color_image_view; // Color image view.
+    //VkImage depth_image; // Depth attachment.
+    //VkDeviceMemory depth_image_memory; // Depth attachment memory.
+    //VkImageView depth_image_view; // Depth image view.
+    //VkFormat depth_format; // Format of the depth buffer (uses stencil).
     
     // Heap allocated (make sure they get freed):
     VkFramebuffer *framebuffers; // Swapchain framebuffers.
@@ -233,5 +252,6 @@ u32 GetSwapchainImageCount();
 VkRenderPass GetSwapchainRenderPass();
 void PresentNextFrame(u32 image_index);
 void WaitDeviceIdle();
+void CreateAttachment(VkFormat format, VkImageUsageFlagBits usage, FramebufferAttachment* attachment);
 
 #endif

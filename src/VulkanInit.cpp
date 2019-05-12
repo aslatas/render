@@ -144,7 +144,7 @@ internal void CreateSwapchain(u32 width, u32 height)
         // Setup attachments (color, depth/stencil, resolve).
         VkAttachmentDescription color_attachment = {};
         color_attachment.format = swapchain_info.format.format;
-        color_attachment.samples = vulkan_info.msaa_samples;
+        color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
         color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -158,11 +158,11 @@ internal void CreateSwapchain(u32 width, u32 height)
         
         // This application requires a format with stencil buffer.
         VkFormat formats[] = {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
-        swapchain_info.depth_format = FindSupportedFormat(formats, 2, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        swapchain_info.depth_attachment.format = FindSupportedFormat(formats, 2, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
         
         VkAttachmentDescription depth_attachment = {};
-        depth_attachment.format = swapchain_info.depth_format;
-        depth_attachment.samples = vulkan_info.msaa_samples;
+        depth_attachment.format = swapchain_info.depth_attachment.format;
+        depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -223,15 +223,16 @@ internal void CreateSwapchain(u32 width, u32 height)
     {
         // Color image.
         VkFormat format = swapchain_info.format.format;
+        CreateAttachment(swapchain_info.format.format, static_cast<VkImageUsageFlagBits>(VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT), &swapchain_info.color_attachment);
+        CreateAttachment(swapchain_info.depth_attachment.format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, &swapchain_info.depth_attachment);
+        //CreateImage(swapchain_info.extent.width, swapchain_info.extent.height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.color_image, &swapchain_info.color_image_memory, 1, VK_SAMPLE_COUNT_1_BIT);
+        //swapchain_info.color_image_view = CreateImageView(swapchain_info.color_image, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         
-        CreateImage(swapchain_info.extent.width, swapchain_info.extent.height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.color_image, &swapchain_info.color_image_memory, 1, vulkan_info.msaa_samples);
-        swapchain_info.color_image_view = CreateImageView(swapchain_info.color_image, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-        
-        TransitionImageLayout(swapchain_info.color_image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+        //TransitionImageLayout(swapchain_info.color_image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
         
         // Depth image.
-        CreateImage(swapchain_info.extent.width, swapchain_info.extent.height, swapchain_info.depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.depth_image, &swapchain_info.depth_image_memory, 1, vulkan_info.msaa_samples);
-        swapchain_info.depth_image_view = CreateImageView(swapchain_info.depth_image, swapchain_info.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+        //CreateImage(swapchain_info.extent.width, swapchain_info.extent.height, swapchain_info.depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.depth_image, &swapchain_info.depth_image_memory, 1, VK_SAMPLE_COUNT_1_BIT);
+        //swapchain_info.depth_image_view = CreateImageView(swapchain_info.depth_image, swapchain_info.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
     
     // -- Create the framebuffers. -- //
@@ -242,7 +243,7 @@ internal void CreateSwapchain(u32 width, u32 height)
         // Create framebuffers with color and depth/stencil attachments.
         for (u32 i = 0; i < swapchain_info.image_count; ++i) {
             VkImageView attachments[] = {
-                swapchain_info.color_image_view, swapchain_info.depth_image_view, swapchain_info.imageviews[i]};
+                swapchain_info.color_attachment.view, swapchain_info.depth_attachment.view, swapchain_info.imageviews[i]};
             VkFramebufferCreateInfo create_info = {};
             create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             create_info.renderPass = swapchain_info.renderpass;
@@ -272,12 +273,12 @@ internal void CreateSwapchain(u32 width, u32 height)
 void DestroySwapchain()
 {
     // Destroy attachments.
-    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.color_image_view, nullptr);
-    vkDestroyImage(vulkan_info.logical_device, swapchain_info.color_image, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, swapchain_info.color_image_memory, nullptr);
-    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.depth_image_view, nullptr);
-    vkDestroyImage(vulkan_info.logical_device, swapchain_info.depth_image, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, swapchain_info.depth_image_memory, nullptr);
+    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.color_attachment.view, nullptr);
+    vkDestroyImage(vulkan_info.logical_device, swapchain_info.color_attachment.image, nullptr);
+    vkFreeMemory(vulkan_info.logical_device, swapchain_info.color_attachment.memory, nullptr);
+    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.depth_attachment.view, nullptr);
+    vkDestroyImage(vulkan_info.logical_device, swapchain_info.depth_attachment.image, nullptr);
+    vkFreeMemory(vulkan_info.logical_device, swapchain_info.depth_attachment.memory, nullptr);
     
     // Destroy framebuffers.
     for (u32 i = 0; i < swapchain_info.image_count; ++i) {
@@ -1241,7 +1242,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     
     result.multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     result.multisample_info.sampleShadingEnable = VK_TRUE;
-    result.multisample_info.rasterizationSamples = vulkan_info.msaa_samples;
+    result.multisample_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     
     result.blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     result.blend.blendEnable = VK_FALSE;
@@ -1468,4 +1469,33 @@ VulkanInfo GetVulkanInfo()
 void WaitDeviceIdle()
 {
     vkDeviceWaitIdle(vulkan_info.logical_device);
+}
+
+void CreateAttachment(VkFormat format, VkImageUsageFlagBits usage, FramebufferAttachment* attachment)
+{
+    VkImageAspectFlags aspect = 0;
+    VkImageLayout layout;
+    attachment->format = format;
+    if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
+        aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+    if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+        aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+        layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    }
+    if (!aspect) ExitWithError("Image aspect mask must not be zero!");
+    
+    u32 width = swapchain_info.extent.width;
+    u32 height = swapchain_info.extent.height;
+    
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    u32 mip_count = 1;
+    VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+    VkImage* image = &attachment->image;
+    VkDeviceMemory* memory = &attachment->memory;
+    
+    CreateImage(width, height, format, tiling, usage, properties, image, memory, mip_count, sample_count);
+    attachment->view = CreateImageView(*image, format, aspect, mip_count);
 }
