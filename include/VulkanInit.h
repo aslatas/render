@@ -2,110 +2,69 @@
 #ifndef VULKANINIT_H
 #define VULKANINIT_H
 
-// Maximum number of concurrently processed frames excluding the
-// currently presented frame. 
 #define MAX_FRAMES_IN_FLIGHT 2
-
 // Number of samplers allowed by a material. Note that this 16 is the
 // guaranteed minimum, and the push constant block size assumes this as
 // well.
 #define MATERIAL_SAMPLER_COUNT 16
 
-// TODO(Matt): Pass these as preprocessor info to the shader compiler.
-// TODO(Matt): Is there a way to make these dynamic instead?
 // Maximum number of loaded textures.
 #define MAX_TEXTURES 8
 
-// Max number of scene objects (determines descriptor pool size).
 #define MAX_OBJECTS 64
-
-// Max LOD for texture samplers. 16 Levels allows for 
-// unreasonably large textures.
+// Max LOD for texture samplers. 16 Levels allows for unreasonably large
+// textures.
 #define MAX_SAMPLER_LOD 16
 
-// Number of renderpasses used by the renderer.
-#define RENDERPASS_COUNT 1
 #define APPLICATION_NAME "NYCEngine Prototype"
 #define ENGINE_NAME "NYCE"
-
 // Macro checks the result of a vulkan call, to verify success.
 // TODO(Matt): Maybe redefine to do nothing when not validating?
-#define VK_CHECK_RESULT(function)                                     \
-{                                                                     \
-	VkResult result = (function);                                     \
-	if (result != VK_SUCCESS)                                         \
-	{                                                                 \
-        std::cerr << "Error in " << __FILE__ << ", line " <<          \
-        __LINE__ << "! message: \"" << "VkResult was " <<             \
-        result << "\"." << std::endl;                                 \
-        exit(EXIT_FAILURE);                                           \
-	}                                                                 \
+#define VK_CHECK_RESULT(function)                                      \
+{                                                                      \
+	VkResult result = (function);                                      \
+	if (result != VK_SUCCESS)                                          \
+	{                                                                  \
+        std::cerr << "Error in " << __FILE__ << ", line " <<           \
+        __LINE__ << "! message: \"" << "VkResult was " <<              \
+        result << "\"." << std::endl;                                  \
+        exit(EXIT_FAILURE);                                            \
+	}                                                                  \
 }
-
-struct FramebufferAttachment
-{
-    VkImage image;
-    VkImageView view;
-    VkFormat format;
-    VkDeviceMemory memory;
-};
-
-struct GBuffer
-{
-    // Output attachments, to be resolved into the final image.
-    FramebufferAttachment color; // Final color output.
-    FramebufferAttachment depth; // Final depth/stencil output.
-    
-    // GBuffer attachments.
-    FramebufferAttachment albedo; // G-buffer albedo.
-    FramebufferAttachment normal; // G-buffer world normal.
-    FramebufferAttachment position; // G-buffer world position.
-    // TODO(Matt): FramebufferAttachment& operator[] (int index);
-};
 
 // Stores vulkan information that must be recreated with the swapchain.
 struct SwapchainInfo
 {
     VkSwapchainKHR swapchain; // Swapchain object.
-    VkSurfaceFormatKHR surface_format; // Format of  surface.
+    u32 image_count; // Swapchain image count (also uniform count).
+    VkSurfaceFormatKHR format; // Swapchain surface format.
     VkPresentModeKHR present_mode; // Swapchain present mode.
-    VkExtent2D extent; // Surface size, usually window client area.
-    u32 image_count; // Number of swapchain images.
-    
-    VkRenderPass renderpasses[RENDERPASS_COUNT]; // Render passes.
-    
-    u32 frame_index; // Index of the image being processed.
-    //u32 image_count; // Swapchain image count (also uniform count).
-    //VkSurfaceFormatKHR format; // Swapchain surface format.
-    //VkPresentModeKHR present_mode; // Swapchain present mode.
-    //VkExtent2D extent; // Swapchain extent.
+    VkExtent2D extent; // Swapchain extent.
+    VkRenderPass renderpass; // TODO(Matt): Multiple render passes.
+    u32 current_frame; // Current image being processed.
     
     // TODO(Matt): Extract image, memory, and view to a struct.
-    //VkImage color_image; // Color attachment.
-    //VkDeviceMemory color_image_memory; // Color attachment memory.
-    //VkImageView color_image_view; // Color image view.
-    //VkImage depth_image; // Depth attachment.
-    //VkDeviceMemory depth_image_memory; // Depth attachment memory.
-    //VkImageView depth_image_view; // Depth image view.
-    //VkFormat depth_format; // Format of the depth buffer (uses stencil).
+    VkImage color_image; // Color attachment.
+    VkDeviceMemory color_image_memory; // Color attachment memory.
+    VkImageView color_image_view; // Color image view.
+    VkImage depth_image; // Depth attachment.
+    VkDeviceMemory depth_image_memory; // Depth attachment memory.
+    VkImageView depth_image_view; // Depth image view.
+    VkFormat depth_format; // Format of the depth buffer (uses stencil).
     
-    FramebufferAttachment color_attachment; // Color attachment.
-    FramebufferAttachment depth_attachment; // Depth attachment.
-    GBuffer gbuffer; // GBuffer attachments.
+    // Heap allocated (make sure they get freed):
+    VkFramebuffer *framebuffers; // Swapchain framebuffers.
+    VkImage *images; // Swapchain images.
+    VkImageView *imageviews; // Swapchain image views.
+    VkCommandBuffer *primary_command_buffers; // Draw command buffers.
     
-    // The size of these arrays depend on the supported image count.
-    VkFramebuffer* framebuffers; // Swapchain framebuffers.
-    VkImage* images; // Images for presentation.
-    VkImageView* views; // Image views for presented images.
-    VkCommandBuffer* primary_command_buffers; // Draw command buffers.
-    VkDescriptorSet* descriptor_sets; // TODO(Matt): Does this support
-    // multiple descriptor layouts?
+    VkDescriptorSet *descriptor_sets;
 };
 
 struct DescriptorLayout
 {
-    VkSampler samplers[MATERIAL_SAMPLER_COUNT]; // Immutable samplers.
-    VkDescriptorSetLayout *descriptor_layouts; // Descriptor layouts.
+    VkSampler samplers[MATERIAL_SAMPLER_COUNT];
+    VkDescriptorSetLayout *descriptor_layouts;
 };
 
 // Dynamic state to be bound for a given pipeline.
@@ -248,7 +207,7 @@ void PresentFrame(u32 image_index);
 
 void UpdateDeviceMemory(void *data, VkDeviceSize size, VkDeviceMemory memory);
 MaterialLayout CreateMaterialLayout();
-void CreateDescriptorLayout(DescriptorLayout* layout);
+void CreateDescriptorLayout(DescriptorLayout *layout);
 MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *frag_file);
 Material CreateMaterial(MaterialCreateInfo *material_info, VkPipelineLayout layout, u32 type, VkRenderPass renderpass, u32 sub_pass);
 void DestroyDeviceBuffer(VkBuffer buffer);
@@ -275,10 +234,4 @@ VkRenderPass GetSwapchainRenderPass();
 void PresentNextFrame(u32 image_index);
 void WaitDeviceIdle();
 
-void CreateAttachment(VkFormat format, VkImageUsageFlags usage, FramebufferAttachment* attachment);
-void CreateGBuffer();
-void CreateCompositingLayout(DescriptorLayout* layout);
-void CreateCompositingSets(DescriptorLayout* layout, VkDescriptorSet** sets);
-MaterialLayout CreateMaterialCompositingLayout();
-void CommandNextSubpass(u32 image_index);
 #endif

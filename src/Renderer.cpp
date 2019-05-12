@@ -5,12 +5,9 @@ BitmapFont font = {};
 Texture* textures = nullptr;
 
 DescriptorLayout descriptor_layout_new = {};
-VkDescriptorSet* descriptor_sets_new = nullptr;
-
-DescriptorLayout compositing_layout = {};
-VkDescriptorSet* compositing_sets = nullptr;
 VkBuffer* uniform_buffers_new = nullptr;
 VkDeviceMemory* uniform_buffers_memory_new = nullptr;
+VkDescriptorSet* descriptor_sets_new = nullptr;
 UniformBuffer uniforms = {};
 
 SceneManager* scene_manager;
@@ -117,10 +114,6 @@ void Renderer::RecordCommands(u32 image_index)
             CommandDrawIndexed(image_index, model->index_count, 1);
         }
     }
-    
-    CommandNextSubpass(image_index);
-    CommandBindMaterial(&scene_manager->GetMaterialLayout(1)->materials[0], image_index);
-    
     CommandEndRenderPass(image_index);
 }
 
@@ -281,11 +274,9 @@ void Renderer::AddMaterial(MaterialCreateInfo *material_info, u32 material_type,
 void Renderer::CreateMaterials()
 {
     CreateDescriptorLayout(&descriptor_layout_new);
-    CreateCompositingLayout(&compositing_layout);
     MaterialCreateInfo material_info;
     
     u32 layout_idx = scene_manager->AddMaterialType(&CreateMaterialLayout());
-    u32 composite_idx = scene_manager->AddMaterialType(&CreateMaterialCompositingLayout());
     // arrput(material_types, CreateMaterialLayout());
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/engine_default_vert.spv", "resources/shaders/engine_default_frag.spv");
@@ -388,10 +379,6 @@ void Renderer::CreateMaterials()
     
     material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
     AddMaterial(&material_info, layout_idx, GetSwapchainRenderPass(), 0);
-    
-    material_info = CreateDefaultMaterialInfo("resources/shaders/fill_vcolor_vert.spv", "resources/shaders/fill_vcolor_frag.spv");
-    material_info.blend_info.attachmentCount = 1;
-    AddMaterial(&material_info, composite_idx, GetSwapchainRenderPass(), 1);
 }
 
 // offset is the offset into buffer memory the VkBuffer will be written to
@@ -419,7 +406,6 @@ internal void InitializeSceneResources()
     //font = LoadBitmapFont(&vulkan_info, "resources/fonts/Hind-Regular.ttf", 0, 4);
     //arrput(textures, font.texture);
     CreateDescriptorSets(uniform_buffers_new);
-    CreateCompositingSets(&compositing_layout, &compositing_sets);
 }
 void Renderer::InitializeScene()
 {

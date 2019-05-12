@@ -55,14 +55,14 @@ internal void CreateSwapchain(u32 width, u32 height)
         vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan_info.physical_device, vulkan_info.surface, &available_count, available);
         // NOTE(Matt): Undefined indicates that any format is fine.
         if (available_count == 1 && available[0].format == VK_FORMAT_UNDEFINED) {
-            swapchain_info.surface_format = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+            swapchain_info.format = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
             free(available);
         } else {
             bool desired_is_available = false;
             // If our desired format is available, use that.
             for (u32 i = 0; i < available_count; ++i) {
                 if (available[i].format == VK_FORMAT_B8G8R8A8_UNORM && available[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-                    swapchain_info.surface_format = available[i];
+                    swapchain_info.format = available[i];
                     desired_is_available = true;
                     free(available);
                     break;
@@ -70,7 +70,7 @@ internal void CreateSwapchain(u32 width, u32 height)
             }
             // Otherwise, use the first format available.
             if (!desired_is_available) {
-                swapchain_info.surface_format = available[0];
+                swapchain_info.format = available[0];
                 free(available);
             }
         }
@@ -109,8 +109,8 @@ internal void CreateSwapchain(u32 width, u32 height)
     create_info.surface = vulkan_info.surface;
     
     create_info.minImageCount = swapchain_info.image_count;
-    create_info.imageFormat = swapchain_info.surface_format.format;
-    create_info.imageColorSpace = swapchain_info.surface_format.colorSpace;
+    create_info.imageFormat = swapchain_info.format.format;
+    create_info.imageColorSpace = swapchain_info.format.colorSpace;
     create_info.imageExtent = swapchain_info.extent;
     create_info.imageArrayLayers = 1;
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -133,171 +133,105 @@ internal void CreateSwapchain(u32 width, u32 height)
     vkGetSwapchainImagesKHR(vulkan_info.logical_device, swapchain_info.swapchain, &swapchain_info.image_count, nullptr);
     swapchain_info.images = (VkImage *)malloc(sizeof(VkImage) * swapchain_info.image_count);
     vkGetSwapchainImagesKHR(vulkan_info.logical_device, swapchain_info.swapchain, &swapchain_info.image_count, swapchain_info.images);
-    swapchain_info.views = (VkImageView *)malloc(sizeof(VkImageView) * swapchain_info.image_count);
+    swapchain_info.imageviews = (VkImageView *)malloc(sizeof(VkImageView) * swapchain_info.image_count);
     
     for (u32 i = 0; i < swapchain_info.image_count; ++i) {
-        swapchain_info.views[i] = CreateImageView(swapchain_info.images[i], swapchain_info.surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        swapchain_info.imageviews[i] = CreateImageView(swapchain_info.images[i], swapchain_info.format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
     
     // -- Create the renderpass. -- //
     {
+        // Setup attachments (color, depth/stencil, resolve).
+        VkAttachmentDescription color_attachment = {};
+        color_attachment.format = swapchain_info.format.format;
+        color_attachment.samples = vulkan_info.msaa_samples;
+        color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        color_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         
-        // Ensure a depth/stencil format is available which contains a
-        // stencil buffer.
+        VkAttachmentReference color_attach_ref = {};
+        color_attach_ref.attachment = 0;
+        color_attach_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        
+        // This application requires a format with stencil buffer.
         VkFormat formats[] = {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
-        swapchain_info.depth_attachment.format = FindSupportedFormat(formats, 2, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-        swapchain_info.color_attachment.format = swapchain_info.surface_format.format;
-        CreateGBuffer();
+        swapchain_info.depth_format = FindSupportedFormat(formats, 2, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
         
-        // Setup framebuffer attachments.
-        VkAttachmentDescription attachments[5];
+        VkAttachmentDescription depth_attachment = {};
+        depth_attachment.format = swapchain_info.depth_format;
+        depth_attachment.samples = vulkan_info.msaa_samples;
+        depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         
-        // Color attachment (displayed frame).
-        attachments[0] = {};
-        attachments[0].format = swapchain_info.color_attachment.format;
-        attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        VkAttachmentReference depth_attach_ref = {};
+        depth_attach_ref.attachment = 1;
+        depth_attach_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         
-        // Albedo attachment.
-        attachments[1] = {};
-        attachments[1].format = swapchain_info.gbuffer.albedo.format;
-        attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[1].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        VkAttachmentDescription resolve_attachment = {};
+        resolve_attachment.format = swapchain_info.format.format;
+        resolve_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        resolve_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        resolve_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        resolve_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        resolve_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        resolve_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        resolve_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         
-        // World location attachment.
-        attachments[2] = {};
-        attachments[2].format = swapchain_info.gbuffer.position.format;
-        attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        VkAttachmentReference resolve_attach_ref = {};
+        resolve_attach_ref.attachment = 2;
+        resolve_attach_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         
-        // World normal attachment.
-        attachments[3] = {};
-        attachments[3].format = swapchain_info.gbuffer.normal.format;
-        attachments[3].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[3].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachments[3].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[3].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        // Setup subpass (just one at the moment).
+        VkSubpassDescription subpass = {};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &color_attach_ref;
+        subpass.pDepthStencilAttachment = &depth_attach_ref;
+        subpass.pResolveAttachments = &resolve_attach_ref;
         
-        // Depth/stencil attachment.
-        attachments[4] = {};
-        attachments[4].format = swapchain_info.depth_attachment.format;
-        attachments[4].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[4].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[4].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachments[4].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[4].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[4].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[4].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        VkSubpassDependency dependency = {};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         
-        VkAttachmentReference color_refs[4];
-        color_refs[0] = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-        color_refs[1] = {1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-        color_refs[2] = {2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-        color_refs[3] = {3, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-        VkAttachmentReference depth_ref = {4, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL}; 
+        VkAttachmentDescription attachments[] = {color_attachment, depth_attachment, resolve_attachment};
         
-        VkAttachmentReference comp_ref = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-        
-        VkAttachmentReference input_refs[3];
-        input_refs[0] = {1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        input_refs[1] = {2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        input_refs[2] = {3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        
-        // TODO(Matt): Third subpass for forward transparency.
-        VkSubpassDescription subpass_descriptions[2];
-        
-        subpass_descriptions[0] = {};
-        subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass_descriptions[0].colorAttachmentCount = 4;
-        subpass_descriptions[0].pColorAttachments = color_refs;
-        subpass_descriptions[0].pDepthStencilAttachment = &depth_ref;
-        
-        subpass_descriptions[1] = {};
-        subpass_descriptions[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass_descriptions[1].colorAttachmentCount = 1;
-        subpass_descriptions[1].pColorAttachments = &comp_ref;
-        subpass_descriptions[1].pDepthStencilAttachment = &depth_ref;
-        subpass_descriptions[1].inputAttachmentCount = 3;
-        subpass_descriptions[1].pInputAttachments = input_refs;
-        
-        VkSubpassDependency dependencies[3];
-        
-        dependencies[0] = {};
-        dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[0].dstSubpass = 0;
-		dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-		dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-		dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-        
-        // Transitions attachments from color input to shader read.
-		dependencies[1] = {};
-        dependencies[1].srcSubpass = 0;
-		dependencies[1].dstSubpass = 1;
-		dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-		dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-        
-        // TODO(Matt): The translucency sub-pass will need a dependency here.
-        dependencies[2] = {};
-		dependencies[2].srcSubpass = 0;
-		dependencies[2].dstSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[2].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[2].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-		dependencies[2].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies[2].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-		dependencies[2].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-        
-		// Create the renderpass.
+        // Create the renderpass.
         VkRenderPassCreateInfo create_info = {};
-		create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		create_info.attachmentCount = 5;
-		create_info.pAttachments = attachments;
-		create_info.subpassCount = 2;
-		create_info.pSubpasses = subpass_descriptions;
-		create_info.dependencyCount = 3;
-        create_info.pDependencies = dependencies;
+        create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        create_info.attachmentCount = 3;
+        create_info.pAttachments = attachments;
+        create_info.subpassCount = 1;
+        create_info.pSubpasses = &subpass;
+        create_info.dependencyCount = 1;
+        create_info.pDependencies = &dependency;
         
-        VK_CHECK_RESULT(vkCreateRenderPass(vulkan_info.logical_device, &create_info, nullptr, &swapchain_info.renderpasses[0]));
+        VK_CHECK_RESULT(vkCreateRenderPass(vulkan_info.logical_device, &create_info, nullptr, &swapchain_info.renderpass));
     }
     
     // -- Create the image attachments. -- //
     {
-        
         // Color image.
-        VkFormat format = swapchain_info.surface_format.format;
-        VkExtent2D extent = swapchain_info.extent;
-        CreateImage(extent.width, extent.height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.color_attachment.image, &swapchain_info.color_attachment.memory, 1, VK_SAMPLE_COUNT_1_BIT);
+        VkFormat format = swapchain_info.format.format;
         
-        swapchain_info.color_attachment.view = CreateImageView(swapchain_info.color_attachment.image, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        CreateImage(swapchain_info.extent.width, swapchain_info.extent.height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.color_image, &swapchain_info.color_image_memory, 1, vulkan_info.msaa_samples);
+        swapchain_info.color_image_view = CreateImageView(swapchain_info.color_image, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         
-        //TransitionImageLayout(swapchain_info.color_attachment.image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+        TransitionImageLayout(swapchain_info.color_image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
         
         // Depth image.
-        CreateImage(extent.width, extent.height, swapchain_info.depth_attachment.format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.depth_attachment.image, &swapchain_info.depth_attachment.memory, 1, VK_SAMPLE_COUNT_1_BIT);
-        
-        swapchain_info.depth_attachment.view = CreateImageView(swapchain_info.depth_attachment.image, swapchain_info.depth_attachment.format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+        CreateImage(swapchain_info.extent.width, swapchain_info.extent.height, swapchain_info.depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &swapchain_info.depth_image, &swapchain_info.depth_image_memory, 1, vulkan_info.msaa_samples);
+        swapchain_info.depth_image_view = CreateImageView(swapchain_info.depth_image, swapchain_info.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
     
     // -- Create the framebuffers. -- //
@@ -308,16 +242,11 @@ internal void CreateSwapchain(u32 width, u32 height)
         // Create framebuffers with color and depth/stencil attachments.
         for (u32 i = 0; i < swapchain_info.image_count; ++i) {
             VkImageView attachments[] = {
-                swapchain_info.views[i],
-                swapchain_info.gbuffer.albedo.view,
-                swapchain_info.gbuffer.position.view,
-                swapchain_info.gbuffer.normal.view,
-                swapchain_info.depth_attachment.view
-            }; 
+                swapchain_info.color_image_view, swapchain_info.depth_image_view, swapchain_info.imageviews[i]};
             VkFramebufferCreateInfo create_info = {};
             create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            create_info.renderPass = swapchain_info.renderpasses[0];
-            create_info.attachmentCount = sizeof(attachments) / sizeof(attachments[0]);
+            create_info.renderPass = swapchain_info.renderpass;
+            create_info.attachmentCount = 3;
             create_info.pAttachments = attachments;
             create_info.width = swapchain_info.extent.width;
             create_info.height = swapchain_info.extent.height;
@@ -343,12 +272,12 @@ internal void CreateSwapchain(u32 width, u32 height)
 void DestroySwapchain()
 {
     // Destroy attachments.
-    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.color_attachment.view, nullptr);
-    vkDestroyImage(vulkan_info.logical_device, swapchain_info.color_attachment.image, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, swapchain_info.color_attachment.memory, nullptr);
-    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.depth_attachment.view, nullptr);
-    vkDestroyImage(vulkan_info.logical_device, swapchain_info.depth_attachment.image, nullptr);
-    vkFreeMemory(vulkan_info.logical_device, swapchain_info.depth_attachment.memory, nullptr);
+    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.color_image_view, nullptr);
+    vkDestroyImage(vulkan_info.logical_device, swapchain_info.color_image, nullptr);
+    vkFreeMemory(vulkan_info.logical_device, swapchain_info.color_image_memory, nullptr);
+    vkDestroyImageView(vulkan_info.logical_device, swapchain_info.depth_image_view, nullptr);
+    vkDestroyImage(vulkan_info.logical_device, swapchain_info.depth_image, nullptr);
+    vkFreeMemory(vulkan_info.logical_device, swapchain_info.depth_image_memory, nullptr);
     
     // Destroy framebuffers.
     for (u32 i = 0; i < swapchain_info.image_count; ++i) {
@@ -361,13 +290,13 @@ void DestroySwapchain()
     free(swapchain_info.primary_command_buffers);
     
     // Destroy render pass.
-    vkDestroyRenderPass(vulkan_info.logical_device, swapchain_info.renderpasses[0], nullptr);
+    vkDestroyRenderPass(vulkan_info.logical_device, swapchain_info.renderpass, nullptr);
     
     // Destroy swapchain images.
     for (u32 i = 0; i < swapchain_info.image_count; ++i) {
-        vkDestroyImageView(vulkan_info.logical_device, swapchain_info.views[i], nullptr);
+        vkDestroyImageView(vulkan_info.logical_device, swapchain_info.imageviews[i], nullptr);
     }
-    free(swapchain_info.views);
+    free(swapchain_info.imageviews);
     
     // Destroy swapchain.
     vkDestroySwapchainKHR(vulkan_info.logical_device, swapchain_info.swapchain, nullptr);
@@ -651,18 +580,14 @@ void InitializeVulkan()
     VkDescriptorPoolSize texture_size = {};
     texture_size.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     texture_size.descriptorCount = swapchain_info.image_count * MAX_OBJECTS * MAX_TEXTURES;
+    VkDescriptorPoolSize pool_sizes[] = {uniform_size, sampler_size, texture_size};
     
-    VkDescriptorPoolSize gbuffer_size  = {};
-    gbuffer_size.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    gbuffer_size.descriptorCount = swapchain_info.image_count * 4;
-    
-    // Create descriptor pools.
-    VkDescriptorPoolSize pool_sizes[] = {uniform_size, sampler_size, texture_size, gbuffer_size};
+    // Create descriptor pool.
     VkDescriptorPoolCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    create_info.poolSizeCount = 4;
+    create_info.poolSizeCount = 3;
     create_info.pPoolSizes = pool_sizes;
-    create_info.maxSets = 2 * swapchain_info.image_count;
+    create_info.maxSets = swapchain_info.image_count;
     
     VK_CHECK_RESULT(vkCreateDescriptorPool(vulkan_info.logical_device, &create_info, nullptr, &vulkan_info.descriptor_pool));
 }
@@ -979,62 +904,6 @@ VkShaderModule CreateShaderModule(char *code, u32 length)
     return module;
 }
 
-void CreateCompositingSets(DescriptorLayout* layout, VkDescriptorSet** sets)
-{
-    arrsetlen(*sets, swapchain_info.image_count);
-    VkDescriptorSetAllocateInfo allocate_info = {};
-    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = vulkan_info.descriptor_pool;
-    allocate_info.descriptorSetCount = swapchain_info.image_count;
-    allocate_info.pSetLayouts = layout->descriptor_layouts;
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, *sets));
-    
-    
-    for (u32 i = 0; i < swapchain_info.image_count; ++i) {
-        
-        
-        // Image descriptors for the offscreen color attachments
-        VkDescriptorImageInfo albedo_descriptor_info = {};
-        albedo_descriptor_info.imageView = swapchain_info.gbuffer.albedo.view;
-        albedo_descriptor_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        
-        VkDescriptorImageInfo position_descriptor_info = {};
-        position_descriptor_info.imageView = swapchain_info.gbuffer.position.view;
-        position_descriptor_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        
-        VkDescriptorImageInfo normal_descriptor_info = {};
-        normal_descriptor_info.imageView = swapchain_info.gbuffer.normal.view;
-        normal_descriptor_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        
-        VkWriteDescriptorSet descriptor_writes[3];
-        descriptor_writes[0] = {};
-        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[0].dstSet = (*sets)[i];
-        descriptor_writes[0].dstBinding = 0;
-        descriptor_writes[0].descriptorCount = 1;
-        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-        descriptor_writes[0].pImageInfo = &albedo_descriptor_info;
-        
-        descriptor_writes[1] = {};
-        descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[1].dstSet = (*sets)[i];
-        descriptor_writes[1].dstBinding = 1;
-        descriptor_writes[1].descriptorCount = 1;
-        descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-        descriptor_writes[1].pImageInfo = &position_descriptor_info;
-        
-        descriptor_writes[2] = {};
-        descriptor_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[2].dstSet = (*sets)[i];
-        descriptor_writes[2].dstBinding = 2;
-        descriptor_writes[2].descriptorCount = 1;
-        descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-        descriptor_writes[2].pImageInfo = &normal_descriptor_info;
-        
-        vkUpdateDescriptorSets(vulkan_info.logical_device, 3, descriptor_writes, 0, nullptr);
-    }
-}
-
 void CreateDescriptorSets(VkBuffer *buffers)
 {
     arrsetlen(swapchain_info.descriptor_sets, swapchain_info.image_count);
@@ -1044,16 +913,6 @@ void CreateDescriptorSets(VkBuffer *buffers)
     allocate_info.descriptorSetCount = swapchain_info.image_count;
     allocate_info.pSetLayouts = descriptor_layout_new.descriptor_layouts;
     VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, swapchain_info.descriptor_sets));
-    
-    //arrsetlen(swapchain_info.comp_descriptor_sets, swapchain_info.image_count);
-    //VkDescriptorSetAllocateInfo allocate_info = {};
-    //allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    //allocate_info.descriptorPool = vulkan_info.descriptor_pool;
-    //allocate_info.descriptorSetCount = swapchain_info.image_count;
-    
-    // TODO(Matt): Hardcode. This should get passed as an arg.
-    //allocate_info.pSetLayouts = descriptor_layout_comp.descriptor_layouts;
-    //VK_CHECK_RESULT(vkAllocateDescriptorSets(vulkan_info.logical_device, &allocate_info, swapchain_info.comp_descriptor_sets));
     
     for (u32 i = 0; i < swapchain_info.image_count; ++i) {
         VkDescriptorBufferInfo descriptor_info = {};
@@ -1077,18 +936,18 @@ void CreateDescriptorSets(VkBuffer *buffers)
 u32 WaitForNextImage()
 {
     // Wait for an image to become available.
-    vkWaitForFences(vulkan_info.logical_device, 1, &vulkan_info.in_flight_fences[swapchain_info.frame_index], VK_TRUE, U64_MAX);
+    vkWaitForFences(vulkan_info.logical_device, 1, &vulkan_info.in_flight_fences[swapchain_info.current_frame], VK_TRUE, U64_MAX);
     
     // Get the next available image.
     u32 image_index;
-    VkResult result = vkAcquireNextImageKHR(vulkan_info.logical_device, swapchain_info.swapchain, U64_MAX, vulkan_info.image_available_semaphores[swapchain_info.frame_index], VK_NULL_HANDLE, &image_index);
+    VkResult result = vkAcquireNextImageKHR(vulkan_info.logical_device, swapchain_info.swapchain, U64_MAX, vulkan_info.image_available_semaphores[swapchain_info.current_frame], VK_NULL_HANDLE, &image_index);
     
     // If out of date, wait for idle to rebuild swapchain. Causes a hitch.
     while (result == VK_ERROR_OUT_OF_DATE_KHR) {
         // TODO(Matt): I've never actually managed to force this case to
         // execute. Maybe by unplugging a monitor or something?
         RecreateSwapchain();
-        result = vkAcquireNextImageKHR(vulkan_info.logical_device, swapchain_info.swapchain, U64_MAX, vulkan_info.image_available_semaphores[swapchain_info.frame_index], VK_NULL_HANDLE, &image_index);
+        result = vkAcquireNextImageKHR(vulkan_info.logical_device, swapchain_info.swapchain, U64_MAX, vulkan_info.image_available_semaphores[swapchain_info.current_frame], VK_NULL_HANDLE, &image_index);
     }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         ExitWithError("Failed to acquire swapchain image!");
@@ -1101,7 +960,7 @@ void SubmitRenderCommands(u32 image_index)
 {
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    VkSemaphore wait_semaphores[] = {vulkan_info.image_available_semaphores[swapchain_info.frame_index]};
+    VkSemaphore wait_semaphores[] = {vulkan_info.image_available_semaphores[swapchain_info.current_frame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submit_info.waitSemaphoreCount = 1;
     submit_info.pWaitSemaphores = wait_semaphores;
@@ -1109,9 +968,9 @@ void SubmitRenderCommands(u32 image_index)
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &swapchain_info.primary_command_buffers[image_index];
     submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &vulkan_info.render_finished_semaphores[swapchain_info.frame_index];
-    vkResetFences(vulkan_info.logical_device, 1, &vulkan_info.in_flight_fences[swapchain_info.frame_index]);
-    VK_CHECK_RESULT(vkQueueSubmit(vulkan_info.graphics_queue, 1, &submit_info, vulkan_info.in_flight_fences[swapchain_info.frame_index]));
+    submit_info.pSignalSemaphores = &vulkan_info.render_finished_semaphores[swapchain_info.current_frame];
+    vkResetFences(vulkan_info.logical_device, 1, &vulkan_info.in_flight_fences[swapchain_info.current_frame]);
+    VK_CHECK_RESULT(vkQueueSubmit(vulkan_info.graphics_queue, 1, &submit_info, vulkan_info.in_flight_fences[swapchain_info.current_frame]));
 }
 
 void PresentNextFrame(u32 image_index)
@@ -1120,7 +979,7 @@ void PresentNextFrame(u32 image_index)
     VkPresentInfoKHR present_info = {};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &vulkan_info.render_finished_semaphores[swapchain_info.frame_index];
+    present_info.pWaitSemaphores = &vulkan_info.render_finished_semaphores[swapchain_info.current_frame];
     VkSwapchainKHR swapchains[] = {swapchain_info.swapchain};
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
@@ -1142,7 +1001,7 @@ void PresentNextFrame(u32 image_index)
     }
     
     // Increment frame counter.
-    swapchain_info.frame_index = (swapchain_info.frame_index + 1) % MAX_FRAMES_IN_FLIGHT;
+    swapchain_info.current_frame = (swapchain_info.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void UpdateDeviceMemory(void *data, VkDeviceSize size, VkDeviceMemory device_memory)
@@ -1153,45 +1012,7 @@ void UpdateDeviceMemory(void *data, VkDeviceSize size, VkDeviceMemory device_mem
     vkUnmapMemory(vulkan_info.logical_device, device_memory);
 }
 
-void CreateCompositingLayout(DescriptorLayout* layout)
-{
-    // Binding 0 is albedo texture.
-    VkDescriptorSetLayoutBinding albedo_binding = {};
-    albedo_binding.binding = 0;
-    albedo_binding.descriptorCount = 1;
-    albedo_binding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    albedo_binding.pImmutableSamplers = nullptr;
-    albedo_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    // Binding 1 is world position.
-    VkDescriptorSetLayoutBinding position_binding = {};
-    position_binding.binding = 1;
-    position_binding.descriptorCount = 1;
-    position_binding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    position_binding.pImmutableSamplers = nullptr;
-    position_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    // Binding 2 is world normal.
-    VkDescriptorSetLayoutBinding normal_binding = {};
-    normal_binding.binding = 2;
-    normal_binding.descriptorCount = 1;
-    normal_binding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    normal_binding.pImmutableSamplers = nullptr;
-    normal_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    VkDescriptorSetLayoutBinding bindings[] = {albedo_binding, position_binding, normal_binding};
-    VkDescriptorSetLayoutCreateInfo descriptor_info = {};
-    descriptor_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptor_info.bindingCount = 3;
-    descriptor_info.pBindings = bindings;
-    
-    // Create descriptor set layouts.
-    VkDescriptorSetLayout descriptor_layout;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vulkan_info.logical_device, &descriptor_info, nullptr, &descriptor_layout));
-    for (u32 i = 0; i < swapchain_info.image_count; ++i) {
-        arrput(layout->descriptor_layouts, descriptor_layout);
-    }
-}
+
 void CreateDescriptorLayout(DescriptorLayout *layout)
 {
     // Create immutable samplers.
@@ -1256,25 +1077,6 @@ void CreateDescriptorLayout(DescriptorLayout *layout)
     }
 }
 
-MaterialLayout CreateMaterialCompositingLayout()
-{
-    MaterialLayout layout = {};
-    
-    VkPushConstantRange push_block = {};
-    push_block.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    push_block.offset = 0;
-    push_block.size = sizeof(PushConstantBlock);
-    
-    VkPipelineLayoutCreateInfo pipeline_info = {};
-    pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_info.setLayoutCount = 1;
-    pipeline_info.pSetLayouts = compositing_layout.descriptor_layouts;
-    pipeline_info.pushConstantRangeCount = 1;
-    pipeline_info.pPushConstantRanges = &push_block;
-    VK_CHECK_RESULT(vkCreatePipelineLayout(vulkan_info.logical_device, &pipeline_info, nullptr, &layout.pipeline_layout));
-    
-    return layout;
-}
 MaterialLayout CreateMaterialLayout()
 {
     MaterialLayout layout = {};
@@ -1437,10 +1239,9 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.raster_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     result.raster_info.depthBiasEnable = VK_FALSE;
     
-    // TODO(Matt): Re-enable MSAA with deferred rendering.
     result.multisample_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    result.multisample_info.sampleShadingEnable = VK_FALSE;
-    result.multisample_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    result.multisample_info.sampleShadingEnable = VK_TRUE;
+    result.multisample_info.rasterizationSamples = vulkan_info.msaa_samples;
     
     result.blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     result.blend.blendEnable = VK_FALSE;
@@ -1448,7 +1249,7 @@ MaterialCreateInfo CreateDefaultMaterialInfo(const char *vert_file, const char *
     result.blend_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     result.blend_info.logicOpEnable = VK_FALSE;
     result.blend_info.logicOp = VK_LOGIC_OP_COPY;
-    result.blend_info.attachmentCount = 4;
+    result.blend_info.attachmentCount = 1;
     result.blend_info.blendConstants[0] = 0.0f;
     result.blend_info.blendConstants[1] = 0.0f;
     result.blend_info.blendConstants[2] = 0.0f;
@@ -1476,11 +1277,7 @@ Material CreateMaterial(MaterialCreateInfo *material_info, VkPipelineLayout layo
     material_info->input_info.pVertexAttributeDescriptions = material_info->attribute_descriptions;
     material_info->viewport_info.pViewports = &material_info->viewport;
     material_info->viewport_info.pScissors = &material_info->scissor;
-    // TODO(Matt): hardcode.
-    VkPipelineColorBlendAttachmentState blends[] = {
-        material_info->blend, material_info->blend, material_info->blend, material_info->blend
-    };
-    material_info->blend_info.pAttachments = blends;
+    material_info->blend_info.pAttachments = &material_info->blend;
     VkPipelineDynamicStateCreateInfo dynamic_info = {};
     dynamic_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamic_info.dynamicStateCount = material_info->dynamic_state_count;
@@ -1587,18 +1384,14 @@ void CommandBeginRenderPass(u32 image_index)
     // Begin the render pass.
     VkRenderPassBeginInfo pass_begin_info = {};
     pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    pass_begin_info.renderPass = swapchain_info.renderpasses[0];
+    pass_begin_info.renderPass = swapchain_info.renderpass;
     pass_begin_info.framebuffer = swapchain_info.framebuffers[image_index];
     pass_begin_info.renderArea.offset = {0, 0};
     pass_begin_info.renderArea.extent = swapchain_info.extent;
-    VkClearValue clear_colors[5];
-    clear_colors[0] = {{0.0f, 0.0f, 0.0f, 1.0f}};
-    clear_colors[1] = {{ 0.0f, 0.0f, 0.0f, 0.0f }};
-    clear_colors[2] = {{ 0.0f, 0.0f, 0.0f, 0.0f }};
-    clear_colors[3] = {{ 0.0f, 0.0f, 0.0f, 0.0f }};
-    clear_colors[4] = {{ 0.0f, 0.0f, 0.0f, 0.0f }};
-    clear_colors[4].depthStencil = { 1.0f, 0 };;
-    pass_begin_info.clearValueCount = 5;
+    VkClearValue clear_colors[2];
+    clear_colors[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+    clear_colors[1].depthStencil = {1.0f, 0};
+    pass_begin_info.clearValueCount = 2;
     pass_begin_info.pClearValues = clear_colors;
     vkCmdBeginRenderPass(swapchain_info.primary_command_buffers[image_index], &pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     
@@ -1645,10 +1438,6 @@ void CommandDrawIndexed(u32 image_index, u32 index_count, u32 instance_count)
     vkCmdDrawIndexed(swapchain_info.primary_command_buffers[image_index], index_count, instance_count, 0, 0, 0);
 }
 
-void CommandNextSubpass(u32 image_index)
-{
-    vkCmdNextSubpass(swapchain_info.primary_command_buffers[image_index], VK_SUBPASS_CONTENTS_INLINE);
-}
 void CommandEndRenderPass(u32 image_index)
 {
     vkCmdEndRenderPass(swapchain_info.primary_command_buffers[image_index]);
@@ -1668,7 +1457,7 @@ u32 GetSwapchainImageCount()
 
 VkRenderPass GetSwapchainRenderPass()
 {
-    return swapchain_info.renderpasses[0];
+    return swapchain_info.renderpass;
 }
 
 VulkanInfo GetVulkanInfo()
@@ -1679,35 +1468,4 @@ VulkanInfo GetVulkanInfo()
 void WaitDeviceIdle()
 {
     vkDeviceWaitIdle(vulkan_info.logical_device);
-}
-
-void CreateAttachment(VkFormat format, VkImageUsageFlags usage, FramebufferAttachment* attachment)
-{
-    VkImageAspectFlags aspect = 0;
-    VkImageLayout layout = {};
-    
-    attachment->format = format;
-    
-    if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-    {
-        aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        layout= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    }
-    if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-    {
-        aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-        layout= VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    }
-    if (!aspect) ExitWithError("Image aspect mask must not be zero!");
-    VkExtent2D extent = swapchain_info.extent;
-    CreateImage(extent.width, extent.height, format, VK_IMAGE_TILING_OPTIMAL, usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &attachment->image, &attachment->memory, 1, VK_SAMPLE_COUNT_1_BIT);
-    
-    attachment->view = CreateImageView(attachment->image, format, aspect, 1);
-}
-
-void CreateGBuffer()
-{
-    CreateAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &swapchain_info.gbuffer.albedo); 
-    CreateAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &swapchain_info.gbuffer.position);		
-    CreateAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, &swapchain_info.gbuffer.normal);		
 }
